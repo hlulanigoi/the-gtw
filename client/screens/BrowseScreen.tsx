@@ -6,6 +6,8 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
+  Platform,
+  RefreshControl,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -13,9 +15,11 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import Animated, {
   FadeIn,
   FadeOut,
+  FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -40,6 +44,21 @@ type QuickFilter = {
   icon: keyof typeof Feather.glyphMap;
 };
 
+type StatCard = {
+  id: string;
+  label: string;
+  icon: keyof typeof Feather.glyphMap;
+  color: string;
+  getValue: (parcels: any[]) => number;
+};
+
+type QuickAction = {
+  id: string;
+  label: string;
+  icon: keyof typeof Feather.glyphMap;
+  color: string;
+};
+
 const quickFilters: QuickFilter[] = [
   { id: "today", label: "Today", icon: "clock" },
   { id: "thisWeek", label: "This Week", icon: "calendar" },
@@ -48,7 +67,65 @@ const quickFilters: QuickFilter[] = [
   { id: "large", label: "Large", icon: "truck" },
 ];
 
+const statCards: StatCard[] = [
+  {
+    id: "inTransit",
+    label: "In Transit",
+    icon: "truck",
+    color: Colors.primary,
+    getValue: (parcels) => parcels.filter((p) => p.status === "In Transit").length,
+  },
+  {
+    id: "pending",
+    label: "Pending",
+    icon: "clock",
+    color: Colors.warning,
+    getValue: (parcels) => parcels.filter((p) => p.status === "Pending").length,
+  },
+  {
+    id: "delivered",
+    label: "Delivered",
+    icon: "check-circle",
+    color: Colors.success,
+    getValue: (parcels) => parcels.filter((p) => p.status === "Delivered").length,
+  },
+  {
+    id: "total",
+    label: "Total",
+    icon: "package",
+    color: "#8B5CF6",
+    getValue: (parcels) => parcels.length,
+  },
+];
+
+const quickActions: QuickAction[] = [
+  { id: "scan", label: "Scan", icon: "camera", color: Colors.primary },
+  { id: "track", label: "Track", icon: "search", color: Colors.secondary },
+  { id: "send", label: "Send", icon: "send", color: Colors.success },
+  { id: "history", label: "History", icon: "clock", color: "#8B5CF6" },
+];
+
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function getTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${diffDays}d ago`;
+}
 
 export default function BrowseScreen() {
   const insets = useSafeAreaInsets();
@@ -56,11 +133,12 @@ export default function BrowseScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const { theme, isDark } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const { parcels } = useParcels();
+  const { parcels, isLoading, refetch } = useParcels();
 
   const [fromLocation, setFromLocation] = useState("");
   const [toLocation, setToLocation] = useState("");
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const swapScale = useSharedValue(1);
 
@@ -81,16 +159,18 @@ export default function BrowseScreen() {
 
       if (activeFilters.includes("today")) {
         const today = new Date().toDateString();
-        const pickupDate = parcel.pickupDate instanceof Date 
-          ? parcel.pickupDate 
-          : new Date(parcel.pickupDate);
+        const pickupDate =
+          parcel.pickupDate instanceof Date
+            ? parcel.pickupDate
+            : new Date(parcel.pickupDate);
         dateMatch = pickupDate.toDateString() === today;
       } else if (activeFilters.includes("thisWeek")) {
         const now = new Date();
         const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-        const pickupDate = parcel.pickupDate instanceof Date 
-          ? parcel.pickupDate 
-          : new Date(parcel.pickupDate);
+        const pickupDate =
+          parcel.pickupDate instanceof Date
+            ? parcel.pickupDate
+            : new Date(parcel.pickupDate);
         dateMatch = pickupDate >= now && pickupDate <= weekFromNow;
       }
 
@@ -106,6 +186,29 @@ export default function BrowseScreen() {
     });
   }, [parcels, fromLocation, toLocation, activeFilters]);
 
+  const recentActivity = useMemo(() => {
+    return parcels
+      .slice(0, 5)
+      .map((parcel) => ({
+        id: parcel.id,
+        title: `${parcel.origin} to ${parcel.destination}`,
+        status: parcel.status,
+        time: parcel.createdAt ? new Date(parcel.createdAt) : new Date(),
+        icon:
+          parcel.status === "Delivered"
+            ? "check-circle"
+            : parcel.status === "In Transit"
+            ? "truck"
+            : "clock",
+        color:
+          parcel.status === "Delivered"
+            ? Colors.success
+            : parcel.status === "In Transit"
+            ? Colors.primary
+            : Colors.warning,
+      }));
+  }, [parcels]);
+
   const handleParcelPress = (parcelId: string) => {
     navigation.navigate("ParcelDetail", { parcelId });
   };
@@ -118,6 +221,32 @@ export default function BrowseScreen() {
     navigation.navigate("RouteFilter");
   };
 
+  const handleQuickAction = useCallback(
+    (actionId: string) => {
+      if (Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      switch (actionId) {
+        case "scan":
+          break;
+        case "track":
+          break;
+        case "send":
+          navigation.navigate("CreateParcel");
+          break;
+        case "history":
+          break;
+      }
+    },
+    [navigation]
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setIsRefreshing(false);
+  }, [refetch]);
+
   const handleSwapLocations = useCallback(() => {
     swapScale.value = withSpring(0.8, { duration: 150 }, () => {
       swapScale.value = withSpring(1, { duration: 150 });
@@ -128,6 +257,9 @@ export default function BrowseScreen() {
   }, [fromLocation, toLocation, swapScale]);
 
   const toggleQuickFilter = useCallback((filterId: string) => {
+    if (Platform.OS !== "web") {
+      Haptics.selectionAsync();
+    }
     setActiveFilters((prev) => {
       const dateFilters = ["today", "thisWeek"];
       const sizeFilters = ["small", "medium", "large"];
@@ -159,12 +291,207 @@ export default function BrowseScreen() {
   }));
 
   const totalActiveFilters =
-    activeFilters.length +
-    (fromLocation ? 1 : 0) +
-    (toLocation ? 1 : 0);
+    activeFilters.length + (fromLocation ? 1 : 0) + (toLocation ? 1 : 0);
+
+  const renderWelcomeBanner = () => (
+    <Animated.View
+      entering={FadeInDown.duration(400).delay(100)}
+      style={styles.welcomeContainer}
+    >
+      <View>
+        <ThemedText type="h2">{getGreeting()}</ThemedText>
+        <ThemedText type="small" style={{ color: theme.textSecondary }}>
+          {parcels.length > 0
+            ? `You have ${parcels.filter((p) => p.status !== "Delivered").length} active parcels`
+            : "Ready to send or find a parcel?"}
+        </ThemedText>
+      </View>
+    </Animated.View>
+  );
+
+  const renderStatsCards = () => (
+    <Animated.View
+      entering={FadeInDown.duration(400).delay(200)}
+      style={styles.statsContainer}
+    >
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.statsScrollContent}
+      >
+        {statCards.map((stat, index) => (
+          <Animated.View
+            key={stat.id}
+            entering={FadeInDown.duration(300).delay(250 + index * 50)}
+            style={[
+              styles.statCard,
+              { backgroundColor: theme.backgroundDefault },
+            ]}
+          >
+            <View
+              style={[
+                styles.statIconContainer,
+                { backgroundColor: `${stat.color}15` },
+              ]}
+            >
+              <Feather name={stat.icon} size={18} color={stat.color} />
+            </View>
+            <ThemedText type="h2" style={{ color: stat.color }}>
+              {stat.getValue(parcels)}
+            </ThemedText>
+            <ThemedText
+              type="caption"
+              style={{ color: theme.textSecondary, marginTop: 2 }}
+            >
+              {stat.label}
+            </ThemedText>
+          </Animated.View>
+        ))}
+      </ScrollView>
+    </Animated.View>
+  );
+
+  const renderQuickActions = () => (
+    <Animated.View
+      entering={FadeInDown.duration(400).delay(300)}
+      style={styles.quickActionsContainer}
+    >
+      <ThemedText
+        type="small"
+        style={[styles.sectionTitle, { color: theme.textSecondary }]}
+      >
+        Quick Actions
+      </ThemedText>
+      <View style={styles.quickActionsGrid}>
+        {quickActions.map((action, index) => (
+          <Pressable
+            key={action.id}
+            onPress={() => handleQuickAction(action.id)}
+            style={[
+              styles.quickActionButton,
+              { backgroundColor: theme.backgroundDefault },
+            ]}
+          >
+            <View
+              style={[
+                styles.quickActionIcon,
+                { backgroundColor: `${action.color}15` },
+              ]}
+            >
+              <Feather name={action.icon} size={22} color={action.color} />
+            </View>
+            <ThemedText type="caption" style={{ marginTop: Spacing.xs }}>
+              {action.label}
+            </ThemedText>
+          </Pressable>
+        ))}
+      </View>
+    </Animated.View>
+  );
+
+  const renderActivityTimeline = () => {
+    if (recentActivity.length === 0) return null;
+
+    return (
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(400)}
+        style={styles.activityContainer}
+      >
+        <View style={styles.sectionHeader}>
+          <ThemedText
+            type="small"
+            style={[styles.sectionTitle, { color: theme.textSecondary }]}
+          >
+            Recent Activity
+          </ThemedText>
+          <Pressable>
+            <ThemedText type="caption" style={{ color: Colors.primary }}>
+              See all
+            </ThemedText>
+          </Pressable>
+        </View>
+        <View
+          style={[
+            styles.activityCard,
+            { backgroundColor: theme.backgroundDefault },
+          ]}
+        >
+          {recentActivity.slice(0, 3).map((activity, index) => (
+            <Pressable
+              key={activity.id}
+              onPress={() => handleParcelPress(activity.id)}
+              style={[
+                styles.activityItem,
+                index < recentActivity.slice(0, 3).length - 1 && {
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.border,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.activityIconContainer,
+                  { backgroundColor: `${activity.color}15` },
+                ]}
+              >
+                <Feather
+                  name={activity.icon as keyof typeof Feather.glyphMap}
+                  size={16}
+                  color={activity.color}
+                />
+              </View>
+              <View style={styles.activityContent}>
+                <ThemedText type="small" numberOfLines={1} style={{ flex: 1 }}>
+                  {activity.title}
+                </ThemedText>
+                <View style={styles.activityMeta}>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: `${activity.color}15` },
+                    ]}
+                  >
+                    <ThemedText
+                      type="caption"
+                      style={{ color: activity.color, fontSize: 10 }}
+                    >
+                      {activity.status}
+                    </ThemedText>
+                  </View>
+                  <ThemedText
+                    type="caption"
+                    style={{ color: theme.textSecondary }}
+                  >
+                    {getTimeAgo(activity.time)}
+                  </ThemedText>
+                </View>
+              </View>
+              <Feather
+                name="chevron-right"
+                size={16}
+                color={theme.textSecondary}
+              />
+            </Pressable>
+          ))}
+        </View>
+      </Animated.View>
+    );
+  };
 
   const renderSearchHeader = () => (
-    <View style={styles.searchContainer}>
+    <Animated.View
+      entering={FadeInDown.duration(400).delay(500)}
+      style={styles.searchContainer}
+    >
+      <View style={styles.sectionHeader}>
+        <ThemedText
+          type="small"
+          style={[styles.sectionTitle, { color: theme.textSecondary }]}
+        >
+          Find Parcels
+        </ThemedText>
+      </View>
+
       <View style={styles.searchInputsWrapper}>
         <View style={styles.routeInputs}>
           <View
@@ -178,7 +505,9 @@ export default function BrowseScreen() {
             ]}
           >
             <View style={styles.iconContainer}>
-              <View style={[styles.routeDot, { backgroundColor: Colors.primary }]} />
+              <View
+                style={[styles.routeDot, { backgroundColor: Colors.primary }]}
+              />
             </View>
             <TextInput
               style={[styles.searchInput, { color: theme.text }]}
@@ -193,7 +522,11 @@ export default function BrowseScreen() {
                 hitSlop={8}
                 style={styles.clearButton}
               >
-                <Feather name="x-circle" size={18} color={theme.textSecondary} />
+                <Feather
+                  name="x-circle"
+                  size={18}
+                  color={theme.textSecondary}
+                />
               </Pressable>
             ) : null}
           </View>
@@ -215,7 +548,9 @@ export default function BrowseScreen() {
             ]}
           >
             <View style={styles.iconContainer}>
-              <View style={[styles.routeDot, { backgroundColor: Colors.secondary }]} />
+              <View
+                style={[styles.routeDot, { backgroundColor: Colors.secondary }]}
+              />
             </View>
             <TextInput
               style={[styles.searchInput, { color: theme.text }]}
@@ -230,7 +565,11 @@ export default function BrowseScreen() {
                 hitSlop={8}
                 style={styles.clearButton}
               >
-                <Feather name="x-circle" size={18} color={theme.textSecondary} />
+                <Feather
+                  name="x-circle"
+                  size={18}
+                  color={theme.textSecondary}
+                />
               </Pressable>
             ) : null}
           </View>
@@ -298,10 +637,7 @@ export default function BrowseScreen() {
           </ThemedText>
           {totalActiveFilters > 0 ? (
             <Pressable onPress={clearAllFilters} style={styles.clearAllButton}>
-              <ThemedText
-                type="caption"
-                style={{ color: Colors.primary }}
-              >
+              <ThemedText type="caption" style={{ color: Colors.primary }}>
                 Clear all
               </ThemedText>
             </Pressable>
@@ -331,6 +667,16 @@ export default function BrowseScreen() {
           ) : null}
         </Pressable>
       </View>
+    </Animated.View>
+  );
+
+  const renderListHeader = () => (
+    <View>
+      {renderWelcomeBanner()}
+      {renderStatsCards()}
+      {renderQuickActions()}
+      {renderActivityTimeline()}
+      {renderSearchHeader()}
     </View>
   );
 
@@ -437,7 +783,7 @@ export default function BrowseScreen() {
           paddingHorizontal: Spacing.lg,
         }}
         scrollIndicatorInsets={{ bottom: insets.bottom }}
-        ListHeaderComponent={renderSearchHeader}
+        ListHeaderComponent={renderListHeader}
         data={filteredParcels}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
@@ -445,6 +791,14 @@ export default function BrowseScreen() {
         )}
         ListEmptyComponent={renderEmptyState}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
       />
       <FloatingActionButton
         onPress={handleCreateParcel}
@@ -460,6 +814,96 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
+  },
+  welcomeContainer: {
+    marginBottom: Spacing.lg,
+  },
+  statsContainer: {
+    marginBottom: Spacing.lg,
+    marginHorizontal: -Spacing.lg,
+  },
+  statsScrollContent: {
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  statCard: {
+    width: 90,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    alignItems: "center",
+  },
+  statIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.xs,
+  },
+  quickActionsContainer: {
+    marginBottom: Spacing.lg,
+  },
+  sectionTitle: {
+    marginBottom: Spacing.sm,
+    fontWeight: "600",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.sm,
+  },
+  quickActionsGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  quickActionButton: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: Spacing.md,
+    marginHorizontal: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+  },
+  quickActionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activityContainer: {
+    marginBottom: Spacing.lg,
+  },
+  activityCard: {
+    borderRadius: BorderRadius.sm,
+    overflow: "hidden",
+  },
+  activityItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  activityIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginTop: 2,
+  },
+  statusBadge: {
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.xs,
   },
   searchContainer: {
     marginBottom: Spacing.lg,

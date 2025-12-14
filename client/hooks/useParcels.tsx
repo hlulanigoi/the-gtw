@@ -26,7 +26,7 @@ const CURRENT_USER_ID = "current-user";
 export function useParcels() {
   const queryClient = useQueryClient();
 
-  const { data: parcels = [], isLoading, error } = useQuery<Parcel[]>({
+  const { data: parcels = [], isLoading, error, refetch } = useQuery<Parcel[]>({
     queryKey: ["/api/parcels"],
   });
 
@@ -105,5 +105,6 @@ export function useParcels() {
     deleteParcel,
     isLoading,
     error,
+    refetch,
   };
 }

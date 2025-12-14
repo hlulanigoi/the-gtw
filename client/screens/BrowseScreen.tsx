@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useRef } from "react";
 import {
   View,
   FlatList,
@@ -140,6 +140,8 @@ export default function BrowseScreen() {
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const flatListRef = useRef<FlatList>(null);
+  const fromInputRef = useRef<TextInput>(null);
   const swapScale = useSharedValue(1);
 
   const filteredParcels = useMemo(() => {
@@ -227,14 +229,14 @@ export default function BrowseScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
       switch (actionId) {
-        case "scan":
-          break;
         case "track":
+          fromInputRef.current?.focus();
           break;
         case "send":
           navigation.navigate("CreateParcel");
           break;
         case "history":
+          navigation.getParent()?.navigate("MyParcelsTab");
           break;
       }
     },
@@ -363,28 +365,40 @@ export default function BrowseScreen() {
         Quick Actions
       </ThemedText>
       <View style={styles.quickActionsGrid}>
-        {quickActions.map((action, index) => (
-          <Pressable
-            key={action.id}
-            onPress={() => handleQuickAction(action.id)}
-            style={[
-              styles.quickActionButton,
-              { backgroundColor: theme.backgroundDefault },
-            ]}
-          >
-            <View
+        {quickActions.map((action) => {
+          const isDisabled = action.id === "scan";
+          return (
+            <Pressable
+              key={action.id}
+              onPress={isDisabled ? undefined : () => handleQuickAction(action.id)}
+              disabled={isDisabled}
               style={[
-                styles.quickActionIcon,
-                { backgroundColor: `${action.color}15` },
+                styles.quickActionButton,
+                { backgroundColor: theme.backgroundDefault },
+                isDisabled && { opacity: 0.5 },
               ]}
             >
-              <Feather name={action.icon} size={22} color={action.color} />
-            </View>
-            <ThemedText type="caption" style={{ marginTop: Spacing.xs }}>
-              {action.label}
-            </ThemedText>
-          </Pressable>
-        ))}
+              <View
+                style={[
+                  styles.quickActionIcon,
+                  { backgroundColor: `${action.color}15` },
+                ]}
+              >
+                <Feather name={action.icon} size={22} color={isDisabled ? theme.textSecondary : action.color} />
+              </View>
+              <ThemedText type="caption" style={{ marginTop: Spacing.xs, color: isDisabled ? theme.textSecondary : theme.text }}>
+                {action.label}
+              </ThemedText>
+              {isDisabled ? (
+                <View style={styles.comingSoonBadge}>
+                  <ThemedText type="caption" style={styles.comingSoonText}>
+                    Soon
+                  </ThemedText>
+                </View>
+              ) : null}
+            </Pressable>
+          );
+        })}
       </View>
     </Animated.View>
   );
@@ -510,6 +524,7 @@ export default function BrowseScreen() {
               />
             </View>
             <TextInput
+              ref={fromInputRef}
               style={[styles.searchInput, { color: theme.text }]}
               placeholder="From where?"
               placeholderTextColor={theme.textSecondary}
@@ -776,6 +791,7 @@ export default function BrowseScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       <FlatList
+        ref={flatListRef}
         style={styles.list}
         contentContainerStyle={{
           paddingTop: headerHeight + Spacing.sm,
@@ -870,6 +886,20 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
+  },
+  comingSoonBadge: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: Colors.warning,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.xs,
+  },
+  comingSoonText: {
+    fontSize: 8,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   activityContainer: {
     marginBottom: Spacing.lg,

@@ -61,7 +61,7 @@ export default function LoginScreen() {
   };
 
   const handleForgotPassword = () => {
-    Alert.alert("Reset Password", "Password reset functionality coming soon.");
+    navigation.navigate("ForgotPassword");
   };
 
   return (

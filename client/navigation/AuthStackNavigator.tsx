@@ -4,6 +4,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import OnboardingScreen from "@/screens/OnboardingScreen";
 import LoginScreen from "@/screens/LoginScreen";
 import SignUpScreen from "@/screens/SignUpScreen";
+import EmailVerificationScreen from "@/screens/EmailVerificationScreen";
+import ForgotPasswordScreen from "@/screens/ForgotPasswordScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { hasCompletedOnboarding } from "@/lib/onboarding";
 import { Colors } from "@/constants/theme";
@@ -12,6 +14,8 @@ export type AuthStackParamList = {
   Onboarding: undefined;
   Login: undefined;
   SignUp: undefined;
+  EmailVerification: { email: string };
+  ForgotPassword: undefined;
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -46,6 +50,8 @@ export default function AuthStackNavigator() {
       ) : null}
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="SignUp" component={SignUpScreen} />
+      <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
     </Stack.Navigator>
   );
 }

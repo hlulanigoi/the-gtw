@@ -27,7 +27,7 @@ export default function SignUpScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const { signUp } = useAuth();
+  const { sendVerificationCode, setPendingVerification } = useAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -39,6 +39,12 @@ export default function SignUpScreen() {
   const handleSignUp = async () => {
     if (!name.trim() || !email.trim() || !password.trim()) {
       Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert("Error", "Please enter a valid email address");
       return;
     }
 
@@ -54,17 +60,23 @@ export default function SignUpScreen() {
 
     setLoading(true);
     try {
-      await signUp(email.trim(), password, name.trim());
+      setPendingVerification({
+        email: email.trim(),
+        name: name.trim(),
+        password,
+      });
+      
+      await sendVerificationCode(email.trim());
+      
+      navigation.navigate("EmailVerification", { email: email.trim() });
     } catch (error: any) {
-      let message = "Failed to create account. Please try again.";
+      let message = "Failed to send verification code. Please try again.";
       if (error.code === "auth/email-already-in-use") {
         message = "An account with this email already exists.";
       } else if (error.code === "auth/invalid-email") {
         message = "Invalid email address.";
-      } else if (error.code === "auth/weak-password") {
-        message = "Password is too weak. Please use a stronger password.";
       }
-      Alert.alert("Sign Up Failed", message);
+      Alert.alert("Error", message);
     } finally {
       setLoading(false);
     }
@@ -205,7 +217,7 @@ export default function SignUpScreen() {
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <ThemedText type="body" style={styles.signUpButtonText}>
-                Create Account
+                Continue
               </ThemedText>
             )}
           </Pressable>

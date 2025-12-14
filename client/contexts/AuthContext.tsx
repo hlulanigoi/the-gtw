@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithEmailAndPassword(auth, email, password);
   };
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const signUp = async (email: string, password: string, name: string, isEmailVerified: boolean = false) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const firebaseUser = userCredential.user;
 
@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       rating: 5.0,
       verified: false,
-      emailVerified: false,
+      emailVerified: isEmailVerified,
       createdAt: serverTimestamp(),
     });
 
@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       rating: 5.0,
       verified: false,
-      emailVerified: false,
+      emailVerified: isEmailVerified,
       createdAt: new Date(),
     });
   };
@@ -117,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!pendingVerification) return;
     
     const { email, password, name } = pendingVerification;
-    await signUp(email, password, name);
+    await signUp(email, password, name, true);
     setPendingVerification(null);
   };
 

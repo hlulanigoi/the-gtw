@@ -8,15 +8,10 @@ import {
   updateProfile,
   sendPasswordResetEmail,
   GoogleAuthProvider,
-  signInWithCredential,
 } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import * as Google from "expo-auth-session/providers/google";
-import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
-
-WebBrowser.maybeCompleteAuthSession();
 
 interface UserProfile {
   id: string;
@@ -64,54 +59,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string;
   } | null>(null);
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    expoClientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-  });
-
-  useEffect(() => {
-    if (response?.type === "success") {
-      const { id_token } = response.params;
-      if (id_token) {
-        handleGoogleCredential(id_token);
-      }
-    }
-  }, [response]);
-
-  const handleGoogleCredential = async (idToken: string) => {
-    try {
-      setGoogleLoading(true);
-      const credential = GoogleAuthProvider.credential(idToken);
-      const userCredential = await signInWithCredential(auth, credential);
-      const firebaseUser = userCredential.user;
-
-      const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-      if (!profileDoc.exists()) {
-        await setDoc(doc(db, "users", firebaseUser.uid), {
-          name: firebaseUser.displayName || "",
-          email: firebaseUser.email || "",
-          rating: 5.0,
-          verified: false,
-          emailVerified: true,
-          createdAt: serverTimestamp(),
-        });
-      }
-    } catch (error) {
-      console.error("Google sign-in error:", error);
-      throw error;
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
   const signInWithGoogle = async () => {
     if (Platform.OS === "web") {
       const provider = new GoogleAuthProvider();
       const { signInWithPopup } = await import("firebase/auth");
+      setGoogleLoading(true);
       try {
-        setGoogleLoading(true);
         const result = await signInWithPopup(auth, provider);
         const firebaseUser = result.user;
         
@@ -126,23 +79,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             createdAt: serverTimestamp(),
           });
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Google sign-in error:", error);
+        if (error.code === "auth/popup-closed-by-user") {
+          return;
+        }
         throw error;
       } finally {
         setGoogleLoading(false);
       }
     } else {
-      if (!request) {
-        throw new Error("Google Sign-In is not configured. Please set up Google OAuth credentials.");
-      }
-      setGoogleLoading(true);
-      try {
-        await promptAsync();
-      } catch (error) {
-        setGoogleLoading(false);
-        throw error;
-      }
+      throw new Error("Google Sign-In is only available on web. Please use email sign-in on mobile.");
     }
   };
 

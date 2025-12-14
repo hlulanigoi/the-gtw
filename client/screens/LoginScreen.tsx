@@ -8,6 +8,7 @@ import {
   Alert,
   Platform,
   Linking,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -27,7 +28,7 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle, googleLoading } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -62,6 +63,14 @@ export default function LoginScreen() {
 
   const handleForgotPassword = () => {
     navigation.navigate("ForgotPassword");
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      Alert.alert("Error", "Failed to sign in with Google. Please try again.");
+    }
   };
 
   return (
@@ -162,6 +171,41 @@ export default function LoginScreen() {
               <ThemedText type="body" style={styles.loginButtonText}>
                 Sign In
               </ThemedText>
+            )}
+          </Pressable>
+
+          <View style={styles.dividerContainer}>
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <ThemedText type="small" style={[styles.dividerText, { color: theme.textSecondary }]}>
+              OR
+            </ThemedText>
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+          </View>
+
+          <Pressable
+            onPress={handleGoogleSignIn}
+            disabled={googleLoading}
+            style={({ pressed }) => [
+              styles.googleButton,
+              { 
+                backgroundColor: theme.backgroundDefault, 
+                borderColor: theme.border,
+                opacity: pressed || googleLoading ? 0.8 : 1 
+              },
+            ]}
+          >
+            {googleLoading ? (
+              <ActivityIndicator color={theme.text} />
+            ) : (
+              <>
+                <Image
+                  source={{ uri: "https://www.google.com/favicon.ico" }}
+                  style={styles.googleIcon}
+                />
+                <ThemedText type="body" style={styles.googleButtonText}>
+                  Continue with Google
+                </ThemedText>
+              </>
             )}
           </Pressable>
         </View>
@@ -283,6 +327,35 @@ const styles = StyleSheet.create({
   },
   loginButtonText: {
     color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: Spacing.lg,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    marginHorizontal: Spacing.md,
+  },
+  googleButton: {
+    height: 52,
+    borderRadius: BorderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    borderWidth: 1,
+  },
+  googleIcon: {
+    width: 20,
+    height: 20,
+    marginRight: Spacing.sm,
+  },
+  googleButtonText: {
     fontWeight: "600",
     fontSize: 16,
   },

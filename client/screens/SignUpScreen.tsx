@@ -8,6 +8,7 @@ import {
   Alert,
   Platform,
   Linking,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -27,7 +28,7 @@ export default function SignUpScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const { sendVerificationCode, setPendingVerification } = useAuth();
+  const { signUp, signInWithGoogle, googleLoading } = useAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -60,25 +61,27 @@ export default function SignUpScreen() {
 
     setLoading(true);
     try {
-      setPendingVerification({
-        email: email.trim(),
-        name: name.trim(),
-        password,
-      });
-      
-      await sendVerificationCode(email.trim());
-      
-      navigation.navigate("EmailVerification", { email: email.trim() });
+      await signUp(email.trim(), password, name.trim());
     } catch (error: any) {
-      let message = "Failed to send verification code. Please try again.";
+      let message = "Failed to create account. Please try again.";
       if (error.code === "auth/email-already-in-use") {
         message = "An account with this email already exists.";
       } else if (error.code === "auth/invalid-email") {
         message = "Invalid email address.";
+      } else if (error.code === "auth/weak-password") {
+        message = "Password is too weak.";
       }
       Alert.alert("Error", message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      Alert.alert("Error", "Failed to sign in with Google. Please try again.");
     }
   };
 
@@ -217,8 +220,43 @@ export default function SignUpScreen() {
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <ThemedText type="body" style={styles.signUpButtonText}>
-                Continue
+                Create Account
               </ThemedText>
+            )}
+          </Pressable>
+
+          <View style={styles.dividerContainer}>
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <ThemedText type="small" style={[styles.dividerText, { color: theme.textSecondary }]}>
+              OR
+            </ThemedText>
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+          </View>
+
+          <Pressable
+            onPress={handleGoogleSignIn}
+            disabled={googleLoading}
+            style={({ pressed }) => [
+              styles.googleButton,
+              { 
+                backgroundColor: theme.backgroundDefault, 
+                borderColor: theme.border,
+                opacity: pressed || googleLoading ? 0.8 : 1 
+              },
+            ]}
+          >
+            {googleLoading ? (
+              <ActivityIndicator color={theme.text} />
+            ) : (
+              <>
+                <Image
+                  source={{ uri: "https://www.google.com/favicon.ico" }}
+                  style={styles.googleIcon}
+                />
+                <ThemedText type="body" style={styles.googleButtonText}>
+                  Continue with Google
+                </ThemedText>
+              </>
             )}
           </Pressable>
         </View>
@@ -337,6 +375,35 @@ const styles = StyleSheet.create({
   },
   signUpButtonText: {
     color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: Spacing.lg,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    marginHorizontal: Spacing.md,
+  },
+  googleButton: {
+    height: 52,
+    borderRadius: BorderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    borderWidth: 1,
+  },
+  googleIcon: {
+    width: 20,
+    height: 20,
+    marginRight: Spacing.sm,
+  },
+  googleButtonText: {
     fontWeight: "600",
     fontSize: 16,
   },

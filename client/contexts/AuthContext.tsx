@@ -7,9 +7,16 @@ import {
   onAuthStateChanged,
   updateProfile,
   sendPasswordResetEmail,
+  GoogleAuthProvider,
+  signInWithCredential,
 } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
+import { Platform } from "react-native";
+
+WebBrowser.maybeCompleteAuthSession();
 
 interface UserProfile {
   id: string;
@@ -26,9 +33,11 @@ interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
+  googleLoading: boolean;
   pendingVerification: { email: string; name: string; password: string } | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
   sendVerificationCode: (email: string) => Promise<void>;
@@ -48,11 +57,94 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [pendingVerification, setPendingVerification] = useState<{
     email: string;
     name: string;
     password: string;
   } | null>(null);
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    expoClientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+  });
+
+  useEffect(() => {
+    if (response?.type === "success") {
+      const { id_token } = response.params;
+      if (id_token) {
+        handleGoogleCredential(id_token);
+      }
+    }
+  }, [response]);
+
+  const handleGoogleCredential = async (idToken: string) => {
+    try {
+      setGoogleLoading(true);
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      const firebaseUser = userCredential.user;
+
+      const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+      if (!profileDoc.exists()) {
+        await setDoc(doc(db, "users", firebaseUser.uid), {
+          name: firebaseUser.displayName || "",
+          email: firebaseUser.email || "",
+          rating: 5.0,
+          verified: false,
+          emailVerified: true,
+          createdAt: serverTimestamp(),
+        });
+      }
+    } catch (error) {
+      console.error("Google sign-in error:", error);
+      throw error;
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    if (Platform.OS === "web") {
+      const provider = new GoogleAuthProvider();
+      const { signInWithPopup } = await import("firebase/auth");
+      try {
+        setGoogleLoading(true);
+        const result = await signInWithPopup(auth, provider);
+        const firebaseUser = result.user;
+        
+        const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+        if (!profileDoc.exists()) {
+          await setDoc(doc(db, "users", firebaseUser.uid), {
+            name: firebaseUser.displayName || "",
+            email: firebaseUser.email || "",
+            rating: 5.0,
+            verified: false,
+            emailVerified: true,
+            createdAt: serverTimestamp(),
+          });
+        }
+      } catch (error) {
+        console.error("Google sign-in error:", error);
+        throw error;
+      } finally {
+        setGoogleLoading(false);
+      }
+    } else {
+      if (!request) {
+        throw new Error("Google Sign-In is not configured. Please set up Google OAuth credentials.");
+      }
+      setGoogleLoading(true);
+      try {
+        await promptAsync();
+      } catch (error) {
+        setGoogleLoading(false);
+        throw error;
+      }
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -186,9 +278,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         userProfile,
         loading,
+        googleLoading,
         pendingVerification,
         signIn,
         signUp,
+        signInWithGoogle,
         signOut,
         updateUserProfile,
         sendVerificationCode,

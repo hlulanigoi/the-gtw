@@ -18,8 +18,10 @@ The app matches parcels based on:
 
 ## Tech Stack
 - **Frontend**: React Native with Expo SDK 54
+- **Backend**: Express.js with TypeScript
+- **Database**: PostgreSQL with Drizzle ORM
+- **State Management**: React Query for server state
 - **Navigation**: React Navigation 7 (bottom tabs + stack navigators)
-- **State**: React Context for in-memory state (parcels, conversations)
 - **UI**: Custom components following iOS liquid glass design guidelines
 
 ## Project Structure
@@ -37,28 +39,43 @@ client/
 ├── constants/
 │   └── theme.ts              # Colors, spacing, typography
 ├── hooks/
-│   ├── useConversations.tsx  # Messages state
-│   ├── useParcels.tsx        # Parcels state
+│   ├── useConversations.tsx  # Messages state (React Query)
+│   ├── useParcels.tsx        # Parcels state (React Query)
 │   └── useTheme.ts           # Theme hook
+├── lib/
+│   └── query-client.ts       # React Query client and API helpers
 ├── navigation/
-│   ├── BrowseStackNavigator.tsx
-│   ├── MessagesStackNavigator.tsx
-│   ├── MyParcelsStackNavigator.tsx
-│   ├── ProfileStackNavigator.tsx
-│   ├── MainTabNavigator.tsx
-│   └── RootStackNavigator.tsx
+│   └── ...                   # Stack and tab navigators
 └── screens/
-    ├── BrowseScreen.tsx      # Main search/browse
-    ├── ConversationScreen.tsx # Chat view
-    ├── CreateParcelScreen.tsx # Create parcel modal
-    ├── EditParcelScreen.tsx  # Edit parcel details
-    ├── MessagesScreen.tsx    # Message list
-    ├── MyParcelsScreen.tsx   # User's parcels
-    ├── ParcelDetailScreen.tsx # Parcel details
-    ├── ProfileScreen.tsx     # User profile
-    ├── RouteFilterScreen.tsx # Filter modal
-    └── SettingsScreen.tsx    # App settings
+    └── ...                   # All app screens
+
+server/
+├── index.ts                  # Express server entry point
+├── routes.ts                 # API route handlers
+└── storage.ts                # Database storage class
+
+shared/
+└── schema.ts                 # Drizzle database schema
 ```
+
+## Database Schema
+- **users**: id, name, email, phone, rating, verified, createdAt
+- **parcels**: id, origin, destination, intermediateStops, size, weight, description, specialInstructions, isFragile, compensation, pickupDate, status, senderId, transporterId, createdAt
+- **conversations**: id, parcelId, participant1Id, participant2Id, createdAt
+- **messages**: id, conversationId, senderId, text, createdAt
+
+## API Endpoints
+- `GET /api/parcels` - List all parcels with sender info
+- `GET /api/parcels/:id` - Get single parcel
+- `POST /api/parcels` - Create new parcel
+- `PATCH /api/parcels/:id` - Update parcel
+- `PATCH /api/parcels/:id/accept` - Accept parcel for transport
+- `DELETE /api/parcels/:id` - Delete parcel
+- `GET /api/users/:userId/conversations` - Get user conversations
+- `POST /api/conversations` - Create conversation
+- `GET /api/conversations/:id/messages` - Get messages
+- `POST /api/conversations/:id/messages` - Send message
+- `DELETE /api/messages/:id` - Delete message
 
 ## Design System
 - **Primary Color**: Deep Teal (#0A7EA4)
@@ -68,12 +85,13 @@ client/
 - **Spacing**: 4, 8, 12, 16, 20, 24, 32px scale
 
 ## Recent Changes
+- December 14, 2025: Backend persistence implemented with PostgreSQL and Drizzle ORM
 - December 14, 2025: Initial prototype created with full navigation and in-memory data
 
-## Next Phase (Backend)
-Planned backend features:
-1. PostgreSQL database for persistent storage
-2. User authentication
-3. Real-time messaging with WebSockets
-4. Parcel status tracking
-5. Rating/review system
+## Next Phase
+Planned features:
+1. User authentication (currently using hardcoded user ID)
+2. Real-time messaging with WebSockets
+3. Parcel status tracking with push notifications
+4. Rating/review system
+5. Route optimization and matching algorithms

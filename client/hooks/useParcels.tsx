@@ -5,6 +5,10 @@ export interface Parcel {
   id: string;
   origin: string;
   destination: string;
+  originLat?: number | null;
+  originLng?: number | null;
+  destinationLat?: number | null;
+  destinationLng?: number | null;
   intermediateStops?: string[] | null;
   size: "small" | "medium" | "large";
   weight?: number | null;
@@ -21,7 +25,7 @@ export interface Parcel {
   createdAt?: string;
 }
 
-const CURRENT_USER_ID = "current-user";
+const CURRENT_USER_ID = "user-1";
 
 export function useParcels() {
   const queryClient = useQueryClient();

@@ -1,5 +1,5 @@
-import React from "react";
-import { View, StyleSheet, Pressable, ScrollView } from "react-native";
+import React, { useState } from "react";
+import { View, StyleSheet, Pressable, ScrollView, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
@@ -11,6 +11,7 @@ import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
 import { BrowseStackParamList } from "@/navigation/BrowseStackNavigator";
 import { useParcels } from "@/hooks/useParcels";
+import { useConnections } from "@/hooks/useConnections";
 
 type RouteType = RouteProp<BrowseStackParamList, "ParcelDetail">;
 
@@ -20,6 +21,8 @@ export default function ParcelDetailScreen() {
   const route = useRoute<RouteType>();
   const { parcelId } = route.params;
   const { parcels, acceptParcel } = useParcels();
+  const { addConnection, isConnected, isAdding } = useConnections();
+  const [savedCarrier, setSavedCarrier] = useState(false);
 
   const parcel = parcels.find((p) => p.id === parcelId);
 
@@ -37,6 +40,24 @@ export default function ParcelDetailScreen() {
   const handleAccept = () => {
     acceptParcel(parcelId);
   };
+
+  const handleSaveCarrier = async () => {
+    if (!parcel.transporterId) return;
+    try {
+      await addConnection(parcel.transporterId, "trusted_carrier");
+      setSavedCarrier(true);
+      Alert.alert("Success", "Carrier saved to your trusted connections!");
+    } catch (error) {
+      Alert.alert("Error", "Failed to save carrier. Please try again.");
+    }
+  };
+
+  const canSaveCarrier =
+    parcel.status === "Delivered" &&
+    !parcel.isOwner &&
+    parcel.transporterId &&
+    !isConnected(parcel.transporterId) &&
+    !savedCarrier;
 
   const sizeLabels: Record<string, string> = {
     small: "Small",
@@ -195,6 +216,60 @@ export default function ParcelDetailScreen() {
             </View>
           </View>
         </Card>
+
+        {canSaveCarrier ? (
+          <Card elevation={1} style={styles.trustedCarrierCard}>
+            <View style={styles.trustedCarrierContent}>
+              <View style={styles.trustedCarrierIcon}>
+                <Feather name="user-check" size={24} color={Colors.primary} />
+              </View>
+              <View style={styles.trustedCarrierText}>
+                <ThemedText type="body" style={{ fontWeight: "600" }}>
+                  Save as Trusted Carrier
+                </ThemedText>
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  Add this carrier to your trusted connections for future deliveries
+                </ThemedText>
+              </View>
+            </View>
+            <Pressable
+              onPress={handleSaveCarrier}
+              disabled={isAdding}
+              style={[
+                styles.trustedCarrierButton,
+                {
+                  backgroundColor: theme.backgroundSecondary,
+                  paddingVertical: Spacing.md,
+                  paddingHorizontal: Spacing.lg,
+                  borderRadius: BorderRadius.md,
+                  alignItems: "center",
+                },
+              ]}
+            >
+              <ThemedText type="body" style={{ fontWeight: "600", color: Colors.primary }}>
+                {isAdding ? "Saving..." : "Save Carrier"}
+              </ThemedText>
+            </Pressable>
+          </Card>
+        ) : null}
+
+        {savedCarrier || (parcel.transporterId && isConnected(parcel.transporterId)) ? (
+          <Card elevation={1} style={styles.trustedCarrierCard}>
+            <View style={styles.trustedCarrierContent}>
+              <View style={[styles.trustedCarrierIcon, { backgroundColor: Colors.success + "20" }]}>
+                <Feather name="check-circle" size={24} color={Colors.success} />
+              </View>
+              <View style={styles.trustedCarrierText}>
+                <ThemedText type="body" style={{ fontWeight: "600", color: Colors.success }}>
+                  Trusted Carrier
+                </ThemedText>
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  This carrier is in your trusted connections
+                </ThemedText>
+              </View>
+            </View>
+          </Card>
+        ) : null}
       </ScrollView>
 
       {!parcel.isOwner && !parcel.isTransporting ? (
@@ -306,5 +381,29 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
     borderTopWidth: 1,
     borderTopColor: "rgba(0,0,0,0.1)",
+  },
+  trustedCarrierCard: {
+    marginBottom: Spacing.lg,
+  },
+  trustedCarrierContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: Spacing.md,
+  },
+  trustedCarrierIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.primary + "20",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  trustedCarrierText: {
+    flex: 1,
+    marginLeft: Spacing.md,
+    gap: Spacing.xs,
+  },
+  trustedCarrierButton: {
+    marginTop: Spacing.sm,
   },
 });

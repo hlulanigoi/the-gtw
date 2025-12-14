@@ -6,6 +6,7 @@ import {
   type Parcel, type InsertParcel, parcels,
   type Conversation, type InsertConversation, conversations,
   type Message, type InsertMessage, messages,
+  type Connection, type InsertConnection, connections,
 } from "@shared/schema";
 
 const pool = new Pool({
@@ -120,6 +121,37 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMessage(id: string): Promise<boolean> {
     const result = await db.delete(messages).where(eq(messages.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getUserConnections(userId: string): Promise<(Connection & { connectedUser: User })[]> {
+    const result = await db
+      .select()
+      .from(connections)
+      .innerJoin(users, eq(connections.connectedUserId, users.id))
+      .where(eq(connections.userId, userId))
+      .orderBy(desc(connections.createdAt));
+    return result.map(r => ({ ...r.connections, connectedUser: r.users }));
+  }
+
+  async getConnection(userId: string, connectedUserId: string): Promise<Connection | undefined> {
+    const result = await db
+      .select()
+      .from(connections)
+      .where(and(eq(connections.userId, userId), eq(connections.connectedUserId, connectedUserId)));
+    return result[0];
+  }
+
+  async createConnection(insertConnection: InsertConnection): Promise<Connection> {
+    const result = await db.insert(connections).values(insertConnection).returning();
+    return result[0];
+  }
+
+  async deleteConnection(userId: string, connectedUserId: string): Promise<boolean> {
+    const result = await db
+      .delete(connections)
+      .where(and(eq(connections.userId, userId), eq(connections.connectedUserId, connectedUserId)))
+      .returning();
     return result.length > 0;
   }
 }

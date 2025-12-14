@@ -30,9 +30,12 @@ import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { ParcelCard } from "@/components/ParcelCard";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
+import { OSMMapView } from "@/components/OSMMapView";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { BrowseStackParamList } from "@/navigation/BrowseStackNavigator";
 import { useParcels } from "@/hooks/useParcels";
+
+type ViewMode = "list" | "map";
 
 type NavigationProp = NativeStackNavigationProp<
   RootStackParamList & BrowseStackParamList
@@ -139,6 +142,7 @@ export default function BrowseScreen() {
   const [toLocation, setToLocation] = useState("");
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
 
   const flatListRef = useRef<FlatList>(null);
   const fromInputRef = useRef<TextInput>(null);
@@ -210,6 +214,40 @@ export default function BrowseScreen() {
             : Colors.warning,
       }));
   }, [parcels]);
+
+  const mapMarkers = useMemo(() => {
+    const markers: { id: string; lat: number; lng: number; title: string; subtitle?: string; type: "origin" | "destination" }[] = [];
+    filteredParcels.forEach((parcel) => {
+      if (parcel.originLat && parcel.originLng) {
+        markers.push({
+          id: `${parcel.id}-origin`,
+          lat: parcel.originLat,
+          lng: parcel.originLng,
+          title: parcel.origin,
+          subtitle: `To: ${parcel.destination}`,
+          type: "origin",
+        });
+      }
+      if (parcel.destinationLat && parcel.destinationLng) {
+        markers.push({
+          id: `${parcel.id}-dest`,
+          lat: parcel.destinationLat,
+          lng: parcel.destinationLng,
+          title: parcel.destination,
+          subtitle: `From: ${parcel.origin}`,
+          type: "destination",
+        });
+      }
+    });
+    return markers;
+  }, [filteredParcels]);
+
+  const toggleViewMode = useCallback(() => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setViewMode((prev) => (prev === "list" ? "map" : "list"));
+  }, []);
 
   const handleParcelPress = (parcelId: string) => {
     navigation.navigate("ParcelDetail", { parcelId });
@@ -659,28 +697,42 @@ export default function BrowseScreen() {
           ) : null}
         </View>
 
-        <Pressable
-          onPress={handleFilter}
-          style={[
-            styles.filterButton,
-            {
-              backgroundColor: theme.backgroundDefault,
-              borderColor: theme.border,
-            },
-          ]}
-        >
-          <Feather name="sliders" size={16} color={theme.text} />
-          <ThemedText type="small" style={styles.filterButtonText}>
-            Filter
-          </ThemedText>
-          {totalActiveFilters > 0 ? (
-            <View style={styles.filterBadge}>
-              <ThemedText type="caption" style={styles.filterBadgeText}>
-                {totalActiveFilters}
-              </ThemedText>
-            </View>
-          ) : null}
-        </Pressable>
+        <View style={styles.filterRowButtons}>
+          <Pressable
+            onPress={toggleViewMode}
+            style={[
+              styles.viewToggleButton,
+              {
+                backgroundColor: theme.backgroundDefault,
+                borderColor: theme.border,
+              },
+            ]}
+          >
+            <Feather name={viewMode === "list" ? "map" : "list"} size={16} color={theme.text} />
+          </Pressable>
+          <Pressable
+            onPress={handleFilter}
+            style={[
+              styles.filterButton,
+              {
+                backgroundColor: theme.backgroundDefault,
+                borderColor: theme.border,
+              },
+            ]}
+          >
+            <Feather name="sliders" size={16} color={theme.text} />
+            <ThemedText type="small" style={styles.filterButtonText}>
+              Filter
+            </ThemedText>
+            {totalActiveFilters > 0 ? (
+              <View style={styles.filterBadge}>
+                <ThemedText type="caption" style={styles.filterBadgeText}>
+                  {totalActiveFilters}
+                </ThemedText>
+              </View>
+            ) : null}
+          </Pressable>
+        </View>
       </View>
     </Animated.View>
   );
@@ -788,34 +840,67 @@ export default function BrowseScreen() {
     </Animated.View>
   );
 
+  const renderMapView = () => (
+    <View style={styles.mapContainer}>
+      <View style={{ paddingTop: headerHeight + Spacing.sm, paddingHorizontal: Spacing.lg }}>
+        {renderSearchHeader()}
+      </View>
+      <View style={styles.mapWrapper}>
+        <OSMMapView
+          markers={mapMarkers}
+          onMarkerPress={(id) => {
+            const parcelId = id.replace(/-origin$|-dest$/, "");
+            handleParcelPress(parcelId);
+          }}
+          style={styles.map}
+        />
+        {mapMarkers.length === 0 ? (
+          <View style={[styles.mapOverlay, { backgroundColor: theme.backgroundRoot + "E6" }]}>
+            <Feather name="map-pin" size={32} color={theme.textSecondary} />
+            <ThemedText type="body" style={{ marginTop: Spacing.md, textAlign: "center" }}>
+              No parcels with location data
+            </ThemedText>
+            <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: Spacing.xs, textAlign: "center" }}>
+              Parcels will appear on the map when they have coordinates
+            </ThemedText>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
-      <FlatList
-        ref={flatListRef}
-        style={styles.list}
-        contentContainerStyle={{
-          paddingTop: headerHeight + Spacing.sm,
-          paddingBottom: tabBarHeight + Spacing.xl + 72,
-          paddingHorizontal: Spacing.lg,
-        }}
-        scrollIndicatorInsets={{ bottom: insets.bottom }}
-        ListHeaderComponent={renderListHeader}
-        data={filteredParcels}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ParcelCard parcel={item} onPress={() => handleParcelPress(item.id)} />
-        )}
-        ListEmptyComponent={renderEmptyState}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={Colors.primary}
-            colors={[Colors.primary]}
-          />
-        }
-      />
+      {viewMode === "list" ? (
+        <FlatList
+          ref={flatListRef}
+          style={styles.list}
+          contentContainerStyle={{
+            paddingTop: headerHeight + Spacing.sm,
+            paddingBottom: tabBarHeight + Spacing.xl + 72,
+            paddingHorizontal: Spacing.lg,
+          }}
+          scrollIndicatorInsets={{ bottom: insets.bottom }}
+          ListHeaderComponent={renderListHeader}
+          data={filteredParcels}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <ParcelCard parcel={item} onPress={() => handleParcelPress(item.id)} />
+          )}
+          ListEmptyComponent={renderEmptyState}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={Colors.primary}
+              colors={[Colors.primary]}
+            />
+          }
+        />
+      ) : (
+        renderMapView()
+      )}
       <FloatingActionButton
         onPress={handleCreateParcel}
         bottom={tabBarHeight + Spacing.xl}
@@ -1109,5 +1194,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
+  },
+  filterRowButtons: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+  },
+  viewToggleButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+  },
+  mapContainer: {
+    flex: 1,
+  },
+  mapWrapper: {
+    flex: 1,
+    position: "relative",
+  },
+  map: {
+    flex: 1,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  mapOverlay: {
+    position: "absolute",
+    top: 0,
+    left: Spacing.lg,
+    right: Spacing.lg,
+    bottom: Spacing.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: BorderRadius.md,
   },
 });

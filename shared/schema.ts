@@ -5,6 +5,7 @@ import { z } from "zod";
 
 export const parcelSizeEnum = pgEnum("parcel_size", ["small", "medium", "large"]);
 export const parcelStatusEnum = pgEnum("parcel_status", ["Pending", "In Transit", "Delivered"]);
+export const connectionTypeEnum = pgEnum("connection_type", ["trusted_carrier", "saved_contact"]);
 
 export const users = pgTable("users", {
   id: varchar("id")
@@ -24,6 +25,10 @@ export const parcels = pgTable("parcels", {
     .default(sql`gen_random_uuid()`),
   origin: text("origin").notNull(),
   destination: text("destination").notNull(),
+  originLat: real("origin_lat"),
+  originLng: real("origin_lng"),
+  destinationLat: real("destination_lat"),
+  destinationLng: real("destination_lng"),
   intermediateStops: text("intermediate_stops").array(),
   size: parcelSizeEnum("size").notNull(),
   weight: real("weight"),
@@ -58,12 +63,25 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const connections = pgTable("connections", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  connectedUserId: varchar("connected_user_id").notNull().references(() => users.id),
+  connectionType: connectionTypeEnum("connection_type").notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   sentParcels: many(parcels, { relationName: "sender" }),
   transportingParcels: many(parcels, { relationName: "transporter" }),
   conversations1: many(conversations, { relationName: "participant1" }),
   conversations2: many(conversations, { relationName: "participant2" }),
   messages: many(messages),
+  connections: many(connections, { relationName: "userConnections" }),
+  connectedBy: many(connections, { relationName: "connectedByUsers" }),
 }));
 
 export const parcelsRelations = relations(parcels, ({ one, many }) => ({
@@ -109,6 +127,19 @@ export const messagesRelations = relations(messages, ({ one }) => ({
   }),
 }));
 
+export const connectionsRelations = relations(connections, ({ one }) => ({
+  user: one(users, {
+    fields: [connections.userId],
+    references: [users.id],
+    relationName: "userConnections",
+  }),
+  connectedUser: one(users, {
+    fields: [connections.connectedUserId],
+    references: [users.id],
+    relationName: "connectedByUsers",
+  }),
+}));
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -131,6 +162,11 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
   createdAt: true,
 });
 
+export const insertConnectionSchema = createInsertSchema(connections).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertParcel = z.infer<typeof insertParcelSchema>;
@@ -139,3 +175,5 @@ export type InsertConversation = z.infer<typeof insertConversationSchema>;
 export type Conversation = typeof conversations.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messages.$inferSelect;
+export type InsertConnection = z.infer<typeof insertConnectionSchema>;
+export type Connection = typeof connections.$inferSelect;

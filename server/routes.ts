@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { storage, db } from "./storage";
-import { users, parcels, conversations, messages, insertParcelSchema, insertMessageSchema } from "@shared/schema";
+import { users, parcels, conversations, messages, connections, insertParcelSchema, insertMessageSchema, insertConnectionSchema } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -63,7 +63,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.errors });
       }
-      const parcel = await storage.createParcel(parsed.data);
+      
+      const parcelData = { ...parsed.data };
+      
+      try {
+        const [originGeo, destGeo] = await Promise.all([
+          fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(parsed.data.origin)}&limit=1`, {
+            headers: { "User-Agent": "ParcelPeer/1.0" }
+          }).then(r => r.json()),
+          fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(parsed.data.destination)}&limit=1`, {
+            headers: { "User-Agent": "ParcelPeer/1.0" }
+          }).then(r => r.json())
+        ]);
+        
+        if (originGeo[0]) {
+          parcelData.originLat = parseFloat(originGeo[0].lat);
+          parcelData.originLng = parseFloat(originGeo[0].lon);
+        }
+        if (destGeo[0]) {
+          parcelData.destinationLat = parseFloat(destGeo[0].lat);
+          parcelData.destinationLng = parseFloat(destGeo[0].lon);
+        }
+      } catch (geoError) {
+        console.warn("Geocoding failed, continuing without coordinates:", geoError);
+      }
+      
+      const parcel = await storage.createParcel(parcelData);
       res.status(201).json(parcel);
     } catch (error) {
       console.error("Failed to create parcel:", error);
@@ -217,6 +242,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to delete message:", error);
       res.status(500).json({ error: "Failed to delete message" });
+    }
+  });
+
+  app.get("/api/users/:userId/connections", async (req, res) => {
+    try {
+      const userConnections = await storage.getUserConnections(req.params.userId);
+      res.json(userConnections);
+    } catch (error) {
+      console.error("Failed to fetch connections:", error);
+      res.status(500).json({ error: "Failed to fetch connections" });
+    }
+  });
+
+  app.post("/api/users/:userId/connections", async (req, res) => {
+    try {
+      const parsed = insertConnectionSchema.safeParse({
+        ...req.body,
+        userId: req.params.userId,
+      });
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors });
+      }
+      const connectedUser = await storage.getUser(parsed.data.connectedUserId);
+      if (!connectedUser) {
+        return res.status(404).json({ error: "Connected user not found" });
+      }
+      const existing = await storage.getConnection(req.params.userId, parsed.data.connectedUserId);
+      if (existing) {
+        return res.status(409).json({ error: "Connection already exists" });
+      }
+      const connection = await storage.createConnection(parsed.data);
+      res.status(201).json({ ...connection, connectedUser });
+    } catch (error) {
+      console.error("Failed to create connection:", error);
+      res.status(500).json({ error: "Failed to create connection" });
+    }
+  });
+
+  app.delete("/api/users/:userId/connections/:connectedUserId", async (req, res) => {
+    try {
+      const deleted = await storage.deleteConnection(req.params.userId, req.params.connectedUserId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Connection not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Failed to delete connection:", error);
+      res.status(500).json({ error: "Failed to delete connection" });
+    }
+  });
+
+  app.get("/api/geocode", async (req, res) => {
+    try {
+      const { q } = req.query;
+      if (!q || typeof q !== "string") {
+        return res.status(400).json({ error: "Query parameter 'q' is required" });
+      }
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`,
+        {
+          headers: {
+            "User-Agent": "ParcelPeer/1.0",
+          },
+        }
+      );
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Geocoding failed:", error);
+      res.status(500).json({ error: "Geocoding failed" });
     }
   });
 

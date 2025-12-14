@@ -3,12 +3,16 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet } from "react-native";
-import HomeStackNavigator from "@/navigation/HomeStackNavigator";
+import BrowseStackNavigator from "@/navigation/BrowseStackNavigator";
+import MyParcelsStackNavigator from "@/navigation/MyParcelsStackNavigator";
+import MessagesStackNavigator from "@/navigation/MessagesStackNavigator";
 import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
 import { useTheme } from "@/hooks/useTheme";
 
 export type MainTabParamList = {
-  HomeTab: undefined;
+  BrowseTab: undefined;
+  MyParcelsTab: undefined;
+  MessagesTab: undefined;
   ProfileTab: undefined;
 };
 
@@ -19,7 +23,7 @@ export default function MainTabNavigator() {
 
   return (
     <Tab.Navigator
-      initialRouteName="HomeTab"
+      initialRouteName="BrowseTab"
       screenOptions={{
         tabBarActiveTintColor: theme.tabIconSelected,
         tabBarInactiveTintColor: theme.tabIconDefault,
@@ -44,12 +48,32 @@ export default function MainTabNavigator() {
       }}
     >
       <Tab.Screen
-        name="HomeTab"
-        component={HomeStackNavigator}
+        name="BrowseTab"
+        component={BrowseStackNavigator}
         options={{
-          title: "Home",
+          title: "Browse",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="home" size={size} color={color} />
+            <Feather name="search" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="MyParcelsTab"
+        component={MyParcelsStackNavigator}
+        options={{
+          title: "My Parcels",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="package" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="MessagesTab"
+        component={MessagesStackNavigator}
+        options={{
+          title: "Messages",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="message-circle" size={size} color={color} />
           ),
         }}
       />

@@ -1,5 +1,19 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/query-client";
+import { useState, useEffect } from "react";
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  Timestamp,
+  getDoc,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface Parcel {
   id: string;
@@ -16,93 +30,166 @@ export interface Parcel {
   specialInstructions?: string | null;
   isFragile?: boolean | null;
   compensation: number;
-  pickupDate: string;
+  pickupDate: Date;
   status: "Pending" | "In Transit" | "Delivered";
   senderId: string;
   transporterId?: string | null;
   senderName: string;
   senderRating: number | null;
-  createdAt?: string;
+  createdAt?: Date;
+  isOwner?: boolean;
+  isTransporting?: boolean;
 }
 
-const CURRENT_USER_ID = "user-1";
-
 export function useParcels() {
-  const queryClient = useQueryClient();
+  const { user, userProfile } = useAuth();
+  const [parcels, setParcels] = useState<Parcel[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  const { data: parcels = [], isLoading, error, refetch } = useQuery<Parcel[]>({
-    queryKey: ["/api/parcels"],
-  });
+  useEffect(() => {
+    const parcelsRef = collection(db, "parcels");
+    const q = query(parcelsRef, orderBy("createdAt", "desc"));
 
-  const parcelsWithOwnership = parcels.map((parcel) => ({
-    ...parcel,
-    isOwner: parcel.senderId === CURRENT_USER_ID,
-    isTransporting: parcel.transporterId === CURRENT_USER_ID,
-    pickupDate: new Date(parcel.pickupDate),
-  }));
+    const unsubscribe = onSnapshot(
+      q,
+      async (snapshot) => {
+        const parcelsData: Parcel[] = [];
+        
+        for (const docSnapshot of snapshot.docs) {
+          const data = docSnapshot.data();
+          let senderName = "Unknown";
+          let senderRating: number | null = null;
 
-  const addParcelMutation = useMutation({
-    mutationFn: async (parcel: Omit<Parcel, "id" | "senderName" | "senderRating" | "createdAt" | "status" | "transporterId">) => {
-      const response = await apiRequest("POST", "/api/parcels", {
+          if (data.senderId) {
+            const senderDoc = await getDoc(doc(db, "users", data.senderId));
+            if (senderDoc.exists()) {
+              const senderData = senderDoc.data();
+              senderName = senderData.name || "Unknown";
+              senderRating = senderData.rating || null;
+            }
+          }
+
+          const pickupDate = data.pickupDate instanceof Timestamp
+            ? data.pickupDate.toDate()
+            : new Date(data.pickupDate);
+
+          const createdAt = data.createdAt instanceof Timestamp
+            ? data.createdAt.toDate()
+            : data.createdAt ? new Date(data.createdAt) : new Date();
+
+          parcelsData.push({
+            id: docSnapshot.id,
+            origin: data.origin,
+            destination: data.destination,
+            originLat: data.originLat,
+            originLng: data.originLng,
+            destinationLat: data.destinationLat,
+            destinationLng: data.destinationLng,
+            intermediateStops: data.intermediateStops,
+            size: data.size,
+            weight: data.weight,
+            description: data.description,
+            specialInstructions: data.specialInstructions,
+            isFragile: data.isFragile,
+            compensation: data.compensation,
+            pickupDate,
+            status: data.status || "Pending",
+            senderId: data.senderId,
+            transporterId: data.transporterId,
+            senderName,
+            senderRating,
+            createdAt,
+            isOwner: user?.uid === data.senderId,
+            isTransporting: user?.uid === data.transporterId,
+          });
+        }
+
+        setParcels(parcelsData);
+        setIsLoading(false);
+      },
+      (err) => {
+        console.error("Error fetching parcels:", err);
+        setError(err as Error);
+        setIsLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  const addParcel = async (
+    parcel: Omit<Parcel, "id" | "senderName" | "senderRating" | "createdAt" | "status" | "transporterId" | "isOwner" | "isTransporting">
+  ) => {
+    if (!user) return;
+
+    try {
+      await addDoc(collection(db, "parcels"), {
         ...parcel,
-        senderId: CURRENT_USER_ID,
+        pickupDate: Timestamp.fromDate(parcel.pickupDate instanceof Date ? parcel.pickupDate : new Date(parcel.pickupDate)),
+        senderId: user.uid,
+        status: "Pending",
+        transporterId: null,
+        createdAt: serverTimestamp(),
       });
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/parcels"] });
-    },
-  });
+    } catch (err) {
+      console.error("Error adding parcel:", err);
+      throw err;
+    }
+  };
 
-  const updateParcelMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Parcel> }) => {
-      const response = await apiRequest("PATCH", `/api/parcels/${id}`, updates);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/parcels"] });
-    },
-  });
+  const updateParcel = async (id: string, updates: Partial<Parcel>) => {
+    try {
+      const parcelRef = doc(db, "parcels", id);
+      const updateData: any = { ...updates };
+      
+      if (updates.pickupDate) {
+        updateData.pickupDate = Timestamp.fromDate(
+          updates.pickupDate instanceof Date ? updates.pickupDate : new Date(updates.pickupDate)
+        );
+      }
 
-  const acceptParcelMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await apiRequest("PATCH", `/api/parcels/${id}/accept`, {
-        transporterId: CURRENT_USER_ID,
+      delete updateData.isOwner;
+      delete updateData.isTransporting;
+      delete updateData.senderName;
+      delete updateData.senderRating;
+
+      await updateDoc(parcelRef, updateData);
+    } catch (err) {
+      console.error("Error updating parcel:", err);
+      throw err;
+    }
+  };
+
+  const acceptParcel = async (id: string) => {
+    if (!user) return;
+
+    try {
+      const parcelRef = doc(db, "parcels", id);
+      await updateDoc(parcelRef, {
+        transporterId: user.uid,
+        status: "In Transit",
       });
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/parcels"] });
-    },
-  });
-
-  const deleteParcelMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/parcels/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/parcels"] });
-    },
-  });
-
-  const addParcel = (parcel: Omit<Parcel, "id" | "senderName" | "senderRating" | "createdAt" | "status" | "transporterId">) => {
-    addParcelMutation.mutate(parcel);
+    } catch (err) {
+      console.error("Error accepting parcel:", err);
+      throw err;
+    }
   };
 
-  const updateParcel = (id: string, updates: Partial<Parcel>) => {
-    updateParcelMutation.mutate({ id, updates });
+  const deleteParcel = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "parcels", id));
+    } catch (err) {
+      console.error("Error deleting parcel:", err);
+      throw err;
+    }
   };
 
-  const acceptParcel = (id: string) => {
-    acceptParcelMutation.mutate(id);
-  };
-
-  const deleteParcel = (id: string) => {
-    deleteParcelMutation.mutate(id);
+  const refetch = () => {
   };
 
   return {
-    parcels: parcelsWithOwnership,
+    parcels,
     addParcel,
     updateParcel,
     acceptParcel,

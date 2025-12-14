@@ -11,8 +11,6 @@ import { queryClient } from "@/lib/query-client";
 
 import RootStackNavigator from "@/navigation/RootStackNavigator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { ParcelsProvider } from "@/hooks/useParcels";
-import { ConversationsProvider } from "@/hooks/useConversations";
 
 export default function App() {
   return (
@@ -21,13 +19,9 @@ export default function App() {
         <SafeAreaProvider>
           <GestureHandlerRootView style={styles.root}>
             <KeyboardProvider>
-              <ParcelsProvider>
-                <ConversationsProvider>
-                  <NavigationContainer>
-                    <RootStackNavigator />
-                  </NavigationContainer>
-                </ConversationsProvider>
-              </ParcelsProvider>
+              <NavigationContainer>
+                <RootStackNavigator />
+              </NavigationContainer>
               <StatusBar style="auto" />
             </KeyboardProvider>
           </GestureHandlerRootView>

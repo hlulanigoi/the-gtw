@@ -1,152 +1,109 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/query-client";
 
 export interface Parcel {
   id: string;
   origin: string;
   destination: string;
-  intermediateStops?: string[];
+  intermediateStops?: string[] | null;
   size: "small" | "medium" | "large";
-  weight?: number;
-  description?: string;
-  specialInstructions?: string;
-  isFragile?: boolean;
+  weight?: number | null;
+  description?: string | null;
+  specialInstructions?: string | null;
+  isFragile?: boolean | null;
   compensation: number;
-  pickupDate: Date;
+  pickupDate: string;
   status: "Pending" | "In Transit" | "Delivered";
-  isOwner: boolean;
-  isTransporting: boolean;
+  senderId: string;
+  transporterId?: string | null;
   senderName: string;
-  senderRating: number;
+  senderRating: number | null;
+  createdAt?: string;
 }
 
-interface ParcelsContextType {
-  parcels: Parcel[];
-  addParcel: (parcel: Omit<Parcel, "id">) => void;
-  updateParcel: (id: string, updates: Partial<Parcel>) => void;
-  acceptParcel: (id: string) => void;
-}
+const CURRENT_USER_ID = "current-user";
 
-const ParcelsContext = createContext<ParcelsContextType | undefined>(undefined);
+export function useParcels() {
+  const queryClient = useQueryClient();
 
-const initialParcels: Parcel[] = [
-  {
-    id: "1",
-    origin: "Boksburg",
-    destination: "Kempton Park",
-    intermediateStops: ["Edenvale"],
-    size: "small",
-    weight: 2.5,
-    description: "Documents and small electronics",
-    compensation: 75,
-    pickupDate: new Date(Date.now() + 86400000),
-    status: "Pending",
-    isOwner: false,
-    isTransporting: false,
-    senderName: "Sarah M",
-    senderRating: 4.8,
-  },
-  {
-    id: "2",
-    origin: "Johannesburg CBD",
-    destination: "Sandton",
-    size: "medium",
-    weight: 5,
-    description: "Office supplies and books",
-    compensation: 120,
-    pickupDate: new Date(Date.now() + 172800000),
-    status: "Pending",
-    isOwner: false,
-    isTransporting: false,
-    senderName: "Michael K",
-    senderRating: 4.5,
-  },
-  {
-    id: "3",
-    origin: "Pretoria",
-    destination: "Midrand",
-    intermediateStops: ["Centurion"],
-    size: "large",
-    weight: 15,
-    description: "Furniture items - handle with care",
-    specialInstructions: "Fragile items, please handle carefully",
-    isFragile: true,
-    compensation: 250,
-    pickupDate: new Date(Date.now() + 259200000),
-    status: "Pending",
-    isOwner: false,
-    isTransporting: false,
-    senderName: "David L",
-    senderRating: 4.9,
-  },
-  {
-    id: "4",
-    origin: "Benoni",
-    destination: "Germiston",
-    size: "small",
-    compensation: 50,
-    pickupDate: new Date(Date.now() + 43200000),
-    status: "Pending",
-    isOwner: false,
-    isTransporting: false,
-    senderName: "Linda P",
-    senderRating: 4.7,
-  },
-  {
-    id: "5",
-    origin: "Randburg",
-    destination: "Roodepoort",
-    intermediateStops: ["Northgate"],
-    size: "medium",
-    weight: 8,
-    description: "Sports equipment",
-    compensation: 100,
-    pickupDate: new Date(Date.now() + 345600000),
-    status: "Pending",
-    isOwner: false,
-    isTransporting: false,
-    senderName: "James R",
-    senderRating: 4.6,
-  },
-];
+  const { data: parcels = [], isLoading, error } = useQuery<Parcel[]>({
+    queryKey: ["/api/parcels"],
+  });
 
-export function ParcelsProvider({ children }: { children: ReactNode }) {
-  const [parcels, setParcels] = useState<Parcel[]>(initialParcels);
+  const parcelsWithOwnership = parcels.map((parcel) => ({
+    ...parcel,
+    isOwner: parcel.senderId === CURRENT_USER_ID,
+    isTransporting: parcel.transporterId === CURRENT_USER_ID,
+    pickupDate: new Date(parcel.pickupDate),
+  }));
 
-  const addParcel = (parcel: Omit<Parcel, "id">) => {
-    const newParcel: Parcel = {
-      ...parcel,
-      id: Date.now().toString(),
-    };
-    setParcels((prev) => [newParcel, ...prev]);
+  const addParcelMutation = useMutation({
+    mutationFn: async (parcel: Omit<Parcel, "id" | "senderName" | "senderRating" | "createdAt" | "status" | "transporterId">) => {
+      const response = await apiRequest("POST", "/api/parcels", {
+        ...parcel,
+        senderId: CURRENT_USER_ID,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/parcels"] });
+    },
+  });
+
+  const updateParcelMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Parcel> }) => {
+      const response = await apiRequest("PATCH", `/api/parcels/${id}`, updates);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/parcels"] });
+    },
+  });
+
+  const acceptParcelMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("PATCH", `/api/parcels/${id}/accept`, {
+        transporterId: CURRENT_USER_ID,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/parcels"] });
+    },
+  });
+
+  const deleteParcelMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/parcels/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/parcels"] });
+    },
+  });
+
+  const addParcel = (parcel: Omit<Parcel, "id" | "senderName" | "senderRating" | "createdAt" | "status" | "transporterId">) => {
+    addParcelMutation.mutate(parcel);
   };
 
   const updateParcel = (id: string, updates: Partial<Parcel>) => {
-    setParcels((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
-    );
+    updateParcelMutation.mutate({ id, updates });
   };
 
   const acceptParcel = (id: string) => {
-    setParcels((prev) =>
-      prev.map((p) =>
-        p.id === id ? { ...p, isTransporting: true, status: "In Transit" } : p
-      )
-    );
+    acceptParcelMutation.mutate(id);
   };
 
-  return (
-    <ParcelsContext.Provider
-      value={{ parcels, addParcel, updateParcel, acceptParcel }}
-    >
-      {children}
-    </ParcelsContext.Provider>
-  );
-}
+  const deleteParcel = (id: string) => {
+    deleteParcelMutation.mutate(id);
+  };
 
-export function useParcels() {
-  const context = useContext(ParcelsContext);
-  if (!context) {
-    throw new Error("useParcels must be used within a ParcelsProvider");
-  }
-  return context;
+  return {
+    parcels: parcelsWithOwnership,
+    addParcel,
+    updateParcel,
+    acceptParcel,
+    deleteParcel,
+    isLoading,
+    error,
+  };
 }

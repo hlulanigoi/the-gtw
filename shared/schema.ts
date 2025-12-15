@@ -4,8 +4,10 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const parcelSizeEnum = pgEnum("parcel_size", ["small", "medium", "large"]);
-export const parcelStatusEnum = pgEnum("parcel_status", ["Pending", "In Transit", "Delivered"]);
+export const parcelStatusEnum = pgEnum("parcel_status", ["Pending", "In Transit", "Delivered", "Expired"]);
 export const connectionTypeEnum = pgEnum("connection_type", ["trusted_carrier", "saved_contact"]);
+export const routeStatusEnum = pgEnum("route_status", ["Active", "Completed", "Expired", "Cancelled"]);
+export const routeFrequencyEnum = pgEnum("route_frequency", ["one_time", "daily", "weekly", "monthly"]);
 
 export const users = pgTable("users", {
   id: varchar("id")
@@ -37,10 +39,43 @@ export const parcels = pgTable("parcels", {
   isFragile: boolean("is_fragile").default(false),
   compensation: integer("compensation").notNull(),
   pickupDate: timestamp("pickup_date").notNull(),
+  pickupWindowEnd: timestamp("pickup_window_end"),
+  deliveryWindowStart: timestamp("delivery_window_start"),
+  deliveryWindowEnd: timestamp("delivery_window_end"),
+  expiresAt: timestamp("expires_at"),
+  declaredValue: integer("declared_value"),
+  insuranceNeeded: boolean("insurance_needed").default(false),
+  contactPhone: text("contact_phone"),
   status: parcelStatusEnum("status").default("Pending"),
   senderId: varchar("sender_id").notNull().references(() => users.id),
   transporterId: varchar("transporter_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const routes = pgTable("routes", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  carrierId: varchar("carrier_id").notNull().references(() => users.id),
+  origin: text("origin").notNull(),
+  destination: text("destination").notNull(),
+  originLat: real("origin_lat"),
+  originLng: real("origin_lng"),
+  destinationLat: real("destination_lat"),
+  destinationLng: real("destination_lng"),
+  intermediateStops: text("intermediate_stops").array(),
+  departureDate: timestamp("departure_date").notNull(),
+  departureTime: text("departure_time"),
+  frequency: routeFrequencyEnum("frequency").default("one_time"),
+  maxParcelSize: parcelSizeEnum("max_parcel_size"),
+  maxWeight: real("max_weight"),
+  availableCapacity: integer("available_capacity"),
+  pricePerKg: integer("price_per_kg"),
+  notes: text("notes"),
+  status: routeStatusEnum("status").default("Active"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const conversations = pgTable("conversations", {
@@ -77,11 +112,19 @@ export const connections = pgTable("connections", {
 export const usersRelations = relations(users, ({ many }) => ({
   sentParcels: many(parcels, { relationName: "sender" }),
   transportingParcels: many(parcels, { relationName: "transporter" }),
+  routes: many(routes),
   conversations1: many(conversations, { relationName: "participant1" }),
   conversations2: many(conversations, { relationName: "participant2" }),
   messages: many(messages),
   connections: many(connections, { relationName: "userConnections" }),
   connectedBy: many(connections, { relationName: "connectedByUsers" }),
+}));
+
+export const routesRelations = relations(routes, ({ one }) => ({
+  carrier: one(users, {
+    fields: [routes.carrierId],
+    references: [users.id],
+  }),
 }));
 
 export const parcelsRelations = relations(parcels, ({ one, many }) => ({
@@ -167,6 +210,13 @@ export const insertConnectionSchema = createInsertSchema(connections).omit({
   createdAt: true,
 });
 
+export const insertRouteSchema = createInsertSchema(routes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  status: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertParcel = z.infer<typeof insertParcelSchema>;
@@ -177,3 +227,5 @@ export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messages.$inferSelect;
 export type InsertConnection = z.infer<typeof insertConnectionSchema>;
 export type Connection = typeof connections.$inferSelect;
+export type InsertRoute = z.infer<typeof insertRouteSchema>;
+export type Route = typeof routes.$inferSelect;

@@ -4,13 +4,13 @@ import { getFirestore } from "firebase/firestore";
 import { Platform } from "react-native";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyD9pMTWieHyJ9z7qtg_BAKRZ8pqgNDnQiM",
-  authDomain: "irgadgetsofficialweb.firebaseapp.com",
-  projectId: "irgadgetsofficialweb",
-  storageBucket: "irgadgetsofficialweb.firebasestorage.app",
-  messagingSenderId: "855107386441",
-  appId: "1:855107386441:web:d64c2fb26bd3056b3e5398",
-  measurementId: "G-7TXF3ZWZCC"
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();

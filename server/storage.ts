@@ -18,7 +18,7 @@ export const db = drizzle(pool);
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createUser(user: InsertUser & { id?: string }): Promise<User>;
   getAllParcels(): Promise<Parcel[]>;
   getParcel(id: string): Promise<Parcel | undefined>;
   getParcelWithSender(id: string): Promise<(Parcel & { sender: User }) | undefined>;
@@ -42,7 +42,7 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: InsertUser & { id?: string }): Promise<User> {
     const result = await db.insert(users).values(insertUser).returning();
     return result[0];
   }

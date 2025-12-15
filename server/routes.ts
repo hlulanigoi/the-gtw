@@ -3,8 +3,44 @@ import { createServer, type Server } from "node:http";
 import { storage, db } from "./storage";
 import { users, parcels, conversations, messages, connections, insertParcelSchema, insertMessageSchema, insertConnectionSchema } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
+import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./firebase-admin";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  app.post("/api/auth/sync", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { uid, email } = req.user!;
+      const { name, phone } = req.body;
+
+      let user = await storage.getUser(uid);
+
+      if (!user) {
+        user = await storage.createUser({
+          id: uid,
+          name: name || email?.split("@")[0] || "User",
+          email: email || "",
+          phone: phone || null,
+        });
+      }
+
+      res.json(user);
+    } catch (error) {
+      console.error("Auth sync error:", error);
+      res.status(500).json({ error: "Failed to sync user" });
+    }
+  });
+
+  app.get("/api/auth/me", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const user = await storage.getUser(req.user!.uid);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user" });
+    }
+  });
+
   app.get("/api/users/:id", async (req, res) => {
     try {
       const user = await storage.getUser(req.params.id);
@@ -57,9 +93,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/parcels", async (req, res) => {
+  app.post("/api/parcels", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const parsed = insertParcelSchema.safeParse(req.body);
+      const parsed = insertParcelSchema.safeParse({
+        ...req.body,
+        senderId: req.user!.uid,
+      });
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.errors });
       }

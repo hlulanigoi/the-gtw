@@ -677,6 +677,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  async function checkAndExpireItems() {
+    const now = new Date();
+    
+    try {
+      const expiredRoutes = await db
+        .update(routes)
+        .set({ status: "Expired", updatedAt: now })
+        .where(and(
+          eq(routes.status, "Active"),
+          lte(routes.departureDate, now)
+        ))
+        .returning();
+      
+      const expiredParcels = await db
+        .update(parcels)
+        .set({ status: "Expired" })
+        .where(and(
+          eq(parcels.status, "Pending"),
+          lte(parcels.expiresAt, now)
+        ))
+        .returning();
+      
+      if (expiredRoutes.length > 0 || expiredParcels.length > 0) {
+        console.log(`Expiry check: ${expiredRoutes.length} routes, ${expiredParcels.length} parcels expired`);
+      }
+    } catch (error) {
+      console.error("Expiry check failed:", error);
+    }
+  }
+
+  app.post("/api/admin/check-expiry", async (req, res) => {
+    try {
+      await checkAndExpireItems();
+      res.json({ success: true, message: "Expiry check completed" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to run expiry check" });
+    }
+  });
+
+  checkAndExpireItems();
+  setInterval(checkAndExpireItems, 60 * 60 * 1000);
+
   const httpServer = createServer(app);
 
   return httpServer;

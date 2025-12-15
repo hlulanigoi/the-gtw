@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, TextInput, Pressable, Alert } from "react-native";
+import { View, StyleSheet, TextInput, Pressable, Alert, Switch } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -32,6 +32,18 @@ export default function CreateParcelScreen() {
     new Date().toISOString().split("T")[0]
   );
   const [compensation, setCompensation] = useState("");
+  const [description, setDescription] = useState("");
+  const [weight, setWeight] = useState("");
+  const [specialInstructions, setSpecialInstructions] = useState("");
+  const [isFragile, setIsFragile] = useState(false);
+  const [pickupWindowEnd, setPickupWindowEnd] = useState("");
+  const [deliveryWindowStart, setDeliveryWindowStart] = useState("");
+  const [deliveryWindowEnd, setDeliveryWindowEnd] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [declaredValue, setDeclaredValue] = useState("");
+  const [insuranceNeeded, setInsuranceNeeded] = useState(false);
+  const [contactPhone, setContactPhone] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const isValid = origin.trim() && destination.trim() && size && pickupDate;
 
@@ -51,11 +63,17 @@ export default function CreateParcelScreen() {
       size,
       pickupDate: new Date(pickupDate),
       compensation: compensation ? parseFloat(compensation) : 50,
-      isOwner: true,
-      isTransporting: false,
-      status: "Pending",
-      senderName: "You",
-      senderRating: 5.0,
+      description: description.trim() || null,
+      weight: weight ? parseFloat(weight) : null,
+      specialInstructions: specialInstructions.trim() || null,
+      isFragile,
+      pickupWindowEnd: pickupWindowEnd ? new Date(pickupWindowEnd) : null,
+      deliveryWindowStart: deliveryWindowStart ? new Date(deliveryWindowStart) : null,
+      deliveryWindowEnd: deliveryWindowEnd ? new Date(deliveryWindowEnd) : null,
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
+      declaredValue: declaredValue ? parseInt(declaredValue) : null,
+      insuranceNeeded,
+      contactPhone: contactPhone.trim() || null,
     });
 
     Alert.alert("Success", "Your parcel has been created!", [
@@ -226,6 +244,278 @@ export default function CreateParcelScreen() {
         </View>
       </View>
 
+      <View style={styles.formGroup}>
+        <ThemedText type="body" style={styles.label}>
+          Description
+        </ThemedText>
+        <View
+          style={[
+            styles.textAreaContainer,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+            },
+          ]}
+        >
+          <TextInput
+            style={[styles.textArea, { color: theme.text }]}
+            placeholder="Describe your parcel..."
+            placeholderTextColor={theme.textSecondary}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+      </View>
+
+      <View style={styles.formGroup}>
+        <ThemedText type="body" style={styles.label}>
+          Weight (kg)
+        </ThemedText>
+        <View
+          style={[
+            styles.inputContainer,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+            },
+          ]}
+        >
+          <Feather name="package" size={18} color={theme.textSecondary} />
+          <TextInput
+            style={[styles.input, { color: theme.text }]}
+            placeholder="e.g., 2.5"
+            placeholderTextColor={theme.textSecondary}
+            value={weight}
+            onChangeText={setWeight}
+            keyboardType="numeric"
+          />
+        </View>
+      </View>
+
+      <View style={styles.switchRow}>
+        <View style={styles.switchInfo}>
+          <Feather name="alert-triangle" size={18} color={Colors.warning} />
+          <ThemedText type="body" style={styles.switchLabel}>
+            Fragile Item
+          </ThemedText>
+        </View>
+        <Switch
+          value={isFragile}
+          onValueChange={setIsFragile}
+          trackColor={{ false: theme.border, true: Colors.primary }}
+          thumbColor="#FFFFFF"
+        />
+      </View>
+
+      <Pressable
+        style={[
+          styles.advancedToggle,
+          { borderColor: theme.border },
+        ]}
+        onPress={() => setShowAdvanced(!showAdvanced)}
+      >
+        <ThemedText type="body" style={{ color: Colors.primary }}>
+          {showAdvanced ? "Hide" : "Show"} Advanced Options
+        </ThemedText>
+        <Feather
+          name={showAdvanced ? "chevron-up" : "chevron-down"}
+          size={20}
+          color={Colors.primary}
+        />
+      </Pressable>
+
+      {showAdvanced ? (
+        <View style={styles.advancedSection}>
+          <View style={styles.formGroup}>
+            <ThemedText type="body" style={styles.label}>
+              Special Instructions
+            </ThemedText>
+            <View
+              style={[
+                styles.textAreaContainer,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <TextInput
+                style={[styles.textArea, { color: theme.text }]}
+                placeholder="Any special handling instructions..."
+                placeholderTextColor={theme.textSecondary}
+                value={specialInstructions}
+                onChangeText={setSpecialInstructions}
+                multiline
+                numberOfLines={2}
+              />
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <ThemedText type="body" style={styles.label}>
+              Pickup Window End
+            </ThemedText>
+            <View
+              style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <Feather name="clock" size={18} color={theme.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                placeholder="YYYY-MM-DD (latest pickup)"
+                placeholderTextColor={theme.textSecondary}
+                value={pickupWindowEnd}
+                onChangeText={setPickupWindowEnd}
+              />
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.formGroup, { flex: 1 }]}>
+              <ThemedText type="body" style={styles.label}>
+                Delivery Start
+              </ThemedText>
+              <View
+                style={[
+                  styles.inputContainer,
+                  {
+                    backgroundColor: theme.backgroundDefault,
+                    borderColor: theme.border,
+                  },
+                ]}
+              >
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={theme.textSecondary}
+                  value={deliveryWindowStart}
+                  onChangeText={setDeliveryWindowStart}
+                />
+              </View>
+            </View>
+            <View style={{ width: Spacing.sm }} />
+            <View style={[styles.formGroup, { flex: 1 }]}>
+              <ThemedText type="body" style={styles.label}>
+                Delivery End
+              </ThemedText>
+              <View
+                style={[
+                  styles.inputContainer,
+                  {
+                    backgroundColor: theme.backgroundDefault,
+                    borderColor: theme.border,
+                  },
+                ]}
+              >
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={theme.textSecondary}
+                  value={deliveryWindowEnd}
+                  onChangeText={setDeliveryWindowEnd}
+                />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <ThemedText type="body" style={styles.label}>
+              Listing Expiry Date
+            </ThemedText>
+            <View
+              style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <Feather name="x-circle" size={18} color={Colors.error} />
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                placeholder="YYYY-MM-DD (auto-expire listing)"
+                placeholderTextColor={theme.textSecondary}
+                value={expiresAt}
+                onChangeText={setExpiresAt}
+              />
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <ThemedText type="body" style={styles.label}>
+              Declared Value (R)
+            </ThemedText>
+            <View
+              style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <Feather name="shield" size={18} color={theme.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                placeholder="Value for insurance purposes"
+                placeholderTextColor={theme.textSecondary}
+                value={declaredValue}
+                onChangeText={setDeclaredValue}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+
+          <View style={styles.switchRow}>
+            <View style={styles.switchInfo}>
+              <Feather name="shield" size={18} color={Colors.primary} />
+              <ThemedText type="body" style={styles.switchLabel}>
+                Insurance Needed
+              </ThemedText>
+            </View>
+            <Switch
+              value={insuranceNeeded}
+              onValueChange={setInsuranceNeeded}
+              trackColor={{ false: theme.border, true: Colors.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <ThemedText type="body" style={styles.label}>
+              Contact Phone
+            </ThemedText>
+            <View
+              style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <Feather name="phone" size={18} color={theme.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                placeholder="+27 XX XXX XXXX"
+                placeholderTextColor={theme.textSecondary}
+                value={contactPhone}
+                onChangeText={setContactPhone}
+                keyboardType="phone-pad"
+              />
+            </View>
+          </View>
+        </View>
+      ) : null}
+
       <View style={styles.buttonContainer}>
         <Button onPress={handleCreate} disabled={!isValid}>
           Create Parcel
@@ -259,6 +549,17 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
   },
+  textAreaContainer: {
+    borderRadius: BorderRadius.xs,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  textArea: {
+    fontSize: 16,
+    minHeight: 60,
+    textAlignVertical: "top",
+  },
   sizeContainer: {
     flexDirection: "row",
     gap: Spacing.sm,
@@ -269,6 +570,38 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.lg,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
+  },
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.xl,
+    paddingVertical: Spacing.sm,
+  },
+  switchInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  switchLabel: {
+    fontWeight: "500",
+  },
+  advancedToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.md,
+    marginBottom: Spacing.lg,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    gap: Spacing.xs,
+  },
+  advancedSection: {
+    marginBottom: Spacing.md,
+  },
+  row: {
+    flexDirection: "row",
   },
   buttonContainer: {
     marginTop: Spacing.lg,

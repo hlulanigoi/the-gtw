@@ -12,7 +12,7 @@ import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { MyRoutesStackParamList } from "@/navigation/MyRoutesStackNavigator";
-import { useRoutes } from "@/hooks/useRoutes";
+import { useRoutes, useMatchingParcels, MatchingParcel } from "@/hooks/useRoutes";
 
 type RouteDetailRouteProp = RouteProp<MyRoutesStackParamList, "RouteDetail">;
 type NavigationProp = NativeStackNavigationProp<MyRoutesStackParamList>;
@@ -24,6 +24,7 @@ export default function RouteDetailScreen() {
   const routeProp = useRoute<RouteDetailRouteProp>();
   const { routeId } = routeProp.params;
   const { routes, cancelRoute, deleteRoute } = useRoutes();
+  const { matchingParcels, isLoading: matchingLoading } = useMatchingParcels(routeId);
 
   const route = routes.find((r) => r.id === routeId);
 
@@ -274,6 +275,127 @@ export default function RouteDetailScreen() {
       ) : null}
 
       {route.isOwner && route.status === "Active" ? (
+        <View
+          style={[styles.card, { backgroundColor: theme.backgroundDefault }]}
+        >
+          <View style={styles.cardHeader}>
+            <Feather name="package" size={18} color={Colors.success} />
+            <ThemedText type="body" style={{ fontWeight: "600" }}>
+              Matching Parcels
+            </ThemedText>
+            {matchingParcels.length > 0 ? (
+              <View style={[styles.badge, { backgroundColor: Colors.success }]}>
+                <ThemedText type="caption" style={{ color: "#FFFFFF" }}>
+                  {matchingParcels.length}
+                </ThemedText>
+              </View>
+            ) : null}
+          </View>
+          {matchingLoading ? (
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              Finding matching parcels...
+            </ThemedText>
+          ) : matchingParcels.length === 0 ? (
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              No matching parcels found for this route yet. Check back later!
+            </ThemedText>
+          ) : (
+            <View style={styles.matchingParcelsContainer}>
+              {matchingParcels.map((parcel: MatchingParcel) => (
+                <View
+                  key={parcel.id}
+                  style={[
+                    styles.matchingParcelCard,
+                    { backgroundColor: theme.backgroundRoot },
+                  ]}
+                >
+                  <View style={styles.matchingParcelHeader}>
+                    <View style={styles.matchingParcelRoute}>
+                      <Feather name="map-pin" size={14} color={Colors.primary} />
+                      <ThemedText type="small" numberOfLines={1}>
+                        {parcel.origin}
+                      </ThemedText>
+                      <Feather
+                        name="arrow-right"
+                        size={12}
+                        color={theme.textSecondary}
+                      />
+                      <Feather
+                        name="navigation"
+                        size={14}
+                        color={Colors.secondary}
+                      />
+                      <ThemedText type="small" numberOfLines={1}>
+                        {parcel.destination}
+                      </ThemedText>
+                    </View>
+                    <View
+                      style={[
+                        styles.matchScoreBadge,
+                        {
+                          backgroundColor:
+                            parcel.matchScore >= 80
+                              ? Colors.success + "20"
+                              : parcel.matchScore >= 60
+                              ? Colors.warning + "20"
+                              : Colors.primary + "20",
+                        },
+                      ]}
+                    >
+                      <ThemedText
+                        type="caption"
+                        style={{
+                          color:
+                            parcel.matchScore >= 80
+                              ? Colors.success
+                              : parcel.matchScore >= 60
+                              ? Colors.warning
+                              : Colors.primary,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {parcel.matchScore}% match
+                      </ThemedText>
+                    </View>
+                  </View>
+                  <View style={styles.matchingParcelDetails}>
+                    <View style={styles.matchingParcelInfo}>
+                      <Feather name="box" size={12} color={theme.textSecondary} />
+                      <ThemedText
+                        type="caption"
+                        style={{ color: theme.textSecondary }}
+                      >
+                        {parcel.size}
+                        {parcel.weight ? ` - ${parcel.weight}kg` : ""}
+                      </ThemedText>
+                    </View>
+                    <ThemedText type="body" style={{ color: Colors.primary }}>
+                      R{parcel.compensation}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.matchingParcelFooter}>
+                    <ThemedText
+                      type="caption"
+                      style={{ color: theme.textSecondary }}
+                    >
+                      From {parcel.senderName}
+                      {parcel.senderRating ? ` (${parcel.senderRating}/5)` : ""}
+                    </ThemedText>
+                    <ThemedText
+                      type="caption"
+                      style={{ color: theme.textSecondary }}
+                    >
+                      {parcel.pickupDate.toLocaleDateString("en-ZA")}
+                    </ThemedText>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      ) : null}
+
+      {route.isOwner && route.status === "Active" ? (
         <View style={styles.buttonContainer}>
           <Button onPress={handleCancel} style={styles.button}>
             Cancel Route
@@ -359,5 +481,52 @@ const styles = StyleSheet.create({
   button: {},
   deleteButton: {
     backgroundColor: Colors.error,
+  },
+  badge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+    marginLeft: "auto",
+  },
+  matchingParcelsContainer: {
+    gap: Spacing.sm,
+  },
+  matchingParcelCard: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    gap: Spacing.sm,
+  },
+  matchingParcelHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.sm,
+  },
+  matchingParcelRoute: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    flex: 1,
+    flexWrap: "wrap",
+  },
+  matchScoreBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  matchingParcelDetails: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  matchingParcelInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  matchingParcelFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
 });

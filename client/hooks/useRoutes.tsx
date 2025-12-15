@@ -90,6 +90,57 @@ function mapApiRouteToRoute(
   };
 }
 
+export interface MatchingParcel {
+  id: string;
+  origin: string;
+  destination: string;
+  size: "small" | "medium" | "large";
+  weight?: number | null;
+  compensation: number;
+  pickupDate: Date;
+  status: string;
+  senderName: string;
+  senderRating: number | null;
+  matchScore: number;
+}
+
+interface MatchingParcelApiResponse {
+  id: string;
+  origin: string;
+  destination: string;
+  size: "small" | "medium" | "large";
+  weight?: number | null;
+  compensation: number;
+  pickupDate: string;
+  status: string;
+  senderName: string;
+  senderRating: number | null;
+  matchScore: number;
+}
+
+export function useMatchingParcels(routeId: string | null) {
+  const { data: matchingParcels = [], isLoading, error, refetch } = useQuery<MatchingParcelApiResponse[], Error, MatchingParcel[]>({
+    queryKey: [`/api/routes/${routeId}/matching-parcels`],
+    select: (data: MatchingParcelApiResponse[]) =>
+      data.map((p) => ({
+        id: p.id,
+        origin: p.origin,
+        destination: p.destination,
+        size: p.size,
+        weight: p.weight,
+        compensation: p.compensation,
+        pickupDate: new Date(p.pickupDate),
+        status: p.status,
+        senderName: p.senderName || "Unknown",
+        senderRating: p.senderRating,
+        matchScore: p.matchScore,
+      })),
+    enabled: !!routeId,
+  });
+
+  return { matchingParcels, isLoading, error, refetch };
+}
+
 export function useRoutes() {
   const { user } = useAuth();
   const queryClient = useQueryClient();

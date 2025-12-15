@@ -31,7 +31,14 @@ export interface Parcel {
   isFragile?: boolean | null;
   compensation: number;
   pickupDate: Date;
-  status: "Pending" | "In Transit" | "Delivered";
+  pickupWindowEnd?: Date | null;
+  deliveryWindowStart?: Date | null;
+  deliveryWindowEnd?: Date | null;
+  expiresAt?: Date | null;
+  declaredValue?: number | null;
+  insuranceNeeded?: boolean | null;
+  contactPhone?: string | null;
+  status: "Pending" | "In Transit" | "Delivered" | "Expired";
   senderId: string;
   transporterId?: string | null;
   senderName: string;
@@ -78,6 +85,22 @@ export function useParcels() {
             ? data.createdAt.toDate()
             : data.createdAt ? new Date(data.createdAt) : new Date();
 
+          const pickupWindowEnd = data.pickupWindowEnd instanceof Timestamp
+            ? data.pickupWindowEnd.toDate()
+            : data.pickupWindowEnd ? new Date(data.pickupWindowEnd) : null;
+
+          const deliveryWindowStart = data.deliveryWindowStart instanceof Timestamp
+            ? data.deliveryWindowStart.toDate()
+            : data.deliveryWindowStart ? new Date(data.deliveryWindowStart) : null;
+
+          const deliveryWindowEnd = data.deliveryWindowEnd instanceof Timestamp
+            ? data.deliveryWindowEnd.toDate()
+            : data.deliveryWindowEnd ? new Date(data.deliveryWindowEnd) : null;
+
+          const expiresAt = data.expiresAt instanceof Timestamp
+            ? data.expiresAt.toDate()
+            : data.expiresAt ? new Date(data.expiresAt) : null;
+
           parcelsData.push({
             id: docSnapshot.id,
             origin: data.origin,
@@ -94,6 +117,13 @@ export function useParcels() {
             isFragile: data.isFragile,
             compensation: data.compensation,
             pickupDate,
+            pickupWindowEnd,
+            deliveryWindowStart,
+            deliveryWindowEnd,
+            expiresAt,
+            declaredValue: data.declaredValue,
+            insuranceNeeded: data.insuranceNeeded,
+            contactPhone: data.contactPhone,
             status: data.status || "Pending",
             senderId: data.senderId,
             transporterId: data.transporterId,
@@ -119,19 +149,40 @@ export function useParcels() {
   }, [user?.uid]);
 
   const addParcel = async (
-    parcel: Omit<Parcel, "id" | "senderName" | "senderRating" | "createdAt" | "status" | "transporterId" | "isOwner" | "isTransporting">
+    parcel: Omit<Parcel, "id" | "senderName" | "senderRating" | "createdAt" | "status" | "transporterId" | "isOwner" | "isTransporting" | "senderId">
   ) => {
     if (!user) return;
 
     try {
-      await addDoc(collection(db, "parcels"), {
-        ...parcel,
+      const parcelData: any = {
+        origin: parcel.origin,
+        destination: parcel.destination,
+        originLat: parcel.originLat ?? null,
+        originLng: parcel.originLng ?? null,
+        destinationLat: parcel.destinationLat ?? null,
+        destinationLng: parcel.destinationLng ?? null,
+        intermediateStops: parcel.intermediateStops ?? null,
+        size: parcel.size,
+        weight: parcel.weight ?? null,
+        description: parcel.description ?? null,
+        specialInstructions: parcel.specialInstructions ?? null,
+        isFragile: parcel.isFragile === true,
+        compensation: parcel.compensation,
         pickupDate: Timestamp.fromDate(parcel.pickupDate instanceof Date ? parcel.pickupDate : new Date(parcel.pickupDate)),
+        pickupWindowEnd: parcel.pickupWindowEnd ? Timestamp.fromDate(parcel.pickupWindowEnd instanceof Date ? parcel.pickupWindowEnd : new Date(parcel.pickupWindowEnd)) : null,
+        deliveryWindowStart: parcel.deliveryWindowStart ? Timestamp.fromDate(parcel.deliveryWindowStart instanceof Date ? parcel.deliveryWindowStart : new Date(parcel.deliveryWindowStart)) : null,
+        deliveryWindowEnd: parcel.deliveryWindowEnd ? Timestamp.fromDate(parcel.deliveryWindowEnd instanceof Date ? parcel.deliveryWindowEnd : new Date(parcel.deliveryWindowEnd)) : null,
+        expiresAt: parcel.expiresAt ? Timestamp.fromDate(parcel.expiresAt instanceof Date ? parcel.expiresAt : new Date(parcel.expiresAt)) : null,
+        declaredValue: parcel.declaredValue ?? null,
+        insuranceNeeded: parcel.insuranceNeeded === true,
+        contactPhone: parcel.contactPhone ?? null,
         senderId: user.uid,
         status: "Pending",
         transporterId: null,
         createdAt: serverTimestamp(),
-      });
+      };
+
+      await addDoc(collection(db, "parcels"), parcelData);
     } catch (err) {
       console.error("Error adding parcel:", err);
       throw err;

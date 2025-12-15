@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { storage, db } from "./storage";
-import { users, parcels, conversations, messages, connections, routes, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema } from "@shared/schema";
+import { users, parcels, conversations, messages, connections, routes, reviews, pushTokens, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema, insertReviewSchema, insertPushTokenSchema } from "@shared/schema";
 import { eq, desc, and, gte, lte, ne } from "drizzle-orm";
 import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./firebase-admin";
 
@@ -674,6 +674,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to find matching routes:", error);
       res.status(500).json({ error: "Failed to find matching routes" });
+    }
+  });
+
+  app.get("/api/users/:userId/reviews", async (req, res) => {
+    try {
+      const userReviews = await storage.getUserReviews(req.params.userId);
+      res.json(userReviews);
+    } catch (error) {
+      console.error("Failed to fetch reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  app.post("/api/reviews", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const parsed = insertReviewSchema.safeParse({
+        ...req.body,
+        reviewerId: req.user!.uid,
+      });
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors });
+      }
+
+      const existing = await storage.getReviewByParcelAndReviewer(
+        parsed.data.parcelId,
+        req.user!.uid
+      );
+      if (existing) {
+        return res.status(409).json({ error: "You have already reviewed this delivery" });
+      }
+
+      const parcel = await storage.getParcel(parsed.data.parcelId);
+      if (!parcel) {
+        return res.status(404).json({ error: "Parcel not found" });
+      }
+      if (parcel.status !== "Delivered") {
+        return res.status(400).json({ error: "Can only review delivered parcels" });
+      }
+
+      const review = await storage.createReview(parsed.data);
+
+      const revieweeTokens = await storage.getUserPushTokens(parsed.data.revieweeId);
+      if (revieweeTokens.length > 0) {
+        console.log(`Would send notification to ${revieweeTokens.length} devices for new review`);
+      }
+
+      res.status(201).json(review);
+    } catch (error) {
+      console.error("Failed to create review:", error);
+      res.status(500).json({ error: "Failed to create review" });
+    }
+  });
+
+  app.post("/api/push-tokens", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const parsed = insertPushTokenSchema.safeParse({
+        ...req.body,
+        userId: req.user!.uid,
+      });
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors });
+      }
+
+      const pushToken = await storage.createOrUpdatePushToken(parsed.data);
+      res.status(201).json(pushToken);
+    } catch (error) {
+      console.error("Failed to save push token:", error);
+      res.status(500).json({ error: "Failed to save push token" });
+    }
+  });
+
+  app.delete("/api/push-tokens/:token", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const deleted = await storage.deletePushToken(req.params.token);
+      if (!deleted) {
+        return res.status(404).json({ error: "Push token not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Failed to delete push token:", error);
+      res.status(500).json({ error: "Failed to delete push token" });
     }
   });
 

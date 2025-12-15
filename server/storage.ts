@@ -1,4 +1,4 @@
-import { eq, or, and, desc } from "drizzle-orm";
+import { eq, or, and, desc, avg } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import {
@@ -8,6 +8,8 @@ import {
   type Message, type InsertMessage, messages,
   type Connection, type InsertConnection, connections,
   type Route, type InsertRoute, routes,
+  type Review, type InsertReview, reviews,
+  type PushToken, type InsertPushToken, pushTokens,
 } from "@shared/schema";
 
 const pool = new Pool({
@@ -205,6 +207,76 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRoute(id: string): Promise<boolean> {
     const result = await db.delete(routes).where(eq(routes.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getUserReviews(userId: string): Promise<(Review & { reviewer: User })[]> {
+    const result = await db
+      .select()
+      .from(reviews)
+      .innerJoin(users, eq(reviews.reviewerId, users.id))
+      .where(eq(reviews.revieweeId, userId))
+      .orderBy(desc(reviews.createdAt));
+    return result.map(r => ({ ...r.reviews, reviewer: r.users }));
+  }
+
+  async getReviewByParcelAndReviewer(parcelId: string, reviewerId: string): Promise<Review | undefined> {
+    const result = await db
+      .select()
+      .from(reviews)
+      .where(and(eq(reviews.parcelId, parcelId), eq(reviews.reviewerId, reviewerId)));
+    return result[0];
+  }
+
+  async createReview(insertReview: InsertReview): Promise<Review> {
+    const result = await db.insert(reviews).values(insertReview).returning();
+    
+    const avgResult = await db
+      .select({ avgRating: avg(reviews.rating) })
+      .from(reviews)
+      .where(eq(reviews.revieweeId, insertReview.revieweeId));
+    
+    if (avgResult[0]?.avgRating) {
+      await db
+        .update(users)
+        .set({ rating: parseFloat(avgResult[0].avgRating) })
+        .where(eq(users.id, insertReview.revieweeId));
+    }
+    
+    return result[0];
+  }
+
+  async getUserPushTokens(userId: string): Promise<PushToken[]> {
+    return await db
+      .select()
+      .from(pushTokens)
+      .where(eq(pushTokens.userId, userId));
+  }
+
+  async getPushTokenByToken(token: string): Promise<PushToken | undefined> {
+    const result = await db
+      .select()
+      .from(pushTokens)
+      .where(eq(pushTokens.token, token));
+    return result[0];
+  }
+
+  async createOrUpdatePushToken(insertPushToken: InsertPushToken): Promise<PushToken> {
+    const existing = await this.getPushTokenByToken(insertPushToken.token);
+    if (existing) {
+      const result = await db
+        .update(pushTokens)
+        .set({ userId: insertPushToken.userId, updatedAt: new Date() })
+        .where(eq(pushTokens.token, insertPushToken.token))
+        .returning();
+      return result[0];
+    }
+    const result = await db.insert(pushTokens).values(insertPushToken).returning();
+    return result[0];
+  }
+
+  async deletePushToken(token: string): Promise<boolean> {
+    const result = await db.delete(pushTokens).where(eq(pushTokens.token, token)).returning();
     return result.length > 0;
   }
 }

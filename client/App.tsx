@@ -14,6 +14,12 @@ import AuthStackNavigator from "@/navigation/AuthStackNavigator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Colors } from "@/constants/theme";
+import { useNotifications } from "@/hooks/useNotifications";
+
+function NotificationHandler() {
+  useNotifications();
+  return null;
+}
 
 function AppNavigator() {
   const { user, loading } = useAuth();
@@ -38,6 +44,7 @@ export default function App() {
             <GestureHandlerRootView style={styles.root}>
               <KeyboardProvider>
                 <NavigationContainer>
+                  <NotificationHandler />
                   <AppNavigator />
                 </NavigationContainer>
                 <StatusBar style="auto" />

@@ -3,12 +3,14 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import ProfileScreen from "@/screens/ProfileScreen";
 import SettingsScreen from "@/screens/SettingsScreen";
 import ConnectionsScreen from "@/screens/ConnectionsScreen";
+import ReviewsScreen from "@/screens/ReviewsScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type ProfileStackParamList = {
   Profile: undefined;
   Settings: undefined;
   Connections: undefined;
+  Reviews: undefined;
 };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
@@ -37,6 +39,13 @@ export default function ProfileStackNavigator() {
         component={ConnectionsScreen}
         options={{
           headerTitle: "My Connections",
+        }}
+      />
+      <Stack.Screen
+        name="Reviews"
+        component={ReviewsScreen}
+        options={{
+          headerTitle: "My Reviews",
         }}
       />
     </Stack.Navigator>

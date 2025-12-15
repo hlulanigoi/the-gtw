@@ -183,6 +183,54 @@ export const connectionsRelations = relations(connections, ({ one }) => ({
   }),
 }));
 
+export const reviews = pgTable("reviews", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  parcelId: varchar("parcel_id").notNull().references(() => parcels.id),
+  reviewerId: varchar("reviewer_id").notNull().references(() => users.id),
+  revieweeId: varchar("reviewee_id").notNull().references(() => users.id),
+  rating: integer("rating").notNull(),
+  comment: text("comment"),
+  reviewType: text("review_type").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const pushTokens = pgTable("push_tokens", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  token: text("token").notNull().unique(),
+  platform: text("platform"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const reviewsRelations = relations(reviews, ({ one }) => ({
+  parcel: one(parcels, {
+    fields: [reviews.parcelId],
+    references: [parcels.id],
+  }),
+  reviewer: one(users, {
+    fields: [reviews.reviewerId],
+    references: [users.id],
+    relationName: "reviewsGiven",
+  }),
+  reviewee: one(users, {
+    fields: [reviews.revieweeId],
+    references: [users.id],
+    relationName: "reviewsReceived",
+  }),
+}));
+
+export const pushTokensRelations = relations(pushTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [pushTokens.userId],
+    references: [users.id],
+  }),
+}));
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -217,6 +265,17 @@ export const insertRouteSchema = createInsertSchema(routes).omit({
   status: true,
 });
 
+export const insertReviewSchema = createInsertSchema(reviews).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPushTokenSchema = createInsertSchema(pushTokens).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertParcel = z.infer<typeof insertParcelSchema>;
@@ -229,3 +288,7 @@ export type InsertConnection = z.infer<typeof insertConnectionSchema>;
 export type Connection = typeof connections.$inferSelect;
 export type InsertRoute = z.infer<typeof insertRouteSchema>;
 export type Route = typeof routes.$inferSelect;
+export type InsertReview = z.infer<typeof insertReviewSchema>;
+export type Review = typeof reviews.$inferSelect;
+export type InsertPushToken = z.infer<typeof insertPushTokenSchema>;
+export type PushToken = typeof pushTokens.$inferSelect;

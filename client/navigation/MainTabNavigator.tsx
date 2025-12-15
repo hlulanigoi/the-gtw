@@ -5,6 +5,7 @@ import { BlurView } from "expo-blur";
 import { Platform, StyleSheet } from "react-native";
 import BrowseStackNavigator from "@/navigation/BrowseStackNavigator";
 import MyParcelsStackNavigator from "@/navigation/MyParcelsStackNavigator";
+import MyRoutesStackNavigator from "@/navigation/MyRoutesStackNavigator";
 import MessagesStackNavigator from "@/navigation/MessagesStackNavigator";
 import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
 import { useTheme } from "@/hooks/useTheme";
@@ -12,6 +13,7 @@ import { useTheme } from "@/hooks/useTheme";
 export type MainTabParamList = {
   BrowseTab: undefined;
   MyParcelsTab: undefined;
+  MyRoutesTab: undefined;
   MessagesTab: undefined;
   ProfileTab: undefined;
 };
@@ -61,9 +63,19 @@ export default function MainTabNavigator() {
         name="MyParcelsTab"
         component={MyParcelsStackNavigator}
         options={{
-          title: "My Parcels",
+          title: "Parcels",
           tabBarIcon: ({ color, size }) => (
             <Feather name="package" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="MyRoutesTab"
+        component={MyRoutesStackNavigator}
+        options={{
+          title: "Routes",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="navigation" size={size} color={color} />
           ),
         }}
       />

@@ -1,8 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { storage, db } from "./storage";
-import { users, parcels, conversations, messages, connections, insertParcelSchema, insertMessageSchema, insertConnectionSchema } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { users, parcels, conversations, messages, connections, routes, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema } from "@shared/schema";
+import { eq, desc, and, gte, lte, ne } from "drizzle-orm";
 import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./firebase-admin";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -351,6 +351,329 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Geocoding failed:", error);
       res.status(500).json({ error: "Geocoding failed" });
+    }
+  });
+
+  app.get("/api/routes", async (req, res) => {
+    try {
+      const allRoutes = await db
+        .select({
+          route: routes,
+          carrier: users,
+        })
+        .from(routes)
+        .innerJoin(users, eq(routes.carrierId, users.id))
+        .where(eq(routes.status, "Active"))
+        .orderBy(desc(routes.departureDate));
+
+      const result = allRoutes.map(({ route, carrier }) => ({
+        ...route,
+        carrierName: carrier.name,
+        carrierRating: carrier.rating,
+      }));
+
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to fetch routes:", error);
+      res.status(500).json({ error: "Failed to fetch routes" });
+    }
+  });
+
+  app.get("/api/routes/:id", async (req, res) => {
+    try {
+      const routeWithCarrier = await storage.getRouteWithCarrier(req.params.id);
+      if (!routeWithCarrier) {
+        return res.status(404).json({ error: "Route not found" });
+      }
+      res.json({
+        ...routeWithCarrier,
+        carrierName: routeWithCarrier.carrier.name,
+        carrierRating: routeWithCarrier.carrier.rating,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch route" });
+    }
+  });
+
+  app.get("/api/users/:userId/routes", async (req, res) => {
+    try {
+      const userRoutes = await storage.getUserRoutes(req.params.userId);
+      res.json(userRoutes);
+    } catch (error) {
+      console.error("Failed to fetch user routes:", error);
+      res.status(500).json({ error: "Failed to fetch user routes" });
+    }
+  });
+
+  app.post("/api/routes", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const parsed = insertRouteSchema.safeParse({
+        ...req.body,
+        carrierId: req.user!.uid,
+      });
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors });
+      }
+
+      const routeData = { ...parsed.data };
+
+      try {
+        const [originGeo, destGeo] = await Promise.all([
+          fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(parsed.data.origin)}&limit=1`, {
+            headers: { "User-Agent": "ParcelPeer/1.0" }
+          }).then(r => r.json()),
+          fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(parsed.data.destination)}&limit=1`, {
+            headers: { "User-Agent": "ParcelPeer/1.0" }
+          }).then(r => r.json())
+        ]);
+
+        if (originGeo[0]) {
+          routeData.originLat = parseFloat(originGeo[0].lat);
+          routeData.originLng = parseFloat(originGeo[0].lon);
+        }
+        if (destGeo[0]) {
+          routeData.destinationLat = parseFloat(destGeo[0].lat);
+          routeData.destinationLng = parseFloat(destGeo[0].lon);
+        }
+      } catch (geoError) {
+        console.warn("Geocoding failed, continuing without coordinates:", geoError);
+      }
+
+      const route = await storage.createRoute(routeData);
+      res.status(201).json(route);
+    } catch (error) {
+      console.error("Failed to create route:", error);
+      res.status(500).json({ error: "Failed to create route" });
+    }
+  });
+
+  app.patch("/api/routes/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const existingRoute = await storage.getRoute(req.params.id);
+      if (!existingRoute) {
+        return res.status(404).json({ error: "Route not found" });
+      }
+      if (existingRoute.carrierId !== req.user!.uid) {
+        return res.status(403).json({ error: "Not authorized to update this route" });
+      }
+
+      const route = await storage.updateRoute(req.params.id, req.body);
+      res.json(route);
+    } catch (error) {
+      console.error("Failed to update route:", error);
+      res.status(500).json({ error: "Failed to update route" });
+    }
+  });
+
+  app.delete("/api/routes/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const existingRoute = await storage.getRoute(req.params.id);
+      if (!existingRoute) {
+        return res.status(404).json({ error: "Route not found" });
+      }
+      if (existingRoute.carrierId !== req.user!.uid) {
+        return res.status(403).json({ error: "Not authorized to delete this route" });
+      }
+
+      const deleted = await storage.deleteRoute(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Route not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Failed to delete route:", error);
+      res.status(500).json({ error: "Failed to delete route" });
+    }
+  });
+
+  function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  const SIZE_ORDER = { small: 1, medium: 2, large: 3 };
+
+  app.get("/api/routes/:routeId/matching-parcels", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const route = await storage.getRoute(req.params.routeId);
+      if (!route) {
+        return res.status(404).json({ error: "Route not found" });
+      }
+
+      const pendingParcels = await db
+        .select({ parcel: parcels, sender: users })
+        .from(parcels)
+        .innerJoin(users, eq(parcels.senderId, users.id))
+        .where(and(
+          eq(parcels.status, "Pending"),
+          ne(parcels.senderId, req.user!.uid)
+        ));
+
+      const maxDistanceKm = 50;
+      const matchingParcels = pendingParcels
+        .filter(({ parcel }) => {
+          if (!route.originLat || !route.originLng || !route.destinationLat || !route.destinationLng) {
+            return parcel.origin.toLowerCase().includes(route.origin.toLowerCase()) ||
+              route.origin.toLowerCase().includes(parcel.origin.toLowerCase());
+          }
+          if (!parcel.originLat || !parcel.originLng || !parcel.destinationLat || !parcel.destinationLng) {
+            return parcel.origin.toLowerCase().includes(route.origin.toLowerCase()) ||
+              route.origin.toLowerCase().includes(parcel.origin.toLowerCase());
+          }
+
+          const originDistance = calculateDistance(
+            route.originLat, route.originLng,
+            parcel.originLat, parcel.originLng
+          );
+          const destDistance = calculateDistance(
+            route.destinationLat, route.destinationLng,
+            parcel.destinationLat, parcel.destinationLng
+          );
+
+          return originDistance <= maxDistanceKm && destDistance <= maxDistanceKm;
+        })
+        .filter(({ parcel }) => {
+          const routeDate = new Date(route.departureDate);
+          const parcelDate = new Date(parcel.pickupDate);
+          const daysDiff = Math.abs((routeDate.getTime() - parcelDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (route.frequency === "one_time") {
+            return daysDiff <= 2;
+          } else if (route.frequency === "daily") {
+            return true;
+          } else if (route.frequency === "weekly") {
+            return daysDiff <= 7;
+          } else {
+            return daysDiff <= 30;
+          }
+        })
+        .filter(({ parcel }) => {
+          if (!route.maxParcelSize) return true;
+          return SIZE_ORDER[parcel.size] <= SIZE_ORDER[route.maxParcelSize];
+        })
+        .filter(({ parcel }) => {
+          if (!route.maxWeight || !parcel.weight) return true;
+          return parcel.weight <= route.maxWeight;
+        })
+        .map(({ parcel, sender }) => {
+          let score = 100;
+
+          if (route.originLat && route.originLng && parcel.originLat && parcel.originLng) {
+            const originDistance = calculateDistance(
+              route.originLat, route.originLng,
+              parcel.originLat, parcel.originLng
+            );
+            score -= originDistance;
+          }
+
+          return {
+            ...parcel,
+            senderName: sender.name,
+            senderRating: sender.rating,
+            matchScore: Math.max(0, Math.round(score)),
+          };
+        })
+        .sort((a, b) => b.matchScore - a.matchScore);
+
+      res.json(matchingParcels);
+    } catch (error) {
+      console.error("Failed to find matching parcels:", error);
+      res.status(500).json({ error: "Failed to find matching parcels" });
+    }
+  });
+
+  app.get("/api/parcels/:parcelId/matching-routes", async (req, res) => {
+    try {
+      const parcel = await storage.getParcel(req.params.parcelId);
+      if (!parcel) {
+        return res.status(404).json({ error: "Parcel not found" });
+      }
+
+      const activeRoutes = await db
+        .select({ route: routes, carrier: users })
+        .from(routes)
+        .innerJoin(users, eq(routes.carrierId, users.id))
+        .where(and(
+          eq(routes.status, "Active"),
+          ne(routes.carrierId, parcel.senderId)
+        ));
+
+      const maxDistanceKm = 50;
+      const matchingRoutes = activeRoutes
+        .filter(({ route }) => {
+          if (!route.originLat || !route.originLng || !route.destinationLat || !route.destinationLng) {
+            return parcel.origin.toLowerCase().includes(route.origin.toLowerCase()) ||
+              route.origin.toLowerCase().includes(parcel.origin.toLowerCase());
+          }
+          if (!parcel.originLat || !parcel.originLng || !parcel.destinationLat || !parcel.destinationLng) {
+            return parcel.origin.toLowerCase().includes(route.origin.toLowerCase()) ||
+              route.origin.toLowerCase().includes(parcel.origin.toLowerCase());
+          }
+
+          const originDistance = calculateDistance(
+            route.originLat, route.originLng,
+            parcel.originLat, parcel.originLng
+          );
+          const destDistance = calculateDistance(
+            route.destinationLat, route.destinationLng,
+            parcel.destinationLat, parcel.destinationLng
+          );
+
+          return originDistance <= maxDistanceKm && destDistance <= maxDistanceKm;
+        })
+        .filter(({ route }) => {
+          const routeDate = new Date(route.departureDate);
+          const parcelDate = new Date(parcel.pickupDate);
+          const daysDiff = Math.abs((routeDate.getTime() - parcelDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (route.frequency === "one_time") {
+            return daysDiff <= 2;
+          } else if (route.frequency === "daily") {
+            return true;
+          } else if (route.frequency === "weekly") {
+            return daysDiff <= 7;
+          } else {
+            return daysDiff <= 30;
+          }
+        })
+        .filter(({ route }) => {
+          if (!route.maxParcelSize) return true;
+          return SIZE_ORDER[parcel.size] <= SIZE_ORDER[route.maxParcelSize];
+        })
+        .filter(({ route }) => {
+          if (!route.maxWeight || !parcel.weight) return true;
+          return parcel.weight <= route.maxWeight;
+        })
+        .map(({ route, carrier }) => {
+          let score = 100;
+
+          if (route.originLat && route.originLng && parcel.originLat && parcel.originLng) {
+            const originDistance = calculateDistance(
+              route.originLat, route.originLng,
+              parcel.originLat, parcel.originLng
+            );
+            score -= originDistance;
+          }
+
+          return {
+            ...route,
+            carrierName: carrier.name,
+            carrierRating: carrier.rating,
+            matchScore: Math.max(0, Math.round(score)),
+          };
+        })
+        .sort((a, b) => b.matchScore - a.matchScore);
+
+      res.json(matchingRoutes);
+    } catch (error) {
+      console.error("Failed to find matching routes:", error);
+      res.status(500).json({ error: "Failed to find matching routes" });
     }
   });
 

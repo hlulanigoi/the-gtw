@@ -7,6 +7,7 @@ import {
   type Conversation, type InsertConversation, conversations,
   type Message, type InsertMessage, messages,
   type Connection, type InsertConnection, connections,
+  type Route, type InsertRoute, routes,
 } from "@shared/schema";
 
 const pool = new Pool({
@@ -152,6 +153,58 @@ export class DatabaseStorage implements IStorage {
       .delete(connections)
       .where(and(eq(connections.userId, userId), eq(connections.connectedUserId, connectedUserId)))
       .returning();
+    return result.length > 0;
+  }
+
+  async getRoute(id: string): Promise<Route | undefined> {
+    const result = await db.select().from(routes).where(eq(routes.id, id));
+    return result[0];
+  }
+
+  async getRouteWithCarrier(id: string): Promise<(Route & { carrier: User }) | undefined> {
+    const result = await db
+      .select()
+      .from(routes)
+      .innerJoin(users, eq(routes.carrierId, users.id))
+      .where(eq(routes.id, id));
+    if (result[0]) {
+      return { ...result[0].routes, carrier: result[0].users };
+    }
+    return undefined;
+  }
+
+  async getUserRoutes(userId: string): Promise<Route[]> {
+    return await db
+      .select()
+      .from(routes)
+      .where(eq(routes.carrierId, userId))
+      .orderBy(desc(routes.departureDate));
+  }
+
+  async getAllActiveRoutes(): Promise<Route[]> {
+    return await db
+      .select()
+      .from(routes)
+      .where(eq(routes.status, "Active"))
+      .orderBy(desc(routes.departureDate));
+  }
+
+  async createRoute(insertRoute: InsertRoute): Promise<Route> {
+    const result = await db.insert(routes).values(insertRoute).returning();
+    return result[0];
+  }
+
+  async updateRoute(id: string, updates: Partial<Route>): Promise<Route | undefined> {
+    const result = await db
+      .update(routes)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(routes.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteRoute(id: string): Promise<boolean> {
+    const result = await db.delete(routes).where(eq(routes.id, id)).returning();
     return result.length > 0;
   }
 }

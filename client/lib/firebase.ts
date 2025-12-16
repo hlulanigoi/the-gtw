@@ -1,7 +1,11 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, Auth } from "firebase/auth";
+import { getAuth, initializeAuth, Auth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// @ts-ignore - getReactNativePersistence exists at runtime but TypeScript types lag behind
+const { getReactNativePersistence } = require("firebase/auth");
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -15,7 +19,23 @@ const firebaseConfig = {
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-const auth: Auth = getAuth(app);
+let auth: Auth;
+
+if (Platform.OS === "web") {
+  auth = getAuth(app);
+} else {
+  try {
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+  } catch (error: any) {
+    if (error.code === "auth/already-initialized") {
+      auth = getAuth(app);
+    } else {
+      throw error;
+    }
+  }
+}
 
 const db = getFirestore(app);
 

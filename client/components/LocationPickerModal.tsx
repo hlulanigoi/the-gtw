@@ -8,11 +8,14 @@ import {
   Modal,
   Platform,
   ActivityIndicator,
+  Linking,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
 import * as Haptics from "expo-haptics";
+import * as Location from "expo-location";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -129,8 +132,73 @@ export function LocationPickerModal({
   const [isSearching, setIsSearching] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null);
   const [showMap, setShowMap] = useState(false);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const webViewRef = useRef<WebView>(null);
+
+  const handleUseCurrentLocation = async () => {
+    if (Platform.OS === "web") {
+      Alert.alert(
+        "Not Available",
+        "GPS location is not available on web. Please run this app in Expo Go on your mobile device to use your current location."
+      );
+      return;
+    }
+
+    setIsGettingLocation(true);
+
+    try {
+      const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
+
+      if (status !== "granted") {
+        if (!canAskAgain) {
+          Alert.alert(
+            "Permission Required",
+            "Location permission is required to use your current location. Please enable it in Settings.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Open Settings",
+                onPress: async () => {
+                  try {
+                    await Linking.openSettings();
+                  } catch (error) {
+                    console.error("Failed to open settings:", error);
+                  }
+                },
+              },
+            ]
+          );
+        } else {
+          Alert.alert(
+            "Permission Denied",
+            "Location permission is required to use your current location."
+          );
+        }
+        setIsGettingLocation(false);
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const { latitude, longitude } = location.coords;
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      await reverseGeocode(latitude, longitude);
+      setShowMap(true);
+    } catch (error) {
+      console.error("Error getting location:", error);
+      Alert.alert(
+        "Location Error",
+        "Could not get your current location. Please try again or search for a location."
+      );
+    } finally {
+      setIsGettingLocation(false);
+    }
+  };
 
   useEffect(() => {
     if (visible && initialQuery) {
@@ -529,6 +597,39 @@ export function LocationPickerModal({
             >
               Search for a city, address, or landmark
             </ThemedText>
+
+            <Pressable
+              style={[
+                styles.currentLocationButton,
+                {
+                  backgroundColor: `${Colors.primary}15`,
+                  borderColor: Colors.primary,
+                },
+              ]}
+              onPress={handleUseCurrentLocation}
+              disabled={isGettingLocation}
+            >
+              {isGettingLocation ? (
+                <ActivityIndicator size="small" color={Colors.primary} />
+              ) : (
+                <Feather name="navigation" size={20} color={Colors.primary} />
+              )}
+              <ThemedText
+                type="body"
+                style={{ color: Colors.primary, fontWeight: "600", marginLeft: Spacing.sm }}
+              >
+                {isGettingLocation ? "Getting location..." : "Use My Current Location"}
+              </ThemedText>
+            </Pressable>
+
+            {Platform.OS === "web" ? (
+              <ThemedText
+                type="caption"
+                style={{ color: theme.textSecondary, marginTop: Spacing.sm, textAlign: "center" }}
+              >
+                GPS available in Expo Go on your device
+              </ThemedText>
+            ) : null}
           </View>
         ) : null}
 
@@ -668,6 +769,16 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     textAlign: "center",
+  },
+  currentLocationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginTop: Spacing.xl,
   },
   footer: {
     paddingHorizontal: Spacing.lg,

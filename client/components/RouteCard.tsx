@@ -146,12 +146,23 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
           </View>
         ) : null}
 
-        <View style={styles.detailItem}>
-          <Feather name="repeat" size={14} color={theme.textSecondary} />
-          <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            {frequencyLabels[route.frequency]}
-          </ThemedText>
-        </View>
+        {route.frequency !== "one_time" ? (
+          <View style={styles.detailItem}>
+            <Feather name="repeat" size={14} color={Colors.primary} />
+            <ThemedText type="small" style={{ color: Colors.primary, fontWeight: "500" }}>
+              {frequencyLabels[route.frequency]}
+            </ThemedText>
+          </View>
+        ) : null}
+
+        {route.recurrenceEndDate ? (
+          <View style={styles.detailItem}>
+            <Feather name="calendar" size={14} color={theme.textSecondary} />
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              Until {new Date(route.recurrenceEndDate).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}
+            </ThemedText>
+          </View>
+        ) : null}
 
         <View
           style={[
@@ -196,7 +207,7 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
             <View style={styles.detailItem}>
               <Feather name="truck" size={12} color={theme.textSecondary} />
               <ThemedText type="caption" style={{ color: theme.textSecondary }}>
-                {route.availableCapacity} spots
+                {route.capacityUsed || 0}/{route.availableCapacity} spots
               </ThemedText>
             </View>
           ) : null}

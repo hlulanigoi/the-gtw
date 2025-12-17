@@ -15,13 +15,16 @@ export interface Route {
   departureDate: Date;
   departureTime?: string | null;
   frequency: "one_time" | "daily" | "weekly" | "monthly";
+  recurrenceEndDate?: Date | null;
   maxParcelSize?: "small" | "medium" | "large" | null;
   maxWeight?: number | null;
   availableCapacity?: number | null;
+  capacityUsed?: number | null;
   pricePerKg?: number | null;
   notes?: string | null;
   status: "Active" | "Completed" | "Expired" | "Cancelled";
   expiresAt?: Date | null;
+  parentRouteId?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
   carrierName: string;
@@ -42,13 +45,16 @@ interface RouteApiResponse {
   departureDate: string;
   departureTime?: string | null;
   frequency: "one_time" | "daily" | "weekly" | "monthly";
+  recurrenceEndDate?: string | null;
   maxParcelSize?: "small" | "medium" | "large" | null;
   maxWeight?: number | null;
   availableCapacity?: number | null;
+  capacityUsed?: number | null;
   pricePerKg?: number | null;
   notes?: string | null;
   status: "Active" | "Completed" | "Expired" | "Cancelled";
   expiresAt?: string | null;
+  parentRouteId?: string | null;
   createdAt?: string;
   updatedAt?: string;
   carrier?: {
@@ -75,13 +81,16 @@ function mapApiRouteToRoute(
     departureDate: new Date(apiRoute.departureDate),
     departureTime: apiRoute.departureTime,
     frequency: apiRoute.frequency || "one_time",
+    recurrenceEndDate: apiRoute.recurrenceEndDate ? new Date(apiRoute.recurrenceEndDate) : null,
     maxParcelSize: apiRoute.maxParcelSize,
     maxWeight: apiRoute.maxWeight,
     availableCapacity: apiRoute.availableCapacity,
+    capacityUsed: apiRoute.capacityUsed,
     pricePerKg: apiRoute.pricePerKg,
     notes: apiRoute.notes,
     status: apiRoute.status || "Active",
     expiresAt: apiRoute.expiresAt ? new Date(apiRoute.expiresAt) : null,
+    parentRouteId: apiRoute.parentRouteId,
     createdAt: apiRoute.createdAt ? new Date(apiRoute.createdAt) : undefined,
     updatedAt: apiRoute.updatedAt ? new Date(apiRoute.updatedAt) : undefined,
     carrierName: apiRoute.carrier?.name || "Unknown",
@@ -169,6 +178,8 @@ export function useRoutes() {
         | "status"
         | "isOwner"
         | "carrierId"
+        | "capacityUsed"
+        | "parentRouteId"
       >
     ) => {
       const res = await apiRequest("POST", "/api/routes", {
@@ -177,6 +188,11 @@ export function useRoutes() {
           route.departureDate instanceof Date
             ? route.departureDate.toISOString()
             : route.departureDate,
+        recurrenceEndDate: route.recurrenceEndDate
+          ? route.recurrenceEndDate instanceof Date
+            ? route.recurrenceEndDate.toISOString()
+            : route.recurrenceEndDate
+          : null,
         expiresAt: route.expiresAt
           ? route.expiresAt instanceof Date
             ? route.expiresAt.toISOString()

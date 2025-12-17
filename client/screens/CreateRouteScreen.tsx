@@ -227,11 +227,14 @@ export default function CreateRouteScreen() {
 
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
+  const [intermediateStops, setIntermediateStops] = useState<string[]>([]);
+  const [newStop, setNewStop] = useState("");
   const [departureDate, setDepartureDate] = useState(
     new Date().toISOString().split("T")[0]
   );
   const [departureTime, setDepartureTime] = useState("");
   const [frequency, setFrequency] = useState<FrequencyType>("one_time");
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
   const [maxParcelSize, setMaxParcelSize] = useState<SizeType | null>(null);
   const [maxWeight, setMaxWeight] = useState("");
   const [availableCapacity, setAvailableCapacity] = useState("");
@@ -239,7 +242,25 @@ export default function CreateRouteScreen() {
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const isRecurring = frequency !== "one_time";
   const isValid = origin.trim() && destination.trim() && departureDate;
+
+  const addIntermediateStop = () => {
+    if (newStop.trim()) {
+      setIntermediateStops([...intermediateStops, newStop.trim()]);
+      setNewStop("");
+      if (Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    }
+  };
+
+  const removeIntermediateStop = (index: number) => {
+    setIntermediateStops(intermediateStops.filter((_, i) => i !== index));
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
 
   const handleCreate = async () => {
     if (isSubmitting) return;
@@ -259,9 +280,11 @@ export default function CreateRouteScreen() {
       await addRoute({
         origin: origin.trim(),
         destination: destination.trim(),
+        intermediateStops: intermediateStops.length > 0 ? intermediateStops : null,
         departureDate: new Date(departureDate),
         departureTime: departureTime || null,
         frequency,
+        recurrenceEndDate: isRecurring && recurrenceEndDate ? new Date(recurrenceEndDate) : null,
         maxParcelSize,
         maxWeight: maxWeight ? parseFloat(maxWeight) : null,
         availableCapacity: availableCapacity
@@ -364,6 +387,46 @@ export default function CreateRouteScreen() {
             </View>
           </View>
         </View>
+
+        <View style={styles.stopsSection}>
+          <View style={styles.stopsHeader}>
+            <ThemedText type="caption" style={{ color: theme.textSecondary }}>
+              STOPS ALONG THE WAY (OPTIONAL)
+            </ThemedText>
+          </View>
+          
+          {intermediateStops.map((stop, index) => (
+            <View key={index} style={[styles.stopItem, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
+              <View style={[styles.stopNumber, { backgroundColor: `${Colors.primary}20` }]}>
+                <ThemedText type="caption" style={{ color: Colors.primary, fontWeight: "600" }}>
+                  {index + 1}
+                </ThemedText>
+              </View>
+              <ThemedText type="body" style={{ flex: 1, color: theme.text }}>
+                {stop}
+              </ThemedText>
+              <Pressable onPress={() => removeIntermediateStop(index)} hitSlop={8}>
+                <Feather name="x-circle" size={20} color={theme.textSecondary} />
+              </Pressable>
+            </View>
+          ))}
+
+          <View style={[styles.addStopRow, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
+            <Feather name="map-pin" size={16} color={theme.textSecondary} />
+            <TextInput
+              style={[styles.input, { color: theme.text }]}
+              placeholder="Add a stop (e.g., Bloemfontein)"
+              placeholderTextColor={theme.textSecondary}
+              value={newStop}
+              onChangeText={setNewStop}
+              onSubmitEditing={addIntermediateStop}
+              returnKeyType="done"
+            />
+            <Pressable onPress={addIntermediateStop} hitSlop={8}>
+              <Feather name="plus-circle" size={22} color={Colors.primary} />
+            </Pressable>
+          </View>
+        </View>
       </SectionCard>
 
       <SectionCard title="Schedule" icon="clock" theme={theme}>
@@ -424,6 +487,34 @@ export default function CreateRouteScreen() {
             />
           ))}
         </View>
+
+        {isRecurring ? (
+          <View style={styles.recurrenceEndSection}>
+            <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.xs }}>
+              REPEAT UNTIL (OPTIONAL)
+            </ThemedText>
+            <View
+              style={[
+                styles.inputContainer,
+                { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
+              ]}
+            >
+              <Feather name="calendar" size={16} color={Colors.secondary} />
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                placeholder="YYYY-MM-DD (leave empty for indefinite)"
+                placeholderTextColor={theme.textSecondary}
+                value={recurrenceEndDate}
+                onChangeText={setRecurrenceEndDate}
+              />
+            </View>
+            <ThemedText type="caption" style={{ color: theme.textSecondary, marginTop: Spacing.xs }}>
+              {frequency === "daily" && "Route will repeat every day until end date"}
+              {frequency === "weekly" && "Route will repeat every week until end date"}
+              {frequency === "monthly" && "Route will repeat every month until end date"}
+            </ThemedText>
+          </View>
+        ) : null}
       </SectionCard>
 
       <SectionCard title="Capacity" icon="package" theme={theme}>
@@ -706,6 +797,41 @@ const styles = StyleSheet.create({
     minHeight: 100,
   },
   submitButton: {
+    marginTop: Spacing.lg,
+  },
+  stopsSection: {
+    marginTop: Spacing.lg,
+  },
+  stopsHeader: {
+    marginBottom: Spacing.sm,
+  },
+  stopItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    marginBottom: Spacing.sm,
+    gap: Spacing.md,
+  },
+  stopNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addStopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    height: Spacing.inputHeight,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    gap: Spacing.sm,
+  },
+  recurrenceEndSection: {
     marginTop: Spacing.lg,
   },
 });

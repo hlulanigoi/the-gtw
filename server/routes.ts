@@ -762,6 +762,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const now = new Date();
     
     try {
+      const capacityFullRoutes = await db
+        .update(routes)
+        .set({ status: "Expired", updatedAt: now })
+        .where(and(
+          eq(routes.status, "Active"),
+          sql`${routes.availableCapacity} IS NOT NULL AND ${routes.capacityUsed} >= ${routes.availableCapacity}`
+        ))
+        .returning();
+      
+      if (capacityFullRoutes.length > 0) {
+        console.log(`Expired ${capacityFullRoutes.length} routes due to full capacity`);
+      }
+      
+      const routesToExpire = await db
+        .select()
+        .from(routes)
+        .where(and(
+          eq(routes.status, "Active"),
+          lte(routes.departureDate, now)
+        ));
+      
       const expiredRoutes = await db
         .update(routes)
         .set({ status: "Expired", updatedAt: now })
@@ -770,6 +791,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lte(routes.departureDate, now)
         ))
         .returning();
+      
+      for (const expiredRoute of expiredRoutes) {
+        if (expiredRoute.frequency && expiredRoute.frequency !== "one_time") {
+          const shouldCreateNext = !expiredRoute.recurrenceEndDate || 
+            new Date(expiredRoute.recurrenceEndDate) > now;
+          
+          if (shouldCreateNext) {
+            const nextDate = new Date(expiredRoute.departureDate);
+            switch (expiredRoute.frequency) {
+              case "daily":
+                nextDate.setDate(nextDate.getDate() + 1);
+                break;
+              case "weekly":
+                nextDate.setDate(nextDate.getDate() + 7);
+                break;
+              case "monthly":
+                nextDate.setMonth(nextDate.getMonth() + 1);
+                break;
+            }
+            
+            if (!expiredRoute.recurrenceEndDate || nextDate <= new Date(expiredRoute.recurrenceEndDate)) {
+              await db.insert(routes).values({
+                carrierId: expiredRoute.carrierId,
+                origin: expiredRoute.origin,
+                destination: expiredRoute.destination,
+                originLat: expiredRoute.originLat,
+                originLng: expiredRoute.originLng,
+                destinationLat: expiredRoute.destinationLat,
+                destinationLng: expiredRoute.destinationLng,
+                intermediateStops: expiredRoute.intermediateStops,
+                departureDate: nextDate,
+                departureTime: expiredRoute.departureTime,
+                frequency: expiredRoute.frequency,
+                recurrenceEndDate: expiredRoute.recurrenceEndDate,
+                maxParcelSize: expiredRoute.maxParcelSize,
+                maxWeight: expiredRoute.maxWeight,
+                availableCapacity: expiredRoute.availableCapacity,
+                capacityUsed: 0,
+                pricePerKg: expiredRoute.pricePerKg,
+                notes: expiredRoute.notes,
+                parentRouteId: expiredRoute.parentRouteId || expiredRoute.id,
+              });
+              console.log(`Created next occurrence for recurring route ${expiredRoute.id}`);
+            }
+          }
+        }
+      }
       
       const expiredParcels = await db
         .update(parcels)

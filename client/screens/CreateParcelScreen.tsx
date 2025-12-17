@@ -169,6 +169,13 @@ export default function CreateParcelScreen() {
   const [receiverPhone, setReceiverPhone] = useState("");
   const [receiverEmail, setReceiverEmail] = useState("");
 
+  const handleSelectReceiver = (receiver: SearchableUser) => {
+    setSelectedReceiver(receiver);
+    setReceiverName(receiver.name);
+    setReceiverEmail(receiver.email);
+    setReceiverPhone(receiver.phone || "");
+  };
+
   useEffect(() => {
     const fetchCurrentLocation = async () => {
       if (Platform.OS === "web" || originLocation) return;
@@ -254,9 +261,9 @@ export default function CreateParcelScreen() {
       originLng: originLocation!.lng,
       destinationLat: destinationLocation!.lat,
       destinationLng: destinationLocation!.lng,
-      receiverName: selectedReceiver?.name || receiverName.trim() || null,
-      receiverPhone: selectedReceiver?.phone || receiverPhone.trim() || null,
-      receiverEmail: selectedReceiver?.email || receiverEmail.trim() || null,
+      receiverName: receiverName.trim() || null,
+      receiverPhone: receiverPhone.trim() || null,
+      receiverEmail: receiverEmail.trim() || null,
       receiverId: selectedReceiver?.id || null,
     });
 
@@ -715,7 +722,6 @@ export default function CreateParcelScreen() {
                 {
                   backgroundColor: theme.backgroundDefault,
                   borderColor: theme.border,
-                  opacity: selectedReceiver ? 0.5 : 1,
                 },
               ]}
             >
@@ -724,9 +730,11 @@ export default function CreateParcelScreen() {
                 style={[styles.input, { color: theme.text }]}
                 placeholder="Full name"
                 placeholderTextColor={theme.textSecondary}
-                value={selectedReceiver ? selectedReceiver.name : receiverName}
-                onChangeText={setReceiverName}
-                editable={!selectedReceiver}
+                value={receiverName}
+                onChangeText={(text) => {
+                  setReceiverName(text);
+                  if (selectedReceiver) setSelectedReceiver(null);
+                }}
               />
             </View>
           </View>
@@ -741,7 +749,6 @@ export default function CreateParcelScreen() {
                 {
                   backgroundColor: theme.backgroundDefault,
                   borderColor: theme.border,
-                  opacity: selectedReceiver ? 0.5 : 1,
                 },
               ]}
             >
@@ -750,10 +757,12 @@ export default function CreateParcelScreen() {
                 style={[styles.input, { color: theme.text }]}
                 placeholder="+27 XX XXX XXXX"
                 placeholderTextColor={theme.textSecondary}
-                value={selectedReceiver?.phone || receiverPhone}
-                onChangeText={setReceiverPhone}
+                value={receiverPhone}
+                onChangeText={(text) => {
+                  setReceiverPhone(text);
+                  if (selectedReceiver) setSelectedReceiver(null);
+                }}
                 keyboardType="phone-pad"
-                editable={!selectedReceiver}
               />
             </View>
           </View>
@@ -768,7 +777,6 @@ export default function CreateParcelScreen() {
                 {
                   backgroundColor: theme.backgroundDefault,
                   borderColor: theme.border,
-                  opacity: selectedReceiver ? 0.5 : 1,
                 },
               ]}
             >
@@ -777,11 +785,13 @@ export default function CreateParcelScreen() {
                 style={[styles.input, { color: theme.text }]}
                 placeholder="receiver@email.com"
                 placeholderTextColor={theme.textSecondary}
-                value={selectedReceiver?.email || receiverEmail}
-                onChangeText={setReceiverEmail}
+                value={receiverEmail}
+                onChangeText={(text) => {
+                  setReceiverEmail(text);
+                  if (selectedReceiver) setSelectedReceiver(null);
+                }}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                editable={!selectedReceiver}
               />
             </View>
           </View>
@@ -1017,7 +1027,7 @@ export default function CreateParcelScreen() {
       <ReceiverSearchModal
         visible={showReceiverSearch}
         onClose={() => setShowReceiverSearch(false)}
-        onSelectReceiver={setSelectedReceiver}
+        onSelectReceiver={handleSelectReceiver}
         selectedReceiver={selectedReceiver}
       />
     </>

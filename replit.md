@@ -62,7 +62,7 @@ shared/
 
 ## Database Schema
 - **users**: id, name, email, phone, rating, verified, createdAt
-- **parcels**: id, origin, destination, intermediateStops, size, weight, description, specialInstructions, isFragile, compensation, pickupDate, status, senderId, transporterId, createdAt
+- **parcels**: id, origin, destination, intermediateStops, size, weight, description, specialInstructions, isFragile, compensation, pickupDate, status, senderId, transporterId, receiverId, receiverName, receiverPhone, receiverEmail, receiverLat, receiverLng, receiverLocationUpdatedAt, createdAt
 - **conversations**: id, parcelId, participant1Id, participant2Id, createdAt
 - **messages**: id, conversationId, senderId, text, createdAt
 
@@ -78,6 +78,20 @@ shared/
 - `GET /api/conversations/:id/messages` - Get messages
 - `POST /api/conversations/:id/messages` - Send message
 - `DELETE /api/messages/:id` - Delete message
+- `PATCH /api/parcels/:id/receiver-location` - Update receiver's live location (receiver only)
+
+## Receiver Location Sharing
+Receivers can share their live location with carriers for easier delivery:
+1. When creating a parcel, sender selects a receiver from the user search
+2. The receiverId is saved with the parcel
+3. Receiver can toggle location sharing in IncomingParcelDetailScreen
+4. Location is synced to Firebase (real-time) and server (persistence)
+5. Carrier sees receiver location on map in ParcelDetailScreen
+
+**Files:**
+- `client/hooks/useReceiverLocation.tsx` - Hook for location sharing with Firebase
+- `client/screens/IncomingParcelDetailScreen.tsx` - Receiver UI for sharing location
+- `client/screens/ParcelDetailScreen.tsx` - Carrier view with map
 
 ## Design System
 - **Primary Color**: Deep Teal (#0A7EA4)
@@ -87,6 +101,7 @@ shared/
 - **Spacing**: 4, 8, 12, 16, 20, 24, 32px scale
 
 ## Recent Changes
+- December 17, 2025: Added receiver location sharing - receivers can share their live location with carriers via Firebase real-time updates
 - December 17, 2025: Added receiver search feature - users can search and select receivers from registered users with profile confirmation
 - December 14, 2025: Backend persistence implemented with PostgreSQL and Drizzle ORM
 - December 14, 2025: Initial prototype created with full navigation and in-memory data

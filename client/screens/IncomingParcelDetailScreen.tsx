@@ -21,6 +21,7 @@ import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { useTheme } from "@/hooks/useTheme";
 import { useParcels, Parcel } from "@/hooks/useParcels";
 import { useCarrierLocation } from "@/hooks/useCarrierLocation";
+import { useReceiverLocation } from "@/hooks/useReceiverLocation";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -104,6 +105,14 @@ export default function IncomingParcelDetailScreen() {
   const { parcelId } = route.params;
   const parcel = parcels.find((p) => p.id === parcelId);
   const { carrierLocation } = useCarrierLocation(parcelId);
+  const { 
+    receiverLocation, 
+    isSharing, 
+    shareLocationOnce, 
+    startContinuousSharing, 
+    stopSharing 
+  } = useReceiverLocation(parcelId);
+  const [locationShared, setLocationShared] = useState(false);
 
   const mapHtml = useMemo(() => {
     if (!parcel?.originLat || !parcel?.destinationLat) return null;
@@ -129,6 +138,15 @@ export default function IncomingParcelDetailScreen() {
         lng: carrierLocation.lng,
         title: "Carrier",
         type: "carrier",
+      });
+    }
+
+    if (receiverLocation) {
+      markers.push({
+        lat: receiverLocation.lat,
+        lng: receiverLocation.lng,
+        title: "Your Location",
+        type: "receiver",
       });
     }
 
@@ -165,10 +183,19 @@ export default function IncomingParcelDetailScreen() {
       background: ${Colors.success}; 
       animation: pulse 2s infinite;
     }
+    .receiver-marker { 
+      background: ${Colors.warning}; 
+      animation: pulse-receiver 2s infinite;
+    }
     @keyframes pulse {
       0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
       70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
       100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    @keyframes pulse-receiver {
+      0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
     }
   </style>
 </head>
@@ -189,6 +216,7 @@ export default function IncomingParcelDetailScreen() {
       let markerClass = 'destination-marker';
       if (marker.type === 'origin') markerClass = 'origin-marker';
       else if (marker.type === 'carrier') markerClass = 'carrier-marker';
+      else if (marker.type === 'receiver') markerClass = 'receiver-marker';
       
       const icon = L.divIcon({
         className: '',
@@ -209,7 +237,7 @@ export default function IncomingParcelDetailScreen() {
 </body>
 </html>
     `;
-  }, [parcel, isDark, carrierLocation]);
+  }, [parcel, isDark, carrierLocation, receiverLocation]);
 
   if (!parcel) {
     return (
@@ -431,6 +459,97 @@ export default function IncomingParcelDetailScreen() {
             </ThemedText>
           </Pressable>
         </Animated.View>
+
+        {(parcel.status === "In Transit" || parcel.status === "Pending") ? (
+          <Animated.View
+            entering={FadeInDown.delay(375).duration(300)}
+            style={[styles.section, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}
+          >
+            <View style={styles.sectionHeader}>
+              <ThemedText type="h4">Your Location</ThemedText>
+              {receiverLocation ? (
+                <View style={[styles.statusBadge, { backgroundColor: `${Colors.success}15` }]}>
+                  <ThemedText type="caption" style={{ color: Colors.success }}>
+                    Shared
+                  </ThemedText>
+                </View>
+              ) : null}
+            </View>
+            
+            <ThemedText type="body" style={{ color: theme.textSecondary, marginBottom: Spacing.md }}>
+              Share your location so the carrier can find you easily for delivery.
+            </ThemedText>
+
+            {receiverLocation ? (
+              <View style={styles.locationSharedInfo}>
+                <View style={[styles.locationIcon, { backgroundColor: Colors.warning + "20" }]}>
+                  <Feather name="map-pin" size={20} color={Colors.warning} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ThemedText type="body" style={{ fontWeight: "600" }}>
+                    Location Shared
+                  </ThemedText>
+                  <ThemedText type="caption" style={{ color: theme.textSecondary }}>
+                    Updated {new Date(receiverLocation.timestamp).toLocaleTimeString()}
+                  </ThemedText>
+                </View>
+                <Pressable
+                  onPress={async () => {
+                    const result = await shareLocationOnce(parcelId);
+                    if (result) {
+                      setLocationShared(true);
+                      if (Platform.OS !== "web") {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      }
+                      Alert.alert("Location Updated", "Your location has been shared with the carrier.");
+                    }
+                  }}
+                  disabled={isSharing}
+                  style={[styles.updateLocationButton, { backgroundColor: Colors.primary }]}
+                >
+                  {isSharing ? (
+                    <ThemedText type="caption" style={{ color: "#FFFFFF" }}>Updating...</ThemedText>
+                  ) : (
+                    <Feather name="refresh-cw" size={16} color="#FFFFFF" />
+                  )}
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                onPress={async () => {
+                  const result = await shareLocationOnce(parcelId);
+                  if (result) {
+                    setLocationShared(true);
+                    if (Platform.OS !== "web") {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    }
+                    Alert.alert("Location Shared", "Your location has been shared with the carrier. They can now find you easily.");
+                  }
+                }}
+                disabled={isSharing}
+                style={[
+                  styles.shareLocationButton,
+                  { 
+                    backgroundColor: isSharing ? theme.backgroundSecondary : Colors.warning,
+                    opacity: isSharing ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <Feather name="map-pin" size={20} color={isSharing ? theme.textSecondary : "#FFFFFF"} />
+                <ThemedText 
+                  type="body" 
+                  style={{ 
+                    color: isSharing ? theme.textSecondary : "#FFFFFF", 
+                    marginLeft: Spacing.sm,
+                    fontWeight: "600",
+                  }}
+                >
+                  {isSharing ? "Getting Location..." : "Share My Location"}
+                </ThemedText>
+              </Pressable>
+            )}
+          </Animated.View>
+        ) : null}
 
         {parcel.deliveryConfirmed ? (
           <Animated.View
@@ -697,5 +816,31 @@ const styles = StyleSheet.create({
   starContainer: {
     flexDirection: "row",
     justifyContent: "center",
+  },
+  locationSharedInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  locationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  updateLocationButton: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  shareLocationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
   },
 });

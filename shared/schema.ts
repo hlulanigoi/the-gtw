@@ -49,6 +49,13 @@ export const parcels = pgTable("parcels", {
   status: parcelStatusEnum("status").default("Pending"),
   senderId: varchar("sender_id").notNull().references(() => users.id),
   transporterId: varchar("transporter_id").references(() => users.id),
+  receiverId: varchar("receiver_id").references(() => users.id),
+  receiverName: text("receiver_name"),
+  receiverPhone: text("receiver_phone"),
+  receiverEmail: text("receiver_email"),
+  receiverLat: real("receiver_lat"),
+  receiverLng: real("receiver_lng"),
+  receiverLocationUpdatedAt: timestamp("receiver_location_updated_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

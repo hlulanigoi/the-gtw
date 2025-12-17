@@ -166,6 +166,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/parcels/:id/receiver-location", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { lat, lng } = req.body;
+      if (typeof lat !== "number" || typeof lng !== "number") {
+        return res.status(400).json({ error: "lat and lng are required numbers" });
+      }
+
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return res.status(400).json({ error: "Invalid coordinates" });
+      }
+
+      const parcel = await storage.getParcel(req.params.id);
+      if (!parcel) {
+        return res.status(404).json({ error: "Parcel not found" });
+      }
+
+      const isReceiver = parcel.receiverId === req.user!.uid;
+      const user = await storage.getUser(req.user!.uid);
+      const isReceiverByEmail = user?.email && parcel.receiverEmail === user.email;
+
+      if (!isReceiver && !isReceiverByEmail) {
+        return res.status(403).json({ error: "Only the receiver can update the receiver location" });
+      }
+
+      const updated = await storage.updateParcel(req.params.id, {
+        receiverLat: lat,
+        receiverLng: lng,
+        receiverLocationUpdatedAt: new Date(),
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to update receiver location:", error);
+      res.status(500).json({ error: "Failed to update receiver location" });
+    }
+  });
+
   app.get("/api/users/:userId/conversations", async (req, res) => {
     try {
       const userConversations = await db

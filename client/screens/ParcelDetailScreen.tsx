@@ -1,8 +1,9 @@
-import React, { useState } from "react";
-import { View, StyleSheet, Pressable, ScrollView, Alert, Modal, TextInput } from "react-native";
+import React, { useState, useMemo } from "react";
+import { View, StyleSheet, Pressable, ScrollView, Alert, Modal, TextInput, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
+import { WebView } from "react-native-webview";
 
 import { useTheme } from "@/hooks/useTheme";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
@@ -15,6 +16,7 @@ import { useConnections } from "@/hooks/useConnections";
 import { useReviews } from "@/hooks/useReviews";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCarrierLocation } from "@/hooks/useCarrierLocation";
+import { useReceiverLocation } from "@/hooks/useReceiverLocation";
 
 type RouteType = RouteProp<BrowseStackParamList, "ParcelDetail">;
 
@@ -28,7 +30,7 @@ function StarRating({ rating, onRatingChange }: { rating: number; onRatingChange
             name="star"
             size={36}
             color={star <= rating ? Colors.warning : theme.border}
-            style={star <= rating ? { fill: Colors.warning } : undefined}
+            style={{ marginHorizontal: 2 }}
           />
         </Pressable>
       ))}
@@ -38,7 +40,7 @@ function StarRating({ rating, onRatingChange }: { rating: number; onRatingChange
 
 export default function ParcelDetailScreen() {
   const insets = useSafeAreaInsets();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const route = useRoute<RouteType>();
   const { parcelId } = route.params;
   const { parcels, acceptParcel } = useParcels();
@@ -46,6 +48,7 @@ export default function ParcelDetailScreen() {
   const { submitReview, hasReviewedParcel } = useReviews();
   const { user } = useAuth();
   const { startTracking, isTracking } = useCarrierLocation(parcelId);
+  const { receiverLocation } = useReceiverLocation(parcelId);
   const [savedCarrier, setSavedCarrier] = useState(false);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
@@ -112,6 +115,103 @@ export default function ParcelDetailScreen() {
       setIsSubmittingReview(false);
     }
   };
+
+  const showReceiverLocationMap = parcel.isTransporting && (parcel.status === "In Transit" || parcel.status === "Pending");
+
+  const receiverMapHtml = useMemo(() => {
+    if (!showReceiverLocationMap || !receiverLocation) return null;
+    if (!parcel?.destinationLat || !parcel?.destinationLng) return null;
+
+    const markers = [
+      {
+        lat: parcel.destinationLat,
+        lng: parcel.destinationLng,
+        title: parcel.destination,
+        type: "destination",
+      },
+      {
+        lat: receiverLocation.lat,
+        lng: receiverLocation.lng,
+        title: "Receiver Location",
+        type: "receiver",
+      },
+    ];
+
+    const center = { lat: receiverLocation.lat, lng: receiverLocation.lng };
+    const tileUrl = isDark
+      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+      : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+    const markersJson = JSON.stringify(markers);
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #map { width: 100%; height: 100%; }
+    .custom-marker {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .destination-marker { background: ${Colors.secondary}; }
+    .receiver-marker { 
+      background: ${Colors.warning}; 
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    const markers = ${markersJson};
+    const map = L.map('map', {
+      zoomControl: false,
+      attributionControl: false,
+    }).setView([${center.lat}, ${center.lng}], 14);
+    
+    L.tileLayer('${tileUrl}', { maxZoom: 19 }).addTo(map);
+
+    const bounds = [];
+    
+    markers.forEach(marker => {
+      let markerClass = 'destination-marker';
+      if (marker.type === 'receiver') markerClass = 'receiver-marker';
+      
+      const icon = L.divIcon({
+        className: '',
+        html: '<div class="custom-marker ' + markerClass + '"></div>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+      
+      L.marker([marker.lat, marker.lng], { icon }).addTo(map);
+      bounds.push([marker.lat, marker.lng]);
+    });
+
+    if (bounds.length > 1) {
+      map.fitBounds(bounds, { padding: [40, 40] });
+    }
+  </script>
+</body>
+</html>
+    `;
+  }, [parcel, isDark, receiverLocation, showReceiverLocationMap]);
 
   const canSaveCarrier =
     parcel.status === "Delivered" &&
@@ -284,6 +384,63 @@ export default function ParcelDetailScreen() {
           </View>
         </Card>
 
+        {showReceiverLocationMap ? (
+          <Card elevation={1} style={styles.receiverLocationCard}>
+            <View style={styles.receiverLocationHeader}>
+              <View style={[styles.receiverLocationIcon, { backgroundColor: Colors.warning + "20" }]}>
+                <Feather name="map-pin" size={20} color={Colors.warning} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <ThemedText type="h4">Receiver Location</ThemedText>
+                {receiverLocation ? (
+                  <ThemedText type="caption" style={{ color: theme.textSecondary }}>
+                    Updated {new Date(receiverLocation.timestamp).toLocaleTimeString()}
+                  </ThemedText>
+                ) : (
+                  <ThemedText type="caption" style={{ color: theme.textSecondary }}>
+                    Waiting for receiver to share their location
+                  </ThemedText>
+                )}
+              </View>
+            </View>
+            
+            {receiverMapHtml ? (
+              <View style={styles.receiverMapContainer}>
+                {Platform.OS === "web" ? (
+                  <iframe
+                    srcDoc={receiverMapHtml}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      border: "none",
+                      borderRadius: BorderRadius.md,
+                    }}
+                  />
+                ) : (
+                  <WebView
+                    source={{ html: receiverMapHtml }}
+                    style={styles.receiverMap}
+                    scrollEnabled={false}
+                    javaScriptEnabled
+                    domStorageEnabled
+                    originWhitelist={["*"]}
+                  />
+                )}
+              </View>
+            ) : (
+              <View style={[styles.noLocationContainer, { backgroundColor: theme.backgroundSecondary }]}>
+                <Feather name="map" size={32} color={theme.textSecondary} />
+                <ThemedText type="body" style={{ color: theme.textSecondary, marginTop: Spacing.sm }}>
+                  Receiver has not shared their location yet
+                </ThemedText>
+                <ThemedText type="caption" style={{ color: theme.textSecondary, textAlign: "center" }}>
+                  Once the receiver shares their location, it will appear here so you can find them easily
+                </ThemedText>
+              </View>
+            )}
+          </Card>
+        ) : null}
+
         {canLeaveReview ? (
           <Card elevation={1} style={styles.reviewCard}>
             <View style={styles.reviewCardContent}>
@@ -299,7 +456,7 @@ export default function ParcelDetailScreen() {
                 </ThemedText>
               </View>
             </View>
-            <Button onPress={handleLeaveReview} variant="secondary">
+            <Button onPress={handleLeaveReview}>
               Write Review
             </Button>
           </Card>
@@ -639,5 +796,36 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.md,
     alignItems: "center",
+  },
+  receiverLocationCard: {
+    marginBottom: Spacing.lg,
+  },
+  receiverLocationHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  receiverLocationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  receiverMapContainer: {
+    height: 180,
+    borderRadius: BorderRadius.md,
+    overflow: "hidden",
+  },
+  receiverMap: {
+    flex: 1,
+    borderRadius: BorderRadius.md,
+  },
+  noLocationContainer: {
+    padding: Spacing.xl,
+    borderRadius: BorderRadius.md,
+    alignItems: "center",
+    gap: Spacing.xs,
   },
 });

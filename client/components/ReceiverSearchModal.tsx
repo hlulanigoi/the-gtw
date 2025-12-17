@@ -78,6 +78,14 @@ function UserResultCard({
           <ThemedText type="caption" style={{ marginLeft: 4 }}>
             {user.rating.toFixed(1)}
           </ThemedText>
+          {user.savedLocationName ? (
+            <View style={styles.locationBadge}>
+              <Feather name="map-pin" size={10} color={Colors.success} />
+              <ThemedText type="caption" style={{ marginLeft: 2, color: Colors.success, fontSize: 10 }}>
+                Location saved
+              </ThemedText>
+            </View>
+          ) : null}
         </View>
       </View>
       {isSelected ? (
@@ -157,6 +165,20 @@ function SelectedReceiverProfile({
               {receiver.rating.toFixed(1)} Rating
             </ThemedText>
           </View>
+
+          {receiver.savedLocationName ? (
+            <View style={[styles.profileDetailRow, styles.locationSavedRow]}>
+              <Feather name="map-pin" size={18} color={Colors.success} />
+              <View style={{ marginLeft: Spacing.md, flex: 1 }}>
+                <ThemedText type="body" style={{ color: Colors.success, fontWeight: "600" }}>
+                  Delivery Location Saved
+                </ThemedText>
+                <ThemedText type="caption" numberOfLines={2} style={{ color: theme.textSecondary, marginTop: 2 }}>
+                  {receiver.savedLocationName}
+                </ThemedText>
+              </View>
+            </View>
+          ) : null}
         </View>
       </View>
 
@@ -480,5 +502,20 @@ const styles = StyleSheet.create({
   confirmSection: {
     marginTop: "auto",
     paddingTop: Spacing.xl,
+  },
+  locationBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    backgroundColor: `${Colors.success}15`,
+    borderRadius: BorderRadius.sm,
+  },
+  locationSavedRow: {
+    backgroundColor: `${Colors.success}10`,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    marginTop: Spacing.sm,
   },
 });

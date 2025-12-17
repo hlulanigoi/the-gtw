@@ -1,22 +1,81 @@
-import React from "react";
-import { View, StyleSheet, Pressable, Alert } from "react-native";
+import React, { useState } from "react";
+import { View, StyleSheet, Pressable, Alert, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useTheme } from "@/hooks/useTheme";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
+import { LocationPickerModal } from "@/components/LocationPickerModal";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
+  const { userProfile, updateUserProfile, signOut } = useAuth();
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   const handleLogout = () => {
     Alert.alert("Log Out", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Log Out", style: "destructive", onPress: () => {} },
+      { text: "Log Out", style: "destructive", onPress: () => signOut() },
     ]);
+  };
+
+  const handleSetLocation = (location: { name: string; fullAddress: string; lat: number; lng: number }) => {
+    updateUserProfile({
+      savedLocationName: location.name,
+      savedLocationAddress: location.fullAddress,
+      savedLocationLat: location.lat,
+      savedLocationLng: location.lng,
+    });
+    if (Platform.OS !== "web") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+    Alert.alert("Location Saved", "Your delivery location has been saved. When someone sends you a parcel, they can use this location as the destination.");
+  };
+
+  const handleClearLocation = () => {
+    Alert.alert(
+      "Clear Location",
+      "Are you sure you want to remove your saved delivery location?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: () => {
+            updateUserProfile({
+              savedLocationName: undefined,
+              savedLocationAddress: undefined,
+              savedLocationLat: undefined,
+              savedLocationLng: undefined,
+            });
+            if (Platform.OS !== "web") {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleLocationPress = () => {
+    if (userProfile?.savedLocationName) {
+      Alert.alert(
+        "Delivery Location",
+        `Current location: ${userProfile.savedLocationName}\n\n${userProfile.savedLocationAddress || ""}`,
+        [
+          { text: "Keep", style: "cancel" },
+          { text: "Change", onPress: () => setShowLocationPicker(true) },
+          { text: "Clear", style: "destructive", onPress: handleClearLocation },
+        ]
+      );
+    } else {
+      setShowLocationPicker(true);
+    }
   };
 
   const handleDeleteAccount = () => {
@@ -57,6 +116,18 @@ export default function SettingsScreen() {
           label: "Phone Number",
           icon: "phone" as const,
           onPress: () => {},
+        },
+      ],
+    },
+    {
+      title: "Delivery",
+      items: [
+        {
+          label: "My Delivery Location",
+          icon: "map-pin" as const,
+          onPress: handleLocationPress,
+          value: userProfile?.savedLocationName || "Not set",
+          highlight: !userProfile?.savedLocationName,
         },
       ],
     },
@@ -141,7 +212,10 @@ export default function SettingsScreen() {
                   {"value" in item && item.value ? (
                     <ThemedText
                       type="small"
-                      style={{ color: theme.textSecondary }}
+                      style={{ 
+                        color: "highlight" in item && item.highlight ? Colors.primary : theme.textSecondary,
+                        fontWeight: "highlight" in item && item.highlight ? "600" : "normal",
+                      }}
                     >
                       {item.value}
                     </ThemedText>
@@ -191,6 +265,13 @@ export default function SettingsScreen() {
           The GTW v1.0.0
         </ThemedText>
       </View>
+
+      <LocationPickerModal
+        visible={showLocationPicker}
+        onClose={() => setShowLocationPicker(false)}
+        onSelectLocation={handleSetLocation}
+        type="destination"
+      />
     </KeyboardAwareScrollViewCompat>
   );
 }

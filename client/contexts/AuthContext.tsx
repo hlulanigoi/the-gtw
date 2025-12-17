@@ -22,6 +22,10 @@ interface UserProfile {
   verified: boolean;
   emailVerified: boolean;
   createdAt: Date;
+  savedLocationName?: string;
+  savedLocationAddress?: string;
+  savedLocationLat?: number;
+  savedLocationLng?: number;
 }
 
 interface AuthContextType {
@@ -110,6 +114,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             verified: data.verified || false,
             emailVerified: data.emailVerified || false,
             createdAt: data.createdAt?.toDate() || new Date(),
+            savedLocationName: data.savedLocationName,
+            savedLocationAddress: data.savedLocationAddress,
+            savedLocationLat: data.savedLocationLat,
+            savedLocationLng: data.savedLocationLng,
           });
         }
       } else {

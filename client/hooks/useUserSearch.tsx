@@ -17,6 +17,10 @@ export interface SearchableUser {
   phone?: string;
   rating: number;
   verified: boolean;
+  savedLocationName?: string;
+  savedLocationAddress?: string;
+  savedLocationLat?: number;
+  savedLocationLng?: number;
 }
 
 export function useUserSearch() {
@@ -56,6 +60,10 @@ export function useUserSearch() {
             phone: data.phone,
             rating: data.rating || 5.0,
             verified: data.verified || false,
+            savedLocationName: data.savedLocationName,
+            savedLocationAddress: data.savedLocationAddress,
+            savedLocationLat: data.savedLocationLat,
+            savedLocationLng: data.savedLocationLng,
           });
         }
       });

@@ -28,6 +28,7 @@ import { Button } from "@/components/Button";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { useRoutes } from "@/hooks/useRoutes";
 import { LocationPickerModal } from "@/components/LocationPickerModal";
+import { StopPickerModal } from "@/components/StopPickerModal";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -319,8 +320,7 @@ export default function CreateRouteScreen() {
 
   const [originLocation, setOriginLocation] = useState<LocationData | null>(null);
   const [destinationLocation, setDestinationLocation] = useState<LocationData | null>(null);
-  const [intermediateStops, setIntermediateStops] = useState<string[]>([]);
-  const [newStop, setNewStop] = useState("");
+  const [intermediateStops, setIntermediateStops] = useState<LocationData[]>([]);
   const [departureDate, setDepartureDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -336,14 +336,21 @@ export default function CreateRouteScreen() {
 
   const [showOriginPicker, setShowOriginPicker] = useState(false);
   const [showDestinationPicker, setShowDestinationPicker] = useState(false);
+  const [showStopPicker, setShowStopPicker] = useState(false);
+
+  const canAddStops = originLocation && destinationLocation;
 
   const isRecurring = frequency !== "one_time";
   const isValid = originLocation && destinationLocation && departureDate;
 
-  const addIntermediateStop = () => {
-    if (newStop.trim()) {
-      setIntermediateStops([...intermediateStops, newStop.trim()]);
-      setNewStop("");
+  const addIntermediateStop = (stop: LocationData) => {
+    const exists = intermediateStops.some(
+      (s) =>
+        s.name.toLowerCase() === stop.name.toLowerCase() ||
+        (Math.abs(s.lat - stop.lat) < 0.05 && Math.abs(s.lng - stop.lng) < 0.05)
+    );
+    if (!exists) {
+      setIntermediateStops([...intermediateStops, stop]);
       if (Platform.OS !== "web") {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
@@ -375,7 +382,7 @@ export default function CreateRouteScreen() {
       await addRoute({
         origin: originLocation!.name,
         destination: destinationLocation!.name,
-        intermediateStops: intermediateStops.length > 0 ? intermediateStops : null,
+        intermediateStops: intermediateStops.length > 0 ? intermediateStops.map(s => s.name) : null,
         departureDate: new Date(departureDate),
         departureTime: departureTime || null,
         frequency,
@@ -595,30 +602,45 @@ export default function CreateRouteScreen() {
                     {index + 1}
                   </ThemedText>
                 </View>
-                <ThemedText type="body" style={{ flex: 1, color: theme.text }}>
-                  {stop}
-                </ThemedText>
+                <View style={{ flex: 1 }}>
+                  <ThemedText type="body" style={{ color: theme.text }}>
+                    {stop.name}
+                  </ThemedText>
+                  <ThemedText type="caption" numberOfLines={1} style={{ color: theme.textSecondary, marginTop: 2 }}>
+                    {stop.fullAddress}
+                  </ThemedText>
+                </View>
                 <Pressable onPress={() => removeIntermediateStop(index)} hitSlop={8}>
                   <Feather name="x-circle" size={20} color={theme.textSecondary} />
                 </Pressable>
               </View>
             ))}
 
-            <View style={[styles.addStopRow, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
-              <Feather name="map-pin" size={16} color={theme.textSecondary} />
-              <TextInput
-                style={[styles.input, { color: theme.text }]}
-                placeholder="Add a stop (e.g., Bloemfontein)"
-                placeholderTextColor={theme.textSecondary}
-                value={newStop}
-                onChangeText={setNewStop}
-                onSubmitEditing={addIntermediateStop}
-                returnKeyType="done"
-              />
-              <Pressable onPress={addIntermediateStop} hitSlop={8}>
-                <Feather name="plus-circle" size={22} color={Colors.primary} />
-              </Pressable>
-            </View>
+            <AnimatedPressable
+              onPress={() => setShowStopPicker(true)}
+              disabled={!canAddStops}
+              style={[
+                styles.addStopButton,
+                {
+                  backgroundColor: canAddStops ? `${Colors.primary}10` : theme.backgroundSecondary,
+                  borderColor: canAddStops ? Colors.primary : theme.border,
+                  opacity: canAddStops ? 1 : 0.5,
+                },
+              ]}
+            >
+              <Feather name="zap" size={18} color={canAddStops ? Colors.primary : theme.textSecondary} />
+              <View style={{ flex: 1, marginLeft: Spacing.sm }}>
+                <ThemedText type="body" style={{ color: canAddStops ? Colors.primary : theme.textSecondary, fontWeight: "500" }}>
+                  {canAddStops ? "Add stops with auto-detection" : "Select origin and destination first"}
+                </ThemedText>
+                {canAddStops ? (
+                  <ThemedText type="caption" style={{ color: theme.textSecondary, marginTop: 2 }}>
+                    Tap map or use suggested cities along route
+                  </ThemedText>
+                ) : null}
+              </View>
+              <Feather name="chevron-right" size={20} color={canAddStops ? Colors.primary : theme.textSecondary} />
+            </AnimatedPressable>
           </View>
         </SectionCard>
 
@@ -856,6 +878,17 @@ export default function CreateRouteScreen() {
         type="destination"
         initialQuery={destinationLocation?.name || ""}
       />
+
+      {canAddStops ? (
+        <StopPickerModal
+          visible={showStopPicker}
+          onClose={() => setShowStopPicker(false)}
+          onAddStop={addIntermediateStop}
+          origin={originLocation}
+          destination={destinationLocation}
+          existingStops={intermediateStops}
+        />
+      ) : null}
     </>
   );
 }
@@ -990,15 +1023,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  addStopRow: {
+  addStopButton: {
     flexDirection: "row",
     alignItems: "center",
-    height: Spacing.inputHeight,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 2,
     borderStyle: "dashed",
-    paddingHorizontal: Spacing.md,
-    gap: Spacing.sm,
   },
   scheduleRow: {
     flexDirection: "row",

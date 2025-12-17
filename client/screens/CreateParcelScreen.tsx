@@ -22,6 +22,8 @@ import { Button } from "@/components/Button";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { useParcels } from "@/hooks/useParcels";
 import { LocationPickerModal } from "@/components/LocationPickerModal";
+import { ReceiverSearchModal } from "@/components/ReceiverSearchModal";
+import { SearchableUser } from "@/hooks/useUserSearch";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -160,7 +162,9 @@ export default function CreateParcelScreen() {
 
   const [showOriginPicker, setShowOriginPicker] = useState(false);
   const [showDestinationPicker, setShowDestinationPicker] = useState(false);
+  const [showReceiverSearch, setShowReceiverSearch] = useState(false);
 
+  const [selectedReceiver, setSelectedReceiver] = useState<SearchableUser | null>(null);
   const [receiverName, setReceiverName] = useState("");
   const [receiverPhone, setReceiverPhone] = useState("");
   const [receiverEmail, setReceiverEmail] = useState("");
@@ -250,10 +254,10 @@ export default function CreateParcelScreen() {
       originLng: originLocation!.lng,
       destinationLat: destinationLocation!.lat,
       destinationLng: destinationLocation!.lng,
-      receiverName: receiverName.trim() || null,
-      receiverPhone: receiverPhone.trim() || null,
-      receiverEmail: receiverEmail.trim() || null,
-      receiverId: null,
+      receiverName: selectedReceiver?.name || receiverName.trim() || null,
+      receiverPhone: selectedReceiver?.phone || receiverPhone.trim() || null,
+      receiverEmail: selectedReceiver?.email || receiverEmail.trim() || null,
+      receiverId: selectedReceiver?.id || null,
     });
 
     Alert.alert("Success", "Your parcel has been created!", [
@@ -626,6 +630,81 @@ export default function CreateParcelScreen() {
             Who will receive this parcel at the destination?
           </ThemedText>
 
+          <Pressable
+            onPress={() => setShowReceiverSearch(true)}
+            style={[
+              styles.searchReceiverButton,
+              {
+                backgroundColor: selectedReceiver ? `${Colors.primary}08` : theme.backgroundDefault,
+                borderColor: selectedReceiver ? Colors.primary : theme.border,
+              },
+            ]}
+          >
+            {selectedReceiver ? (
+              <View style={styles.selectedReceiverContent}>
+                <View style={[styles.receiverAvatar, { backgroundColor: Colors.primary }]}>
+                  <ThemedText type="body" style={{ color: "#FFFFFF", fontWeight: "600" }}>
+                    {selectedReceiver.name.charAt(0).toUpperCase()}
+                  </ThemedText>
+                </View>
+                <View style={styles.receiverInfo}>
+                  <View style={styles.receiverNameRow}>
+                    <ThemedText type="body" style={{ fontWeight: "600" }}>
+                      {selectedReceiver.name}
+                    </ThemedText>
+                    {selectedReceiver.verified ? (
+                      <Feather name="check-circle" size={14} color={Colors.success} style={{ marginLeft: Spacing.xs }} />
+                    ) : null}
+                  </View>
+                  <ThemedText type="caption" style={{ color: theme.textSecondary }}>
+                    {selectedReceiver.email}
+                  </ThemedText>
+                  <View style={styles.receiverRatingRow}>
+                    <Feather name="star" size={12} color={Colors.warning} />
+                    <ThemedText type="caption" style={{ marginLeft: 4 }}>
+                      {selectedReceiver.rating.toFixed(1)}
+                    </ThemedText>
+                  </View>
+                </View>
+                <Pressable
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setSelectedReceiver(null);
+                    if (Platform.OS !== "web") {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }
+                  }}
+                  style={styles.removeReceiverButton}
+                >
+                  <Feather name="x" size={18} color={theme.textSecondary} />
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.searchReceiverContent}>
+                <View style={[styles.searchIconContainer, { backgroundColor: `${Colors.primary}15` }]}>
+                  <Feather name="search" size={20} color={Colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ThemedText type="body" style={{ fontWeight: "500" }}>
+                    Find Receiver
+                  </ThemedText>
+                  <ThemedText type="caption" style={{ color: theme.textSecondary }}>
+                    Search by name or email
+                  </ThemedText>
+                </View>
+                <Feather name="chevron-right" size={20} color={theme.textSecondary} />
+              </View>
+            )}
+          </Pressable>
+
+          <View style={styles.orDivider}>
+            <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+            <ThemedText type="caption" style={{ color: theme.textSecondary, paddingHorizontal: Spacing.md }}>
+              or enter manually
+            </ThemedText>
+            <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+          </View>
+
           <View style={styles.formGroup}>
             <ThemedText type="body" style={styles.label}>
               Receiver Name
@@ -636,6 +715,7 @@ export default function CreateParcelScreen() {
                 {
                   backgroundColor: theme.backgroundDefault,
                   borderColor: theme.border,
+                  opacity: selectedReceiver ? 0.5 : 1,
                 },
               ]}
             >
@@ -644,8 +724,9 @@ export default function CreateParcelScreen() {
                 style={[styles.input, { color: theme.text }]}
                 placeholder="Full name"
                 placeholderTextColor={theme.textSecondary}
-                value={receiverName}
+                value={selectedReceiver ? selectedReceiver.name : receiverName}
                 onChangeText={setReceiverName}
+                editable={!selectedReceiver}
               />
             </View>
           </View>
@@ -660,6 +741,7 @@ export default function CreateParcelScreen() {
                 {
                   backgroundColor: theme.backgroundDefault,
                   borderColor: theme.border,
+                  opacity: selectedReceiver ? 0.5 : 1,
                 },
               ]}
             >
@@ -668,9 +750,10 @@ export default function CreateParcelScreen() {
                 style={[styles.input, { color: theme.text }]}
                 placeholder="+27 XX XXX XXXX"
                 placeholderTextColor={theme.textSecondary}
-                value={receiverPhone}
+                value={selectedReceiver?.phone || receiverPhone}
                 onChangeText={setReceiverPhone}
                 keyboardType="phone-pad"
+                editable={!selectedReceiver}
               />
             </View>
           </View>
@@ -685,6 +768,7 @@ export default function CreateParcelScreen() {
                 {
                   backgroundColor: theme.backgroundDefault,
                   borderColor: theme.border,
+                  opacity: selectedReceiver ? 0.5 : 1,
                 },
               ]}
             >
@@ -693,10 +777,11 @@ export default function CreateParcelScreen() {
                 style={[styles.input, { color: theme.text }]}
                 placeholder="receiver@email.com"
                 placeholderTextColor={theme.textSecondary}
-                value={receiverEmail}
+                value={selectedReceiver?.email || receiverEmail}
                 onChangeText={setReceiverEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                editable={!selectedReceiver}
               />
             </View>
           </View>
@@ -928,6 +1013,13 @@ export default function CreateParcelScreen() {
         type="destination"
         initialQuery={destinationLocation?.name || ""}
       />
+
+      <ReceiverSearchModal
+        visible={showReceiverSearch}
+        onClose={() => setShowReceiverSearch(false)}
+        onSelectReceiver={setSelectedReceiver}
+        selectedReceiver={selectedReceiver}
+      />
     </>
   );
 }
@@ -1075,5 +1167,63 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginTop: Spacing.lg,
+  },
+  searchReceiverButton: {
+    borderRadius: BorderRadius.lg,
+    borderWidth: 2,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  searchReceiverContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  searchIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  selectedReceiverContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  receiverAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  receiverInfo: {
+    flex: 1,
+  },
+  receiverNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  receiverRatingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: Spacing.xs,
+  },
+  removeReceiverButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  orDivider: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: Spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
   },
 });

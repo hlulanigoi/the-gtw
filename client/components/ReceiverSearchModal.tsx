@@ -164,11 +164,9 @@ function SelectedReceiverProfile({
         <ThemedText type="caption" style={{ color: theme.textSecondary, textAlign: "center", marginBottom: Spacing.md }}>
           Confirm this is the correct receiver for your parcel
         </ThemedText>
-        <Button
-          title="Confirm Receiver"
-          onPress={onConfirm}
-          variant="primary"
-        />
+        <Button onPress={onConfirm}>
+          Confirm Receiver
+        </Button>
       </View>
     </Animated.View>
   );

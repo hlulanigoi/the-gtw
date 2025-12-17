@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from "react";
-import { View, StyleSheet, TextInput, Pressable, Alert, Switch, Platform } from "react-native";
+import React, { useState, useMemo, useEffect } from "react";
+import { View, StyleSheet, TextInput, Pressable, Alert, Switch, Platform, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as Location from "expo-location";
 import { WebView } from "react-native-webview";
 import Animated, {
   useAnimatedStyle,
@@ -40,11 +41,13 @@ function LocationCard({
   location,
   onPress,
   theme,
+  isLoading,
 }: {
   type: "origin" | "destination";
   location: LocationData | null;
   onPress: () => void;
   theme: any;
+  isLoading?: boolean;
 }) {
   const scale = useSharedValue(1);
   const isOrigin = type === "origin";
@@ -81,7 +84,14 @@ function LocationCard({
           >
             {isOrigin ? "PICKUP FROM" : "DELIVER TO"}
           </ThemedText>
-          {location ? (
+          {isLoading ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm }}>
+              <ActivityIndicator size="small" color={color} />
+              <ThemedText type="body" style={{ color: theme.textSecondary }}>
+                Getting your location...
+              </ThemedText>
+            </View>
+          ) : location ? (
             <>
               <ThemedText type="h4" style={{ color: theme.text }}>
                 {location.name}
@@ -106,11 +116,15 @@ function LocationCard({
             { backgroundColor: location ? color : theme.backgroundSecondary },
           ]}
         >
-          <Feather
-            name={location ? "check" : "map-pin"}
-            size={18}
-            color={location ? "#FFFFFF" : theme.textSecondary}
-          />
+          {isLoading ? (
+            <ActivityIndicator size="small" color={theme.textSecondary} />
+          ) : (
+            <Feather
+              name={location ? "check" : "map-pin"}
+              size={18}
+              color={location ? "#FFFFFF" : theme.textSecondary}
+            />
+          )}
         </View>
       </View>
     </AnimatedPressable>
@@ -142,9 +156,62 @@ export default function CreateParcelScreen() {
   const [insuranceNeeded, setInsuranceNeeded] = useState(false);
   const [contactPhone, setContactPhone] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
   const [showOriginPicker, setShowOriginPicker] = useState(false);
   const [showDestinationPicker, setShowDestinationPicker] = useState(false);
+
+  useEffect(() => {
+    const fetchCurrentLocation = async () => {
+      if (Platform.OS === "web" || originLocation) return;
+
+      setIsLoadingLocation(true);
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          setIsLoadingLocation(false);
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        const { latitude, longitude } = location.coords;
+
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`,
+          { headers: { "User-Agent": "ParcelPeer/1.0" } }
+        );
+        const data = await response.json();
+
+        if (data && data.display_name) {
+          const shortName =
+            data.name ||
+            data.address?.city ||
+            data.address?.town ||
+            data.address?.village ||
+            data.address?.suburb ||
+            data.display_name.split(",")[0];
+
+          setOriginLocation({
+            name: shortName,
+            fullAddress: data.display_name,
+            lat: latitude,
+            lng: longitude,
+          });
+
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+      } catch (error) {
+        console.log("Auto-location fetch failed:", error);
+      } finally {
+        setIsLoadingLocation(false);
+      }
+    };
+
+    fetchCurrentLocation();
+  }, []);
 
   const isValid = originLocation && destinationLocation && size && pickupDate;
 
@@ -319,6 +386,7 @@ export default function CreateParcelScreen() {
               location={originLocation}
               onPress={() => setShowOriginPicker(true)}
               theme={theme}
+              isLoading={isLoadingLocation}
             />
 
             <View style={styles.routeConnector}>

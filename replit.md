@@ -35,13 +35,15 @@ client/
 │   ├── FloatingActionButton.tsx # FAB for create parcel
 │   ├── HeaderTitle.tsx       # App header with logo
 │   ├── ParcelCard.tsx        # Parcel listing card
+│   ├── ReceiverSearchModal.tsx # Modal to search and select receivers
 │   └── ThemedText/View.tsx   # Themed components
 ├── constants/
 │   └── theme.ts              # Colors, spacing, typography
 ├── hooks/
 │   ├── useConversations.tsx  # Messages state (React Query)
 │   ├── useParcels.tsx        # Parcels state (React Query)
-│   └── useTheme.ts           # Theme hook
+│   ├── useTheme.ts           # Theme hook
+│   └── useUserSearch.tsx     # Search users for receiver selection
 ├── lib/
 │   └── query-client.ts       # React Query client and API helpers
 ├── navigation/
@@ -85,6 +87,7 @@ shared/
 - **Spacing**: 4, 8, 12, 16, 20, 24, 32px scale
 
 ## Recent Changes
+- December 17, 2025: Added receiver search feature - users can search and select receivers from registered users with profile confirmation
 - December 14, 2025: Backend persistence implemented with PostgreSQL and Drizzle ORM
 - December 14, 2025: Initial prototype created with full navigation and in-memory data
 

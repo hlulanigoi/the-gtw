@@ -5,6 +5,7 @@ import { BlurView } from "expo-blur";
 import { Platform, StyleSheet } from "react-native";
 import BrowseStackNavigator from "@/navigation/BrowseStackNavigator";
 import MyParcelsStackNavigator from "@/navigation/MyParcelsStackNavigator";
+import IncomingStackNavigator from "@/navigation/IncomingStackNavigator";
 import MyRoutesStackNavigator from "@/navigation/MyRoutesStackNavigator";
 import MessagesStackNavigator from "@/navigation/MessagesStackNavigator";
 import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
@@ -13,6 +14,7 @@ import { useTheme } from "@/hooks/useTheme";
 export type MainTabParamList = {
   BrowseTab: undefined;
   MyParcelsTab: undefined;
+  IncomingTab: undefined;
   MyRoutesTab: undefined;
   MessagesTab: undefined;
   ProfileTab: undefined;
@@ -63,9 +65,19 @@ export default function MainTabNavigator() {
         name="MyParcelsTab"
         component={MyParcelsStackNavigator}
         options={{
-          title: "Parcels",
+          title: "Sent",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="package" size={size} color={color} />
+            <Feather name="send" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="IncomingTab"
+        component={IncomingStackNavigator}
+        options={{
+          title: "Incoming",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="inbox" size={size} color={color} />
           ),
         }}
       />

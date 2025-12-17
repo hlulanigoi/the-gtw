@@ -11,7 +11,7 @@ type Marker = {
   lng: number;
   title: string;
   subtitle?: string;
-  type: "origin" | "destination";
+  type: "origin" | "destination" | "carrier";
 };
 
 type Props = {
@@ -60,6 +60,15 @@ export function OSMMapView({ markers, onMarkerPress, style }: Props) {
     }
     .origin-marker { background: ${Colors.primary}; }
     .destination-marker { background: ${Colors.secondary}; }
+    .carrier-marker { 
+      background: ${Colors.success}; 
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
     .marker-popup {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
@@ -91,10 +100,13 @@ export function OSMMapView({ markers, onMarkerPress, style }: Props) {
     const bounds = [];
     
     markers.forEach(marker => {
-      const isOrigin = marker.type === 'origin';
+      let markerClass = 'destination-marker';
+      if (marker.type === 'origin') markerClass = 'origin-marker';
+      else if (marker.type === 'carrier') markerClass = 'carrier-marker';
+      
       const icon = L.divIcon({
         className: '',
-        html: '<div class="custom-marker ' + (isOrigin ? 'origin-marker' : 'destination-marker') + '"></div>',
+        html: '<div class="custom-marker ' + markerClass + '"></div>',
         iconSize: [32, 32],
         iconAnchor: [16, 16]
       });

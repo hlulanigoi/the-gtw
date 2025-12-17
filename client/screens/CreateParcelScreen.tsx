@@ -161,6 +161,10 @@ export default function CreateParcelScreen() {
   const [showOriginPicker, setShowOriginPicker] = useState(false);
   const [showDestinationPicker, setShowDestinationPicker] = useState(false);
 
+  const [receiverName, setReceiverName] = useState("");
+  const [receiverPhone, setReceiverPhone] = useState("");
+  const [receiverEmail, setReceiverEmail] = useState("");
+
   useEffect(() => {
     const fetchCurrentLocation = async () => {
       if (Platform.OS === "web" || originLocation) return;
@@ -246,6 +250,10 @@ export default function CreateParcelScreen() {
       originLng: originLocation!.lng,
       destinationLat: destinationLocation!.lat,
       destinationLng: destinationLocation!.lng,
+      receiverName: receiverName.trim() || null,
+      receiverPhone: receiverPhone.trim() || null,
+      receiverEmail: receiverEmail.trim() || null,
+      receiverId: null,
     });
 
     Alert.alert("Success", "Your parcel has been created!", [
@@ -608,6 +616,90 @@ export default function CreateParcelScreen() {
             trackColor={{ false: theme.border, true: Colors.primary }}
             thumbColor="#FFFFFF"
           />
+        </View>
+
+        <View style={styles.formGroup}>
+          <ThemedText type="h3" style={styles.sectionTitle}>
+            Receiver Details
+          </ThemedText>
+          <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.md }}>
+            Who will receive this parcel at the destination?
+          </ThemedText>
+
+          <View style={styles.formGroup}>
+            <ThemedText type="body" style={styles.label}>
+              Receiver Name
+            </ThemedText>
+            <View
+              style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <Feather name="user" size={18} color={theme.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                placeholder="Full name"
+                placeholderTextColor={theme.textSecondary}
+                value={receiverName}
+                onChangeText={setReceiverName}
+              />
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <ThemedText type="body" style={styles.label}>
+              Receiver Phone
+            </ThemedText>
+            <View
+              style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <Feather name="phone" size={18} color={theme.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                placeholder="+27 XX XXX XXXX"
+                placeholderTextColor={theme.textSecondary}
+                value={receiverPhone}
+                onChangeText={setReceiverPhone}
+                keyboardType="phone-pad"
+              />
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <ThemedText type="body" style={styles.label}>
+              Receiver Email
+            </ThemedText>
+            <View
+              style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <Feather name="mail" size={18} color={theme.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                placeholder="receiver@email.com"
+                placeholderTextColor={theme.textSecondary}
+                value={receiverEmail}
+                onChangeText={setReceiverEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+          </View>
         </View>
 
         <Pressable

@@ -14,6 +14,7 @@ import { useParcels } from "@/hooks/useParcels";
 import { useConnections } from "@/hooks/useConnections";
 import { useReviews } from "@/hooks/useReviews";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCarrierLocation } from "@/hooks/useCarrierLocation";
 
 type RouteType = RouteProp<BrowseStackParamList, "ParcelDetail">;
 
@@ -44,6 +45,7 @@ export default function ParcelDetailScreen() {
   const { addConnection, isConnected, isAdding } = useConnections();
   const { submitReview, hasReviewedParcel } = useReviews();
   const { user } = useAuth();
+  const { startTracking, isTracking } = useCarrierLocation(parcelId);
   const [savedCarrier, setSavedCarrier] = useState(false);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
@@ -63,8 +65,9 @@ export default function ParcelDetailScreen() {
     );
   }
 
-  const handleAccept = () => {
-    acceptParcel(parcelId);
+  const handleAccept = async () => {
+    await acceptParcel(parcelId);
+    startTracking(parcelId);
   };
 
   const handleSaveCarrier = async () => {

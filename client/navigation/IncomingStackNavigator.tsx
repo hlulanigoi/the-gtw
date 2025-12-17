@@ -1,34 +1,34 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import BrowseScreen from "@/screens/BrowseScreen";
-import ParcelDetailScreen from "@/screens/ParcelDetailScreen";
+import IncomingScreen from "@/screens/IncomingScreen";
+import IncomingParcelDetailScreen from "@/screens/IncomingParcelDetailScreen";
 import ParcelChatScreen from "@/screens/ParcelChatScreen";
 import { HeaderTitle } from "@/components/HeaderTitle";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
-export type BrowseStackParamList = {
-  Browse: undefined;
-  ParcelDetail: { parcelId: string };
+export type IncomingStackParamList = {
+  Incoming: undefined;
+  IncomingParcelDetail: { parcelId: string };
   ParcelChat: { parcelId: string; userRole: "sender" | "carrier" | "receiver" };
 };
 
-const Stack = createNativeStackNavigator<BrowseStackParamList>();
+const Stack = createNativeStackNavigator<IncomingStackParamList>();
 
-export default function BrowseStackNavigator() {
+export default function IncomingStackNavigator() {
   const screenOptions = useScreenOptions();
 
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
-        name="Browse"
-        component={BrowseScreen}
+        name="Incoming"
+        component={IncomingScreen}
         options={{
-          headerTitle: () => <HeaderTitle title="The GTW" />,
+          headerTitle: () => <HeaderTitle title="Incoming" />,
         }}
       />
       <Stack.Screen
-        name="ParcelDetail"
-        component={ParcelDetailScreen}
+        name="IncomingParcelDetail"
+        component={IncomingParcelDetailScreen}
         options={{
           headerTitle: "Parcel Details",
         }}

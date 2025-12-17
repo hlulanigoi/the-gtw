@@ -46,6 +46,15 @@ export interface Parcel {
   createdAt?: Date;
   isOwner?: boolean;
   isTransporting?: boolean;
+  receiverId?: string | null;
+  receiverName?: string | null;
+  receiverPhone?: string | null;
+  receiverEmail?: string | null;
+  deliveryConfirmed?: boolean;
+  deliveryConfirmedAt?: Date | null;
+  deliveryProofPhoto?: string | null;
+  receiverRating?: number | null;
+  isReceiver?: boolean;
 }
 
 export function useParcels() {
@@ -101,6 +110,10 @@ export function useParcels() {
             ? data.expiresAt.toDate()
             : data.expiresAt ? new Date(data.expiresAt) : null;
 
+          const deliveryConfirmedAt = data.deliveryConfirmedAt instanceof Timestamp
+            ? data.deliveryConfirmedAt.toDate()
+            : data.deliveryConfirmedAt ? new Date(data.deliveryConfirmedAt) : null;
+
           parcelsData.push({
             id: docSnapshot.id,
             origin: data.origin,
@@ -132,6 +145,17 @@ export function useParcels() {
             createdAt,
             isOwner: user?.uid === data.senderId,
             isTransporting: user?.uid === data.transporterId,
+            receiverId: data.receiverId || null,
+            receiverName: data.receiverName || null,
+            receiverPhone: data.receiverPhone || null,
+            receiverEmail: data.receiverEmail || null,
+            deliveryConfirmed: data.deliveryConfirmed || false,
+            deliveryConfirmedAt,
+            deliveryProofPhoto: data.deliveryProofPhoto || null,
+            receiverRating: data.receiverRating || null,
+            isReceiver: user?.uid === data.receiverId || 
+              (userProfile?.email && data.receiverEmail && 
+               userProfile.email.toLowerCase() === data.receiverEmail.toLowerCase()),
           });
         }
 
@@ -146,7 +170,7 @@ export function useParcels() {
     );
 
     return () => unsubscribe();
-  }, [user?.uid]);
+  }, [user?.uid, userProfile?.email]);
 
   const addParcel = async (
     parcel: Omit<Parcel, "id" | "senderName" | "senderRating" | "createdAt" | "status" | "transporterId" | "isOwner" | "isTransporting" | "senderId">
@@ -180,6 +204,14 @@ export function useParcels() {
         status: "Pending",
         transporterId: null,
         createdAt: serverTimestamp(),
+        receiverId: parcel.receiverId ?? null,
+        receiverName: parcel.receiverName ?? null,
+        receiverPhone: parcel.receiverPhone ?? null,
+        receiverEmail: parcel.receiverEmail ?? null,
+        deliveryConfirmed: false,
+        deliveryConfirmedAt: null,
+        deliveryProofPhoto: null,
+        receiverRating: null,
       };
 
       await addDoc(collection(db, "parcels"), parcelData);
@@ -202,6 +234,7 @@ export function useParcels() {
 
       delete updateData.isOwner;
       delete updateData.isTransporting;
+      delete updateData.isReceiver;
       delete updateData.senderName;
       delete updateData.senderRating;
 
@@ -236,6 +269,37 @@ export function useParcels() {
     }
   };
 
+  const confirmDelivery = async (id: string, proofPhotoUrl?: string) => {
+    if (!user) return;
+
+    try {
+      const parcelRef = doc(db, "parcels", id);
+      await updateDoc(parcelRef, {
+        deliveryConfirmed: true,
+        deliveryConfirmedAt: serverTimestamp(),
+        deliveryProofPhoto: proofPhotoUrl || null,
+        status: "Delivered",
+      });
+    } catch (err) {
+      console.error("Error confirming delivery:", err);
+      throw err;
+    }
+  };
+
+  const rateCarrierAsReceiver = async (id: string, rating: number) => {
+    if (!user) return;
+
+    try {
+      const parcelRef = doc(db, "parcels", id);
+      await updateDoc(parcelRef, {
+        receiverRating: rating,
+      });
+    } catch (err) {
+      console.error("Error rating carrier:", err);
+      throw err;
+    }
+  };
+
   const refetch = () => {
   };
 
@@ -245,6 +309,8 @@ export function useParcels() {
     updateParcel,
     acceptParcel,
     deleteParcel,
+    confirmDelivery,
+    rateCarrierAsReceiver,
     isLoading,
     error,
     refetch,

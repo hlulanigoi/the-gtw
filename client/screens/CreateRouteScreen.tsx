@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   StyleSheet,
@@ -12,10 +12,12 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { WebView } from "react-native-webview";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  FadeIn,
 } from "react-native-reanimated";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
@@ -25,11 +27,19 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { useRoutes } from "@/hooks/useRoutes";
+import { LocationPickerModal } from "@/components/LocationPickerModal";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 type FrequencyType = "one_time" | "daily" | "weekly" | "monthly";
 type SizeType = "small" | "medium" | "large";
+
+type LocationData = {
+  name: string;
+  fullAddress: string;
+  lat: number;
+  lng: number;
+};
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -219,14 +229,96 @@ function SizeCard({
   );
 }
 
+function LocationCard({
+  type,
+  location,
+  onPress,
+  theme,
+}: {
+  type: "origin" | "destination";
+  location: LocationData | null;
+  onPress: () => void;
+  theme: any;
+}) {
+  const scale = useSharedValue(1);
+  const isOrigin = type === "origin";
+  const color = isOrigin ? Colors.primary : Colors.secondary;
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <AnimatedPressable
+      onPress={onPress}
+      onPressIn={() => {
+        scale.value = withSpring(0.98, { damping: 15, stiffness: 150 });
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, { damping: 15, stiffness: 150 });
+      }}
+      style={[
+        styles.locationCard,
+        {
+          backgroundColor: location ? `${color}08` : theme.backgroundSecondary,
+          borderColor: location ? color : theme.border,
+        },
+        animatedStyle,
+      ]}
+    >
+      <View style={styles.locationCardContent}>
+        <View style={[styles.locationDot, { backgroundColor: color }]} />
+        <View style={styles.locationTextContainer}>
+          <ThemedText
+            type="caption"
+            style={{ color: theme.textSecondary, marginBottom: 2 }}
+          >
+            {isOrigin ? "FROM" : "TO"}
+          </ThemedText>
+          {location ? (
+            <>
+              <ThemedText type="h4" style={{ color: theme.text }}>
+                {location.name}
+              </ThemedText>
+              <ThemedText
+                type="caption"
+                numberOfLines={1}
+                style={{ color: theme.textSecondary, marginTop: 2 }}
+              >
+                {location.fullAddress}
+              </ThemedText>
+            </>
+          ) : (
+            <ThemedText type="body" style={{ color: theme.textSecondary }}>
+              Tap to select location
+            </ThemedText>
+          )}
+        </View>
+        <View
+          style={[
+            styles.locationCardIcon,
+            { backgroundColor: location ? color : theme.backgroundTertiary },
+          ]}
+        >
+          <Feather
+            name={location ? "check" : "map-pin"}
+            size={18}
+            color={location ? "#FFFFFF" : theme.textSecondary}
+          />
+        </View>
+      </View>
+    </AnimatedPressable>
+  );
+}
+
 export default function CreateRouteScreen() {
   const insets = useSafeAreaInsets();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const { addRoute } = useRoutes();
 
-  const [origin, setOrigin] = useState("");
-  const [destination, setDestination] = useState("");
+  const [originLocation, setOriginLocation] = useState<LocationData | null>(null);
+  const [destinationLocation, setDestinationLocation] = useState<LocationData | null>(null);
   const [intermediateStops, setIntermediateStops] = useState<string[]>([]);
   const [newStop, setNewStop] = useState("");
   const [departureDate, setDepartureDate] = useState(
@@ -242,8 +334,11 @@ export default function CreateRouteScreen() {
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [showOriginPicker, setShowOriginPicker] = useState(false);
+  const [showDestinationPicker, setShowDestinationPicker] = useState(false);
+
   const isRecurring = frequency !== "one_time";
-  const isValid = origin.trim() && destination.trim() && departureDate;
+  const isValid = originLocation && destinationLocation && departureDate;
 
   const addIntermediateStop = () => {
     if (newStop.trim()) {
@@ -278,8 +373,8 @@ export default function CreateRouteScreen() {
 
     try {
       await addRoute({
-        origin: origin.trim(),
-        destination: destination.trim(),
+        origin: originLocation!.name,
+        destination: destinationLocation!.name,
         intermediateStops: intermediateStops.length > 0 ? intermediateStops : null,
         departureDate: new Date(departureDate),
         departureTime: departureTime || null,
@@ -293,6 +388,10 @@ export default function CreateRouteScreen() {
         pricePerKg: pricePerKg ? parseInt(pricePerKg, 10) : null,
         notes: notes || null,
         expiresAt: null,
+        originLat: originLocation!.lat,
+        originLng: originLocation!.lng,
+        destinationLat: destinationLocation!.lat,
+        destinationLng: destinationLocation!.lng,
       });
 
       Alert.alert("Route Created", "Your route is now visible to senders!", [
@@ -321,332 +420,443 @@ export default function CreateRouteScreen() {
     { key: "large", label: "Large", icon: "truck", description: "Needs vehicle space" },
   ];
 
+  const mapHtml = useMemo(() => {
+    if (!originLocation && !destinationLocation) return null;
+
+    const markers = [];
+    if (originLocation) {
+      markers.push({
+        lat: originLocation.lat,
+        lng: originLocation.lng,
+        title: originLocation.name,
+        type: "origin",
+      });
+    }
+    if (destinationLocation) {
+      markers.push({
+        lat: destinationLocation.lat,
+        lng: destinationLocation.lng,
+        title: destinationLocation.name,
+        type: "destination",
+      });
+    }
+
+    const center = originLocation
+      ? { lat: originLocation.lat, lng: originLocation.lng }
+      : { lat: destinationLocation!.lat, lng: destinationLocation!.lng };
+
+    const tileUrl = isDark
+      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+      : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+    const markersJson = JSON.stringify(markers);
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #map { width: 100%; height: 100%; }
+    .custom-marker {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .origin-marker { background: ${Colors.primary}; }
+    .destination-marker { background: ${Colors.secondary}; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    const markers = ${markersJson};
+    const map = L.map('map', {
+      zoomControl: false,
+      attributionControl: false,
+      dragging: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      touchZoom: false
+    }).setView([${center.lat}, ${center.lng}], 8);
+    
+    L.tileLayer('${tileUrl}', { maxZoom: 19 }).addTo(map);
+
+    const bounds = [];
+    
+    markers.forEach(marker => {
+      const isOrigin = marker.type === 'origin';
+      const icon = L.divIcon({
+        className: '',
+        html: '<div class="custom-marker ' + (isOrigin ? 'origin-marker' : 'destination-marker') + '"></div>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+      
+      L.marker([marker.lat, marker.lng], { icon }).addTo(map);
+      bounds.push([marker.lat, marker.lng]);
+    });
+
+    if (bounds.length > 1) {
+      const line = L.polyline(bounds, { color: '${Colors.primary}', weight: 3, dashArray: '8, 8', opacity: 0.7 }).addTo(map);
+      map.fitBounds(bounds, { padding: [40, 40] });
+    } else if (bounds.length === 1) {
+      map.setView(bounds[0], 12);
+    }
+  </script>
+</body>
+</html>
+    `;
+  }, [originLocation, destinationLocation, isDark]);
+
   return (
-    <KeyboardAwareScrollViewCompat
-      style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
-      contentContainerStyle={{
-        paddingTop: Spacing.lg,
-        paddingBottom: insets.bottom + Spacing["3xl"],
-        paddingHorizontal: Spacing.lg,
-      }}
-      scrollIndicatorInsets={{ bottom: insets.bottom }}
-    >
-      <SectionCard title="Route Details" icon="map" theme={theme}>
-        <View style={styles.routeInputs}>
-          <View style={styles.inputWrapper}>
-            <View style={styles.inputLabelRow}>
-              <View style={[styles.dotIndicator, { backgroundColor: Colors.primary }]} />
-              <ThemedText type="caption" style={{ color: theme.textSecondary }}>
-                FROM
-              </ThemedText>
-            </View>
-            <View
-              style={[
-                styles.inputContainer,
-                { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-              ]}
-            >
-              <TextInput
-                style={[styles.input, { color: theme.text }]}
-                placeholder="e.g., Johannesburg"
-                placeholderTextColor={theme.textSecondary}
-                value={origin}
-                onChangeText={setOrigin}
-              />
-            </View>
-          </View>
+    <>
+      <KeyboardAwareScrollViewCompat
+        style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
+        contentContainerStyle={{
+          paddingTop: Spacing.lg,
+          paddingBottom: insets.bottom + Spacing["3xl"],
+          paddingHorizontal: Spacing.lg,
+        }}
+        scrollIndicatorInsets={{ bottom: insets.bottom }}
+      >
+        <SectionCard title="Route Details" icon="map" theme={theme}>
+          <View style={styles.routeInputs}>
+            <LocationCard
+              type="origin"
+              location={originLocation}
+              onPress={() => setShowOriginPicker(true)}
+              theme={theme}
+            />
 
-          <View style={styles.routeConnector}>
-            <View style={[styles.connectorLine, { backgroundColor: theme.border }]} />
-            <View style={[styles.connectorIcon, { backgroundColor: theme.backgroundSecondary }]}>
-              <Feather name="arrow-down" size={16} color={theme.textSecondary} />
-            </View>
-            <View style={[styles.connectorLine, { backgroundColor: theme.border }]} />
-          </View>
-
-          <View style={styles.inputWrapper}>
-            <View style={styles.inputLabelRow}>
-              <View style={[styles.dotIndicator, { backgroundColor: Colors.secondary }]} />
-              <ThemedText type="caption" style={{ color: theme.textSecondary }}>
-                TO
-              </ThemedText>
-            </View>
-            <View
-              style={[
-                styles.inputContainer,
-                { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-              ]}
-            >
-              <TextInput
-                style={[styles.input, { color: theme.text }]}
-                placeholder="e.g., Cape Town"
-                placeholderTextColor={theme.textSecondary}
-                value={destination}
-                onChangeText={setDestination}
-              />
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.stopsSection}>
-          <View style={styles.stopsHeader}>
-            <ThemedText type="caption" style={{ color: theme.textSecondary }}>
-              STOPS ALONG THE WAY (OPTIONAL)
-            </ThemedText>
-          </View>
-          
-          {intermediateStops.map((stop, index) => (
-            <View key={index} style={[styles.stopItem, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
-              <View style={[styles.stopNumber, { backgroundColor: `${Colors.primary}20` }]}>
-                <ThemedText type="caption" style={{ color: Colors.primary, fontWeight: "600" }}>
-                  {index + 1}
-                </ThemedText>
+            <View style={styles.routeConnector}>
+              <View style={[styles.connectorLine, { backgroundColor: theme.border }]} />
+              <View style={[styles.connectorIcon, { backgroundColor: theme.backgroundSecondary }]}>
+                <Feather name="arrow-down" size={16} color={theme.textSecondary} />
               </View>
-              <ThemedText type="body" style={{ flex: 1, color: theme.text }}>
-                {stop}
+              <View style={[styles.connectorLine, { backgroundColor: theme.border }]} />
+            </View>
+
+            <LocationCard
+              type="destination"
+              location={destinationLocation}
+              onPress={() => setShowDestinationPicker(true)}
+              theme={theme}
+            />
+          </View>
+
+          {mapHtml ? (
+            <Animated.View
+              entering={FadeIn.duration(300)}
+              style={styles.miniMapContainer}
+            >
+              {Platform.OS === "web" ? (
+                <iframe
+                  srcDoc={mapHtml}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    border: "none",
+                    borderRadius: 12,
+                  }}
+                />
+              ) : (
+                <WebView
+                  source={{ html: mapHtml }}
+                  style={styles.miniMap}
+                  scrollEnabled={false}
+                  javaScriptEnabled
+                  domStorageEnabled
+                  originWhitelist={["*"]}
+                />
+              )}
+            </Animated.View>
+          ) : null}
+
+          <View style={styles.stopsSection}>
+            <View style={styles.stopsHeader}>
+              <ThemedText type="caption" style={{ color: theme.textSecondary }}>
+                STOPS ALONG THE WAY (OPTIONAL)
               </ThemedText>
-              <Pressable onPress={() => removeIntermediateStop(index)} hitSlop={8}>
-                <Feather name="x-circle" size={20} color={theme.textSecondary} />
+            </View>
+            
+            {intermediateStops.map((stop, index) => (
+              <View key={index} style={[styles.stopItem, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
+                <View style={[styles.stopNumber, { backgroundColor: `${Colors.primary}20` }]}>
+                  <ThemedText type="caption" style={{ color: Colors.primary, fontWeight: "600" }}>
+                    {index + 1}
+                  </ThemedText>
+                </View>
+                <ThemedText type="body" style={{ flex: 1, color: theme.text }}>
+                  {stop}
+                </ThemedText>
+                <Pressable onPress={() => removeIntermediateStop(index)} hitSlop={8}>
+                  <Feather name="x-circle" size={20} color={theme.textSecondary} />
+                </Pressable>
+              </View>
+            ))}
+
+            <View style={[styles.addStopRow, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
+              <Feather name="map-pin" size={16} color={theme.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                placeholder="Add a stop (e.g., Bloemfontein)"
+                placeholderTextColor={theme.textSecondary}
+                value={newStop}
+                onChangeText={setNewStop}
+                onSubmitEditing={addIntermediateStop}
+                returnKeyType="done"
+              />
+              <Pressable onPress={addIntermediateStop} hitSlop={8}>
+                <Feather name="plus-circle" size={22} color={Colors.primary} />
               </Pressable>
             </View>
-          ))}
-
-          <View style={[styles.addStopRow, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
-            <Feather name="map-pin" size={16} color={theme.textSecondary} />
-            <TextInput
-              style={[styles.input, { color: theme.text }]}
-              placeholder="Add a stop (e.g., Bloemfontein)"
-              placeholderTextColor={theme.textSecondary}
-              value={newStop}
-              onChangeText={setNewStop}
-              onSubmitEditing={addIntermediateStop}
-              returnKeyType="done"
-            />
-            <Pressable onPress={addIntermediateStop} hitSlop={8}>
-              <Feather name="plus-circle" size={22} color={Colors.primary} />
-            </Pressable>
           </View>
-        </View>
-      </SectionCard>
+        </SectionCard>
 
-      <SectionCard title="Schedule" icon="clock" theme={theme}>
-        <View style={styles.scheduleRow}>
-          <View style={styles.scheduleField}>
-            <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.xs }}>
-              DATE
-            </ThemedText>
-            <View
-              style={[
-                styles.inputContainer,
-                { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-              ]}
-            >
-              <Feather name="calendar" size={16} color={Colors.primary} />
-              <TextInput
-                style={[styles.input, { color: theme.text }]}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={theme.textSecondary}
-                value={departureDate}
-                onChangeText={setDepartureDate}
-              />
+        <SectionCard title="Schedule" icon="clock" theme={theme}>
+          <View style={styles.scheduleRow}>
+            <View style={styles.scheduleField}>
+              <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.xs }}>
+                DATE
+              </ThemedText>
+              <View
+                style={[
+                  styles.inputContainer,
+                  { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
+                ]}
+              >
+                <Feather name="calendar" size={16} color={Colors.primary} />
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={theme.textSecondary}
+                  value={departureDate}
+                  onChangeText={setDepartureDate}
+                />
+              </View>
+            </View>
+            <View style={styles.scheduleField}>
+              <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.xs }}>
+                TIME (OPTIONAL)
+              </ThemedText>
+              <View
+                style={[
+                  styles.inputContainer,
+                  { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
+                ]}
+              >
+                <Feather name="clock" size={16} color={Colors.primary} />
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  placeholder="08:00"
+                  placeholderTextColor={theme.textSecondary}
+                  value={departureTime}
+                  onChangeText={setDepartureTime}
+                />
+              </View>
             </View>
           </View>
-          <View style={styles.scheduleField}>
-            <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.xs }}>
-              TIME (OPTIONAL)
-            </ThemedText>
-            <View
-              style={[
-                styles.inputContainer,
-                { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-              ]}
-            >
-              <Feather name="clock" size={16} color={Colors.primary} />
-              <TextInput
-                style={[styles.input, { color: theme.text }]}
-                placeholder="08:00"
-                placeholderTextColor={theme.textSecondary}
-                value={departureTime}
-                onChangeText={setDepartureTime}
-              />
-            </View>
-          </View>
-        </View>
 
-        <ThemedText type="caption" style={{ color: theme.textSecondary, marginTop: Spacing.lg, marginBottom: Spacing.sm }}>
-          FREQUENCY
-        </ThemedText>
-        <View style={styles.chipContainer}>
-          {frequencyOptions.map((option) => (
-            <SelectableChip
-              key={option.key}
-              selected={frequency === option.key}
-              label={option.label}
-              onPress={() => setFrequency(option.key)}
-              theme={theme}
-            />
-          ))}
-        </View>
-
-        {isRecurring ? (
-          <View style={styles.recurrenceEndSection}>
-            <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.xs }}>
-              REPEAT UNTIL (OPTIONAL)
-            </ThemedText>
-            <View
-              style={[
-                styles.inputContainer,
-                { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-              ]}
-            >
-              <Feather name="calendar" size={16} color={Colors.secondary} />
-              <TextInput
-                style={[styles.input, { color: theme.text }]}
-                placeholder="YYYY-MM-DD (leave empty for indefinite)"
-                placeholderTextColor={theme.textSecondary}
-                value={recurrenceEndDate}
-                onChangeText={setRecurrenceEndDate}
-              />
-            </View>
-            <ThemedText type="caption" style={{ color: theme.textSecondary, marginTop: Spacing.xs }}>
-              {frequency === "daily" && "Route will repeat every day until end date"}
-              {frequency === "weekly" && "Route will repeat every week until end date"}
-              {frequency === "monthly" && "Route will repeat every month until end date"}
-            </ThemedText>
-          </View>
-        ) : null}
-      </SectionCard>
-
-      <SectionCard title="Capacity" icon="package" theme={theme}>
-        <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.md }}>
-          MAXIMUM PARCEL SIZE
-        </ThemedText>
-        <View style={styles.sizeCardsContainer}>
-          {sizeOptions.map((option) => (
-            <SizeCard
-              key={option.key}
-              selected={maxParcelSize === option.key}
-              label={option.label}
-              icon={option.icon}
-              description={option.description}
-              onPress={() =>
-                setMaxParcelSize(maxParcelSize === option.key ? null : option.key)
-              }
-              theme={theme}
-            />
-          ))}
-        </View>
-
-        <View style={[styles.capacityRow, { marginTop: Spacing.xl }]}>
-          <View style={styles.capacityField}>
-            <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.xs }}>
-              MAX WEIGHT (KG)
-            </ThemedText>
-            <View
-              style={[
-                styles.inputContainer,
-                { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-              ]}
-            >
-              <Feather name="activity" size={16} color={theme.textSecondary} />
-              <TextInput
-                style={[styles.input, { color: theme.text }]}
-                placeholder="20"
-                placeholderTextColor={theme.textSecondary}
-                value={maxWeight}
-                onChangeText={setMaxWeight}
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
-          <View style={styles.capacityField}>
-            <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.xs }}>
-              AVAILABLE SPOTS
-            </ThemedText>
-            <View
-              style={[
-                styles.inputContainer,
-                { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-              ]}
-            >
-              <Feather name="layers" size={16} color={theme.textSecondary} />
-              <TextInput
-                style={[styles.input, { color: theme.text }]}
-                placeholder="5"
-                placeholderTextColor={theme.textSecondary}
-                value={availableCapacity}
-                onChangeText={setAvailableCapacity}
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
-        </View>
-      </SectionCard>
-
-      <SectionCard title="Pricing" icon="dollar-sign" theme={theme}>
-        <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.xs }}>
-          PRICE PER KILOGRAM
-        </ThemedText>
-        <View
-          style={[
-            styles.priceInputContainer,
-            { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-          ]}
-        >
-          <View style={[styles.currencyBadge, { backgroundColor: `${Colors.success}20` }]}>
-            <ThemedText type="body" style={{ color: Colors.success, fontWeight: "700" }}>
-              R
-            </ThemedText>
-          </View>
-          <TextInput
-            style={[styles.priceInput, { color: theme.text }]}
-            placeholder="0"
-            placeholderTextColor={theme.textSecondary}
-            value={pricePerKg}
-            onChangeText={setPricePerKg}
-            keyboardType="numeric"
-          />
-          <ThemedText type="caption" style={{ color: theme.textSecondary }}>
-            per kg
+          <ThemedText type="caption" style={{ color: theme.textSecondary, marginTop: Spacing.lg, marginBottom: Spacing.sm }}>
+            FREQUENCY
           </ThemedText>
-        </View>
-      </SectionCard>
+          <View style={styles.chipContainer}>
+            {frequencyOptions.map((option) => (
+              <SelectableChip
+                key={option.key}
+                selected={frequency === option.key}
+                label={option.label}
+                onPress={() => setFrequency(option.key)}
+                theme={theme}
+              />
+            ))}
+          </View>
 
-      <SectionCard title="Additional Notes" icon="file-text" theme={theme}>
-        <View
-          style={[
-            styles.textAreaContainer,
-            { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-          ]}
+          {isRecurring ? (
+            <View style={styles.recurrenceEndSection}>
+              <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.xs }}>
+                REPEAT UNTIL (OPTIONAL)
+              </ThemedText>
+              <View
+                style={[
+                  styles.inputContainer,
+                  { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
+                ]}
+              >
+                <Feather name="calendar" size={16} color={Colors.secondary} />
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  placeholder="YYYY-MM-DD (leave empty for indefinite)"
+                  placeholderTextColor={theme.textSecondary}
+                  value={recurrenceEndDate}
+                  onChangeText={setRecurrenceEndDate}
+                />
+              </View>
+              <ThemedText type="caption" style={{ color: theme.textSecondary, marginTop: Spacing.xs }}>
+                {frequency === "daily" && "Route will repeat every day until end date"}
+                {frequency === "weekly" && "Route will repeat every week until end date"}
+                {frequency === "monthly" && "Route will repeat every month until end date"}
+              </ThemedText>
+            </View>
+          ) : null}
+        </SectionCard>
+
+        <SectionCard title="Capacity" icon="package" theme={theme}>
+          <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.md }}>
+            MAXIMUM PARCEL SIZE
+          </ThemedText>
+          <View style={styles.sizeCardsContainer}>
+            {sizeOptions.map((option) => (
+              <SizeCard
+                key={option.key}
+                selected={maxParcelSize === option.key}
+                label={option.label}
+                icon={option.icon}
+                description={option.description}
+                onPress={() =>
+                  setMaxParcelSize(maxParcelSize === option.key ? null : option.key)
+                }
+                theme={theme}
+              />
+            ))}
+          </View>
+
+          <View style={[styles.capacityRow, { marginTop: Spacing.xl }]}>
+            <View style={styles.capacityField}>
+              <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.xs }}>
+                MAX WEIGHT (KG)
+              </ThemedText>
+              <View
+                style={[
+                  styles.inputContainer,
+                  { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
+                ]}
+              >
+                <Feather name="activity" size={16} color={theme.textSecondary} />
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  placeholder="20"
+                  placeholderTextColor={theme.textSecondary}
+                  value={maxWeight}
+                  onChangeText={setMaxWeight}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+            <View style={styles.capacityField}>
+              <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.xs }}>
+                AVAILABLE SPOTS
+              </ThemedText>
+              <View
+                style={[
+                  styles.inputContainer,
+                  { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
+                ]}
+              >
+                <Feather name="layers" size={16} color={theme.textSecondary} />
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  placeholder="5"
+                  placeholderTextColor={theme.textSecondary}
+                  value={availableCapacity}
+                  onChangeText={setAvailableCapacity}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+          </View>
+        </SectionCard>
+
+        <SectionCard title="Pricing" icon="dollar-sign" theme={theme}>
+          <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.xs }}>
+            PRICE PER KILOGRAM
+          </ThemedText>
+          <View
+            style={[
+              styles.priceInputContainer,
+              { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
+            ]}
+          >
+            <View style={[styles.currencyBadge, { backgroundColor: `${Colors.success}20` }]}>
+              <ThemedText type="body" style={{ color: Colors.success, fontWeight: "700" }}>
+                R
+              </ThemedText>
+            </View>
+            <TextInput
+              style={[styles.priceInput, { color: theme.text }]}
+              placeholder="0"
+              placeholderTextColor={theme.textSecondary}
+              value={pricePerKg}
+              onChangeText={setPricePerKg}
+              keyboardType="numeric"
+            />
+            <ThemedText type="caption" style={{ color: theme.textSecondary }}>
+              per kg
+            </ThemedText>
+          </View>
+        </SectionCard>
+
+        <SectionCard title="Additional Notes" icon="file-text" theme={theme}>
+          <View
+            style={[
+              styles.textAreaContainer,
+              { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
+            ]}
+          >
+            <TextInput
+              style={[styles.textArea, { color: theme.text }]}
+              placeholder="Any special instructions or details about your route..."
+              placeholderTextColor={theme.textSecondary}
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+          </View>
+        </SectionCard>
+
+        <Button
+          onPress={handleCreate}
+          disabled={!isValid || isSubmitting}
+          style={styles.submitButton}
         >
-          <TextInput
-            style={[styles.textArea, { color: theme.text }]}
-            placeholder="Any special instructions or details about your route..."
-            placeholderTextColor={theme.textSecondary}
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
-        </View>
-      </SectionCard>
+          {isSubmitting ? "Creating..." : "Create Route"}
+        </Button>
 
-      <Button
-        onPress={handleCreate}
-        disabled={!isValid || isSubmitting}
-        style={styles.submitButton}
-      >
-        {isSubmitting ? "Creating..." : "Create Route"}
-      </Button>
+        <ThemedText
+          type="caption"
+          style={{ color: theme.textSecondary, textAlign: "center", marginTop: Spacing.md }}
+        >
+          Your route will be visible to senders looking for carriers
+        </ThemedText>
+      </KeyboardAwareScrollViewCompat>
 
-      <ThemedText
-        type="caption"
-        style={{ color: theme.textSecondary, textAlign: "center", marginTop: Spacing.md }}
-      >
-        Your route will be visible to senders looking for carriers
-      </ThemedText>
-    </KeyboardAwareScrollViewCompat>
+      <LocationPickerModal
+        visible={showOriginPicker}
+        onClose={() => setShowOriginPicker(false)}
+        onSelectLocation={(location) => setOriginLocation(location)}
+        type="origin"
+        initialQuery={originLocation?.name || ""}
+      />
+
+      <LocationPickerModal
+        visible={showDestinationPicker}
+        onClose={() => setShowDestinationPicker(false)}
+        onSelectLocation={(location) => setDestinationLocation(location)}
+        type="destination"
+        initialQuery={destinationLocation?.name || ""}
+      />
+    </>
   );
 }
 
@@ -670,58 +880,125 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: Spacing.md,
+    marginRight: Spacing.sm,
   },
   sectionTitle: {
     flex: 1,
   },
   routeInputs: {
-    gap: 0,
+    marginBottom: Spacing.md,
+  },
+  locationCard: {
+    borderRadius: BorderRadius.md,
+    borderWidth: 2,
+    padding: Spacing.md,
+  },
+  locationCardContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  locationDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  locationTextContainer: {
+    flex: 1,
+  },
+  locationCardIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  routeConnector: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: Spacing.xs,
+    paddingLeft: Spacing.md + 4,
+  },
+  connectorLine: {
+    width: 2,
+    height: 12,
+  },
+  connectorIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: -11,
+  },
+  miniMapContainer: {
+    height: 160,
+    borderRadius: BorderRadius.md,
+    overflow: "hidden",
+    marginBottom: Spacing.lg,
+  },
+  miniMap: {
+    flex: 1,
+    backgroundColor: "transparent",
   },
   inputWrapper: {
-    gap: Spacing.xs,
+    marginBottom: Spacing.md,
   },
   inputLabelRow: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: Spacing.xs,
     gap: Spacing.sm,
-    marginLeft: Spacing.xs,
   },
   dotIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: Spacing.md,
     height: Spacing.inputHeight,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
+    paddingHorizontal: Spacing.md,
     gap: Spacing.sm,
   },
   input: {
     flex: 1,
     fontSize: 16,
-    height: "100%",
   },
-  routeConnector: {
+  stopsSection: {
+    marginTop: Spacing.md,
+  },
+  stopsHeader: {
+    marginBottom: Spacing.sm,
+  },
+  stopItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: Spacing.sm,
-    paddingLeft: Spacing.xl,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
   },
-  connectorLine: {
-    flex: 1,
-    height: 1,
-  },
-  connectorIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  stopNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+  },
+  addStopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: Spacing.inputHeight,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.sm,
   },
   scheduleRow: {
     flexDirection: "row",
@@ -743,20 +1020,24 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
+  recurrenceEndSection: {
+    marginTop: Spacing.lg,
+  },
   sizeCardsContainer: {
     flexDirection: "row",
     gap: Spacing.sm,
   },
   sizeCard: {
     flex: 1,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
     alignItems: "center",
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.md,
   },
   sizeIconContainer: {
     width: 48,
     height: 48,
-    borderRadius: BorderRadius.sm,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -770,68 +1051,34 @@ const styles = StyleSheet.create({
   priceInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: Spacing.md,
     height: 56,
-    borderRadius: BorderRadius.sm,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
+    paddingHorizontal: Spacing.md,
     gap: Spacing.md,
   },
   currencyBadge: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.xs,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
   priceInput: {
     flex: 1,
     fontSize: 24,
     fontWeight: "600",
-    height: "100%",
   },
   textAreaContainer: {
-    borderRadius: BorderRadius.sm,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
     padding: Spacing.md,
   },
   textArea: {
     fontSize: 16,
-    minHeight: 100,
+    minHeight: 80,
   },
   submitButton: {
-    marginTop: Spacing.lg,
-  },
-  stopsSection: {
-    marginTop: Spacing.lg,
-  },
-  stopsHeader: {
-    marginBottom: Spacing.sm,
-  },
-  stopItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: Spacing.md,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-    marginBottom: Spacing.sm,
-    gap: Spacing.md,
-  },
-  stopNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addStopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Spacing.md,
-    height: Spacing.inputHeight,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-    borderStyle: "dashed",
-    gap: Spacing.sm,
-  },
-  recurrenceEndSection: {
-    marginTop: Spacing.lg,
+    marginTop: Spacing.md,
   },
 });

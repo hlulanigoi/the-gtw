@@ -594,7 +594,7 @@ export default function ParcelDetailScreen() {
             },
           ]}
         >
-          <Button onPress={handlePayment} variant="primary">Pay for Delivery</Button>
+          <Button onPress={handlePayment}>Pay for Delivery</Button>
         </View>
       ) : null}
 

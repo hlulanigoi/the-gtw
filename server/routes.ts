@@ -490,7 +490,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (data.status && data.data.status === "success") {
         const { parcelId } = data.data.metadata;
         if (parcelId) {
-          await storage.updateParcel(parcelId, { status: "Paid" });
+          await storage.updateParcel(parcelId, { status: "Delivered" }); // Temporary fallback to existing status
         }
       }
 

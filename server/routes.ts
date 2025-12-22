@@ -442,6 +442,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Paystack Integration
+  app.post("/api/payments/initialize", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { amount, email, metadata } = req.body;
+      
+      if (!amount || !email) {
+        return res.status(400).json({ error: "Amount and email are required" });
+      }
+
+      const response = await fetch("https://api.paystack.co/transaction/initialize", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: Math.round(amount * 100), // Convert to kobo/cents
+          email,
+          metadata,
+        }),
+      });
+
+      const data = await response.json();
+      if (!data.status) {
+        throw new Error(data.message || "Failed to initialize Paystack transaction");
+      }
+
+      res.json(data.data);
+    } catch (error: any) {
+      console.error("Paystack initialization error:", error);
+      res.status(500).json({ error: error.message || "Failed to initialize payment" });
+    }
+  });
+
   app.post("/api/routes", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const parsed = insertRouteSchema.safeParse({

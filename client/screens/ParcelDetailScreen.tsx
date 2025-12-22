@@ -73,6 +73,43 @@ export default function ParcelDetailScreen() {
     startTracking(parcelId);
   };
 
+  const handlePayment = async () => {
+    if (!user?.email) {
+      Alert.alert("Error", "User email not found");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_DOMAIN}/api/payments/initialize`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.uid}`, // Assuming uid as token for demo/simple auth
+        },
+        body: JSON.stringify({
+          amount: parcel.compensation,
+          email: user.email,
+          metadata: {
+            parcelId,
+            userId: user.uid,
+          },
+        }),
+      });
+
+      const data = await response.json();
+      if (data.authorization_url) {
+        // In a real app, we'd use WebBrowser to open this URL
+        // For now, we'll just alert and log
+        Alert.alert("Payment", "Redirecting to Paystack secure checkout...");
+        console.log("Paystack URL:", data.authorization_url);
+      } else {
+        throw new Error(data.error || "Failed to get payment link");
+      }
+    } catch (error: any) {
+      Alert.alert("Payment Error", error.message || "Something went wrong");
+    }
+  };
+
   const handleSaveCarrier = async () => {
     if (!parcel.transporterId) return;
     try {
@@ -546,6 +583,18 @@ export default function ParcelDetailScreen() {
           ]}
         >
           <Button onPress={handleAccept}>Accept to Transport</Button>
+        </View>
+      ) : parcel.isOwner && parcel.status === "Pending" ? (
+        <View
+          style={[
+            styles.bottomAction,
+            {
+              backgroundColor: theme.backgroundRoot,
+              paddingBottom: insets.bottom + Spacing.lg,
+            },
+          ]}
+        >
+          <Button onPress={handlePayment} variant="primary">Pay for Delivery</Button>
         </View>
       ) : null}
 

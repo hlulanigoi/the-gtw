@@ -461,6 +461,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           amount: Math.round(amount * 100), // Convert to kobo/cents
           email,
           metadata,
+          callback_url: `${process.env.EXPO_PUBLIC_DOMAIN}/api/payments/verify-web`,
         }),
       });
 
@@ -474,6 +475,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Paystack initialization error:", error);
       res.status(500).json({ error: error.message || "Failed to initialize payment" });
     }
+  });
+
+  app.get("/api/payments/verify/:reference", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { reference } = req.params;
+      const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.status && data.data.status === "success") {
+        const { parcelId } = data.data.metadata;
+        if (parcelId) {
+          await storage.updateParcel(parcelId, { status: "Paid" });
+        }
+      }
+
+      res.json(data);
+    } catch (error: any) {
+      console.error("Paystack verification error:", error);
+      res.status(500).json({ error: error.message || "Failed to verify payment" });
+    }
+  });
+
+  // Web fallback for callback_url
+  app.get("/api/payments/verify-web", async (req, res) => {
+    const { trxref, reference } = req.query;
+    res.send(`
+      <html>
+        <body>
+          <h1>Payment Processing</h1>
+          <p>You can now close this window and return to the app.</p>
+          <script>
+            setTimeout(() => window.close(), 3000);
+          </script>
+        </body>
+      </html>
+    `);
   });
 
   app.post("/api/routes", requireAuth, async (req: AuthenticatedRequest, res) => {

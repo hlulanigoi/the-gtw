@@ -1,3 +1,4 @@
+import * as WebBrowser from "expo-web-browser";
 import React, { useState, useMemo } from "react";
 import { View, StyleSheet, Pressable, ScrollView, Alert, Modal, TextInput, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -84,7 +85,7 @@ export default function ParcelDetailScreen() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${user.uid}`, // Assuming uid as token for demo/simple auth
+          Authorization: `Bearer ${user.uid}`,
         },
         body: JSON.stringify({
           amount: parcel.compensation,
@@ -98,10 +99,22 @@ export default function ParcelDetailScreen() {
 
       const data = await response.json();
       if (data.authorization_url) {
-        // In a real app, we'd use WebBrowser to open this URL
-        // For now, we'll just alert and log
-        Alert.alert("Payment", "Redirecting to Paystack secure checkout...");
-        console.log("Paystack URL:", data.authorization_url);
+        // Open the payment URL
+        await WebBrowser.openBrowserAsync(data.authorization_url);
+        
+        // After browser closes, verify payment
+        const verifyRes = await fetch(`${process.env.EXPO_PUBLIC_DOMAIN}/api/payments/verify/${data.reference}`, {
+          headers: {
+            Authorization: `Bearer ${user.uid}`,
+          },
+        });
+        const verifyData = await verifyRes.json();
+        
+        if (verifyData.status && verifyData.data.status === "success") {
+          Alert.alert("Success", "Payment verified successfully!");
+        } else {
+          Alert.alert("Notice", "Payment verification is pending or failed. Please check your transaction history.");
+        }
       } else {
         throw new Error(data.error || "Failed to get payment link");
       }

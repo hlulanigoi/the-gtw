@@ -9,11 +9,11 @@ import {
   sendPasswordResetEmail,
   GoogleAuthProvider,
   signInWithCredential,
-  OAuthProvider,
 } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { Platform } from "react-native";
+import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 
 interface UserProfile {
@@ -67,11 +67,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   } | null>(null);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
+    clientId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID?.includes(":") 
+      ? undefined
+      : "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
     iosClientId: "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
     androidClientId: "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
     scopes: ["profile", "email"],
   });
+
+  useEffect(() => {
+    if (response?.type === "success") {
+      const { id_token, access_token } = response.params;
+      
+      (async () => {
+        try {
+          const credential = GoogleAuthProvider.credential(id_token, access_token);
+          const result = await signInWithCredential(auth, credential);
+          const firebaseUser = result.user;
+          
+          const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+          if (!profileDoc.exists()) {
+            await setDoc(doc(db, "users", firebaseUser.uid), {
+              name: firebaseUser.displayName || "",
+              email: firebaseUser.email || "",
+              rating: 5.0,
+              verified: false,
+              emailVerified: true,
+              createdAt: serverTimestamp(),
+            });
+          }
+          setGoogleLoading(false);
+        } catch (error: any) {
+          console.error("Error signing in with Google:", error);
+          setGoogleLoading(false);
+        }
+      })();
+    }
+  }, [response]);
 
   const signInWithGoogle = async () => {
     if (Platform.OS === "web") {
@@ -105,33 +137,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       setGoogleLoading(true);
       try {
+        await WebBrowser.warmUpAsync();
         const result = await promptAsync();
-        if (result?.type === "success") {
-          const { id_token, access_token } = result.params;
-          
-          const credential = GoogleAuthProvider.credential(id_token, access_token);
-          const firebaseResult = await signInWithCredential(auth, credential);
-          const firebaseUser = firebaseResult.user;
-          
-          const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-          if (!profileDoc.exists()) {
-            await setDoc(doc(db, "users", firebaseUser.uid), {
-              name: firebaseUser.displayName || "",
-              email: firebaseUser.email || "",
-              rating: 5.0,
-              verified: false,
-              emailVerified: true,
-              createdAt: serverTimestamp(),
-            });
-          }
-        } else {
-          throw new Error("Google sign-in was cancelled");
+        if (result?.type !== "success") {
+          throw new Error("Google sign-in was cancelled. Please try again or use email sign-in.");
         }
       } catch (error: any) {
         console.error("Native Google sign-in error:", error);
-        throw error;
-      } finally {
         setGoogleLoading(false);
+        throw new Error("Google Sign-In failed. Please use email/password or try again.");
       }
     }
   };

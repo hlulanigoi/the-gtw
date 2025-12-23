@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import BrowseScreen from "@/screens/BrowseScreen";
 import ParcelDetailScreen from "@/screens/ParcelDetailScreen";
 import ParcelChatScreen from "@/screens/ParcelChatScreen";
+import CheckoutScreen from "@/screens/CheckoutScreen";
 import { HeaderTitle } from "@/components/HeaderTitle";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
@@ -10,6 +11,7 @@ export type BrowseStackParamList = {
   Browse: undefined;
   ParcelDetail: { parcelId: string };
   ParcelChat: { parcelId: string; userRole: "sender" | "carrier" | "receiver" };
+  Checkout: { parcelId: string };
 };
 
 const Stack = createNativeStackNavigator<BrowseStackParamList>();
@@ -38,6 +40,13 @@ export default function BrowseStackNavigator() {
         component={ParcelChatScreen}
         options={{
           headerTitle: "Chat",
+        }}
+      />
+      <Stack.Screen
+        name="Checkout"
+        component={CheckoutScreen}
+        options={{
+          headerTitle: "Checkout",
         }}
       />
     </Stack.Navigator>

@@ -2,7 +2,7 @@ import * as WebBrowser from "expo-web-browser";
 import React, { useState, useMemo } from "react";
 import { View, StyleSheet, Pressable, ScrollView, Alert, Modal, TextInput, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRoute, RouteProp } from "@react-navigation/native";
+import { useRoute, RouteProp, useNavigation, NativeStackNavigationProp } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
 
@@ -43,6 +43,7 @@ export default function ParcelDetailScreen() {
   const insets = useSafeAreaInsets();
   const { theme, isDark } = useTheme();
   const route = useRoute<RouteType>();
+  const navigation = useNavigation<NativeStackNavigationProp<BrowseStackParamList>>();
   const { parcelId } = route.params;
   const { parcels, acceptParcel } = useParcels();
   const { addConnection, isConnected, isAdding } = useConnections();
@@ -74,53 +75,9 @@ export default function ParcelDetailScreen() {
     startTracking(parcelId);
   };
 
-  const handlePayment = async () => {
-    if (!user?.email) {
-      Alert.alert("Error", "User email not found");
-      return;
-    }
-
-    try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_DOMAIN}/api/payments/initialize`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${user.uid}`,
-        },
-        body: JSON.stringify({
-          amount: parcel.compensation,
-          email: user.email,
-          metadata: {
-            parcelId,
-            userId: user.uid,
-          },
-        }),
-      });
-
-      const data = await response.json();
-      if (data.authorization_url) {
-        // Open the payment URL
-        await WebBrowser.openBrowserAsync(data.authorization_url);
-        
-        // After browser closes, verify payment
-        const verifyRes = await fetch(`${process.env.EXPO_PUBLIC_DOMAIN}/api/payments/verify/${data.reference}`, {
-          headers: {
-            Authorization: `Bearer ${user.uid}`,
-          },
-        });
-        const verifyData = await verifyRes.json();
-        
-        if (verifyData.status && verifyData.data.status === "success") {
-          Alert.alert("Success", "Payment verified successfully!");
-        } else {
-          Alert.alert("Notice", "Payment verification is pending or failed. Please check your transaction history.");
-        }
-      } else {
-        throw new Error(data.error || "Failed to get payment link");
-      }
-    } catch (error: any) {
-      Alert.alert("Payment Error", error.message || "Something went wrong");
-    }
+  const handlePayment = () => {
+    // Navigate to checkout screen
+    navigation.navigate("Checkout", { parcelId });
   };
 
   const handleSaveCarrier = async () => {

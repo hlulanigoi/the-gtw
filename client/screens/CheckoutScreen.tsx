@@ -5,6 +5,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Pressable,
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,6 +24,7 @@ import { useParcels } from "@/hooks/useParcels";
 import { useAuth } from "@/contexts/AuthContext";
 
 type RouteType = RouteProp<BrowseStackParamList, "Checkout">;
+type PaymentMethod = "paystack" | "cash";
 
 export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
@@ -33,6 +35,7 @@ export default function CheckoutScreen() {
   const { parcels, refetch } = useParcels();
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("paystack");
   const [paymentStep, setPaymentStep] = useState<"summary" | "processing" | "complete">("summary");
 
   const parcel = parcels.find((p) => p.id === parcelId);
@@ -49,6 +52,45 @@ export default function CheckoutScreen() {
   }
 
   const handlePayment = async () => {
+    if (paymentMethod === "cash") {
+      handleCashPayment();
+    } else {
+      handlePaystackPayment();
+    }
+  };
+
+  const handleCashPayment = async () => {
+    if (!user?.uid) {
+      Alert.alert("Error", "User not authenticated");
+      return;
+    }
+
+    setIsProcessing(true);
+    setPaymentStep("processing");
+
+    try {
+      // Just mark the parcel as ready for cash payment
+      // The carrier will collect cash upon delivery
+      setPaymentStep("complete");
+      await refetch();
+
+      setTimeout(() => {
+        Alert.alert("Cash Payment Confirmed", "You selected to pay with cash. The carrier will collect payment upon delivery.", [
+          {
+            text: "OK",
+            onPress: () => navigation.goBack(),
+          },
+        ]);
+      }, 500);
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Something went wrong");
+      setPaymentStep("summary");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePaystackPayment = async () => {
     if (!user?.email) {
       Alert.alert("Error", "User email not found");
       return;
@@ -141,12 +183,34 @@ export default function CheckoutScreen() {
           },
         ]}
       >
+        {/* Payment Method Selection */}
+        <View style={{ marginHorizontal: Spacing.lg, marginBottom: Spacing.lg }}>
+          <ThemedText type="h4" style={{ marginBottom: Spacing.md }}>
+            Payment Method
+          </ThemedText>
+          <View style={{ gap: Spacing.sm }}>
+            <PaymentMethodButton
+              method="paystack"
+              label="Card Payment"
+              description="Pay online via Paystack"
+              icon="credit-card"
+              isSelected={paymentMethod === "paystack"}
+              onPress={() => setPaymentMethod("paystack")}
+            />
+            <PaymentMethodButton
+              method="cash"
+              label="Cash on Delivery"
+              description="Pay to carrier when delivered"
+              icon="dollar-sign"
+              isSelected={paymentMethod === "cash"}
+              onPress={() => setPaymentMethod("cash")}
+            />
+          </View>
+        </View>
+
         {/* Payment Summary */}
         <Card
-          style={[
-            styles.summaryCard,
-            { marginHorizontal: Spacing.lg, marginBottom: Spacing.lg },
-          ]}
+          style={[styles.summaryCard, { marginHorizontal: Spacing.lg, marginBottom: Spacing.lg }] as any}
         >
           <View style={styles.headerSection}>
             <Feather name="package" size={32} color={Colors.primary} />
@@ -235,10 +299,7 @@ export default function CheckoutScreen() {
         {/* Payment Processing State */}
         {paymentStep === "processing" && (
           <Card
-            style={[
-              styles.processingCard,
-              { marginHorizontal: Spacing.lg, marginBottom: Spacing.lg },
-            ]}
+            style={[styles.processingCard, { marginHorizontal: Spacing.lg, marginBottom: Spacing.lg }] as any}
           >
             <ActivityIndicator size="large" color={Colors.primary} />
             <ThemedText
@@ -253,10 +314,7 @@ export default function CheckoutScreen() {
         {/* Success State */}
         {paymentStep === "complete" && (
           <Card
-            style={[
-              styles.successCard,
-              { marginHorizontal: Spacing.lg, marginBottom: Spacing.lg },
-            ]}
+            style={[styles.successCard, { marginHorizontal: Spacing.lg, marginBottom: Spacing.lg }] as any}
           >
             <View style={styles.successContent}>
               <Feather name="check-circle" size={48} color={Colors.success} />
@@ -300,6 +358,75 @@ export default function CheckoutScreen() {
         </View>
       )}
     </ThemedView>
+  );
+}
+
+function PaymentMethodButton({
+  method,
+  label,
+  description,
+  icon,
+  isSelected,
+  onPress,
+}: {
+  method: PaymentMethod;
+  label: string;
+  description: string;
+  icon: keyof typeof Feather.glyphMap;
+  isSelected: boolean;
+  onPress: () => void;
+}) {
+  const { theme } = useTheme();
+
+  return (
+    <Pressable onPress={onPress} style={{ opacity: isSelected ? 1 : 0.7 }}>
+      <Card
+        style={[
+          styles.methodButton,
+          {
+            borderWidth: isSelected ? 2 : 1,
+            borderColor: isSelected ? Colors.primary : theme.border,
+            backgroundColor: isSelected ? Colors.primary + "10" : theme.backgroundDefault,
+          },
+        ] as any}
+      >
+        <View style={styles.methodContent}>
+          <View style={styles.methodLeft}>
+            <View
+              style={[
+                styles.methodIcon,
+                {
+                  backgroundColor: isSelected ? Colors.primary + "20" : theme.border + "20",
+                },
+              ]}
+            >
+              <Feather
+                name={icon as any}
+                size={24}
+                color={isSelected ? Colors.primary : theme.textSecondary}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <ThemedText type="h4">{label}</ThemedText>
+              <ThemedText type="caption" style={{ color: theme.textSecondary, marginTop: Spacing.xs }}>
+                {description}
+              </ThemedText>
+            </View>
+          </View>
+          <View
+            style={[
+              styles.methodCheckbox,
+              {
+                borderColor: isSelected ? Colors.primary : theme.border,
+                backgroundColor: isSelected ? Colors.primary : "transparent",
+              },
+            ]}
+          >
+            {isSelected && <Feather name="check" size={16} color="white" />}
+          </View>
+        </View>
+      </Card>
+    </Pressable>
   );
 }
 
@@ -370,5 +497,35 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#e5e7eb",
     paddingTop: Spacing.lg,
+  },
+  methodButton: {
+    padding: Spacing.md,
+  },
+  methodContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  methodLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: Spacing.md,
+  },
+  methodIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.md,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  methodCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: Spacing.md,
   },
 });

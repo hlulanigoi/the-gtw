@@ -15,15 +15,9 @@ export const users = pgTable("users", {
     .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
   phone: text("phone"),
   rating: real("rating").default(5.0),
   verified: boolean("verified").default(false),
-  emailVerified: boolean("email_verified").default(false),
-  savedLocationName: text("saved_location_name"),
-  savedLocationAddress: text("saved_location_address"),
-  savedLocationLat: real("saved_location_lat"),
-  savedLocationLng: real("saved_location_lng"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

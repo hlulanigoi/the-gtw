@@ -1,8 +1,44 @@
 import type { Request, Response, NextFunction } from "express";
-import { verifyToken, type AuthPayload } from "./auth";
+
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
 
 export interface AuthenticatedRequest extends Request {
-  user?: AuthPayload;
+  user?: {
+    uid: string;
+    email?: string;
+  };
+}
+
+export async function verifyFirebaseToken(idToken: string): Promise<{ uid: string; email?: string } | null> {
+  try {
+    const response = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${process.env.FIREBASE_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      }
+    );
+
+    if (!response.ok) {
+      console.error("Token verification failed:", await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    if (data.users && data.users.length > 0) {
+      const user = data.users[0];
+      return {
+        uid: user.localId,
+        email: user.email,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error verifying Firebase token:", error);
+    return null;
+  }
 }
 
 export function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -13,14 +49,19 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
   }
 
   const token = authHeader.split("Bearer ")[1];
-  const payload = verifyToken(token);
 
-  if (!payload) {
-    return res.status(401).json({ error: "Unauthorized: Invalid or expired token" });
-  }
-
-  req.user = payload;
-  next();
+  verifyFirebaseToken(token)
+    .then((user) => {
+      if (!user) {
+        return res.status(401).json({ error: "Unauthorized: Invalid token" });
+      }
+      req.user = user;
+      next();
+    })
+    .catch((error) => {
+      console.error("Auth middleware error:", error);
+      res.status(500).json({ error: "Authentication error" });
+    });
 }
 
 export function optionalAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -31,11 +72,15 @@ export function optionalAuth(req: AuthenticatedRequest, res: Response, next: Nex
   }
 
   const token = authHeader.split("Bearer ")[1];
-  const payload = verifyToken(token);
 
-  if (payload) {
-    req.user = payload;
-  }
-
-  next();
+  verifyFirebaseToken(token)
+    .then((user) => {
+      if (user) {
+        req.user = user;
+      }
+      next();
+    })
+    .catch(() => {
+      next();
+    });
 }

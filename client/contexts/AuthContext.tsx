@@ -8,10 +8,13 @@ import {
   updateProfile,
   sendPasswordResetEmail,
   GoogleAuthProvider,
+  signInWithCredential,
+  OAuthProvider,
 } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { Platform } from "react-native";
+import * as Google from "expo-auth-session/providers/google";
 
 interface UserProfile {
   id: string;
@@ -63,6 +66,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string;
   } | null>(null);
 
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
+    iosClientId: "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
+    androidClientId: "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
+    scopes: ["profile", "email"],
+  });
+
   const signInWithGoogle = async () => {
     if (Platform.OS === "web") {
       const provider = new GoogleAuthProvider();
@@ -93,7 +103,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setGoogleLoading(false);
       }
     } else {
-      throw new Error("Google Sign-In is only available on web. Please use email sign-in on mobile.");
+      setGoogleLoading(true);
+      try {
+        const result = await promptAsync();
+        if (result?.type === "success") {
+          const { id_token, access_token } = result.params;
+          
+          const credential = GoogleAuthProvider.credential(id_token, access_token);
+          const firebaseResult = await signInWithCredential(auth, credential);
+          const firebaseUser = firebaseResult.user;
+          
+          const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+          if (!profileDoc.exists()) {
+            await setDoc(doc(db, "users", firebaseUser.uid), {
+              name: firebaseUser.displayName || "",
+              email: firebaseUser.email || "",
+              rating: 5.0,
+              verified: false,
+              emailVerified: true,
+              createdAt: serverTimestamp(),
+            });
+          }
+        } else {
+          throw new Error("Google sign-in was cancelled");
+        }
+      } catch (error: any) {
+        console.error("Native Google sign-in error:", error);
+        throw error;
+      } finally {
+        setGoogleLoading(false);
+      }
     }
   };
 

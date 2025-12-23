@@ -27,6 +27,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { Button } from "@/components/Button";
 import { IncomingStackParamList } from "@/navigation/IncomingStackNavigator";
+import { formatCurrency } from "@/lib/currency";
 
 type RouteProps = RouteProp<IncomingStackParamList, "IncomingParcelDetail">;
 type NavigationProp = NativeStackNavigationProp<IncomingStackParamList>;
@@ -428,7 +429,7 @@ export default function IncomingParcelDetailScreen() {
             <InfoRow icon="box" label="Weight" value={`${parcel.weight} kg`} theme={theme} />
           ) : null}
           <InfoRow icon="calendar" label="Pickup Date" value={formatDate(parcel.pickupDate)} theme={theme} />
-          <InfoRow icon="dollar-sign" label="Compensation" value={`R${parcel.compensation}`} theme={theme} />
+          <InfoRow icon="dollar-sign" label="Compensation" value={formatCurrency(parcel.compensation)} theme={theme} />
           {parcel.isFragile ? (
             <InfoRow icon="alert-triangle" label="Fragile" value="Yes" theme={theme} />
           ) : null}

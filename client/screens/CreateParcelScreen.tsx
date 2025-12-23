@@ -24,6 +24,7 @@ import { useParcels } from "@/hooks/useParcels";
 import { LocationPickerModal } from "@/components/LocationPickerModal";
 import { ReceiverSearchModal } from "@/components/ReceiverSearchModal";
 import { SearchableUser } from "@/hooks/useUserSearch";
+import { formatCurrency } from "@/lib/currency";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 

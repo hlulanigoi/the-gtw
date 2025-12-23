@@ -14,6 +14,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { MyParcelsStackParamList } from "@/navigation/MyParcelsStackNavigator";
 import { useParcels } from "@/hooks/useParcels";
+import { formatCurrency } from "@/lib/currency";
 
 type NavigationProp = NativeStackNavigationProp<MyParcelsStackParamList>;
 type RouteType = RouteProp<MyParcelsStackParamList, "EditParcel">;

@@ -18,6 +18,7 @@ import { useReviews } from "@/hooks/useReviews";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCarrierLocation } from "@/hooks/useCarrierLocation";
 import { useReceiverLocation } from "@/hooks/useReceiverLocation";
+import { formatCurrency } from "@/lib/currency";
 
 type RouteType = RouteProp<BrowseStackParamList, "ParcelDetail">;
 
@@ -302,7 +303,7 @@ export default function ParcelDetailScreen() {
             Compensation
           </ThemedText>
           <ThemedText type="h1" style={{ color: Colors.primary }}>
-            R{parcel.compensation}
+            {formatCurrency(parcel.compensation)}
           </ThemedText>
         </View>
 

@@ -285,6 +285,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/users/search", async (req, res) => {
+    try {
+      const searchTerm = req.query.q as string;
+      if (!searchTerm || searchTerm.trim().length < 2) {
+        return res.json([]);
+      }
+
+      const searchLower = searchTerm.toLowerCase().trim();
+      const currentUserId = req.user?.uid;
+
+      const allUsers = await db.select().from(users);
+      const results = allUsers
+        .filter((user) => {
+          const userName = (user.name || "").toLowerCase();
+          const userEmail = (user.email || "").toLowerCase();
+          return (
+            user.id !== currentUserId &&
+            (userName.includes(searchLower) || userEmail.includes(searchLower))
+          );
+        })
+        .sort((a, b) => {
+          const aNameMatch = (a.name || "").toLowerCase().startsWith(searchLower);
+          const bNameMatch = (b.name || "").toLowerCase().startsWith(searchLower);
+          if (aNameMatch && !bNameMatch) return -1;
+          if (!aNameMatch && bNameMatch) return 1;
+          return (a.name || "").localeCompare(b.name || "");
+        })
+        .slice(0, 10);
+
+      res.json(results);
+    } catch (error) {
+      console.error("Failed to search users:", error);
+      res.status(500).json({ error: "Failed to search users" });
+    }
+  });
+
   app.post("/api/users", async (req, res) => {
     try {
       const user = await storage.createUser(req.body);

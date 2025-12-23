@@ -70,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clientId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID?.includes(":") 
       ? undefined
       : "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
+    webClientId: "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
     iosClientId: "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
     androidClientId: "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
     scopes: ["profile", "email"],

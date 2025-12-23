@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { storage, db } from "./storage";
-import { users, parcels, conversations, messages, connections, routes, reviews, pushTokens, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema, insertReviewSchema, insertPushTokenSchema } from "@shared/schema";
+import { users, parcels, conversations, messages, connections, routes, reviews, pushTokens, parcelMessages, carrierLocations, receiverLocations, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema, insertReviewSchema, insertPushTokenSchema, insertParcelMessageSchema, insertCarrierLocationSchema, insertReceiverLocationSchema } from "@shared/schema";
 import { eq, desc, and, gte, lte, ne, sql } from "drizzle-orm";
 import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./firebase-admin";
 
@@ -293,7 +293,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const searchLower = searchTerm.toLowerCase().trim();
-      const currentUserId = req.user?.uid;
+      const currentUserId = (req as any).user?.uid;
 
       const allUsers = await db.select().from(users);
       const results = allUsers
@@ -1010,6 +1010,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, message: "Expiry check completed" });
     } catch (error) {
       res.status(500).json({ error: "Failed to run expiry check" });
+    }
+  });
+
+  app.get("/api/parcels/:parcelId/messages", async (req, res) => {
+    try {
+      const msgs = await db
+        .select({ id: parcelMessages.id, parcelId: parcelMessages.parcelId, senderId: parcelMessages.senderId, senderName: users.name, senderRole: parcelMessages.senderRole, content: parcelMessages.content, createdAt: parcelMessages.createdAt })
+        .from(parcelMessages)
+        .innerJoin(users, eq(parcelMessages.senderId, users.id))
+        .where(eq(parcelMessages.parcelId, req.params.parcelId))
+        .orderBy(parcelMessages.createdAt);
+      res.json(msgs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  app.post("/api/parcels/:parcelId/messages", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const parsed = insertParcelMessageSchema.safeParse({
+        parcelId: req.params.parcelId,
+        senderId: req.user!.uid,
+        content: req.body.content,
+        senderRole: req.body.senderRole,
+      });
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.errors });
+      const msg = await db.insert(parcelMessages).values(parsed.data).returning();
+      res.json(msg[0]);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to send message" });
+    }
+  });
+
+  app.get("/api/parcels/:parcelId/carrier-location", async (req, res) => {
+    try {
+      const loc = await db.select().from(carrierLocations).where(eq(carrierLocations.parcelId, req.params.parcelId)).orderBy(desc(carrierLocations.timestamp)).limit(1);
+      res.json(loc[0] || null);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch carrier location" });
+    }
+  });
+
+  app.post("/api/parcels/:parcelId/carrier-location", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const parsed = insertCarrierLocationSchema.safeParse({
+        parcelId: req.params.parcelId,
+        carrierId: req.user!.uid,
+        lat: req.body.lat,
+        lng: req.body.lng,
+        heading: req.body.heading,
+        speed: req.body.speed,
+        accuracy: req.body.accuracy,
+      });
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.errors });
+      const loc = await db.insert(carrierLocations).values(parsed.data).returning();
+      res.json(loc[0]);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to save carrier location" });
+    }
+  });
+
+  app.get("/api/parcels/:parcelId/receiver-location", async (req, res) => {
+    try {
+      const loc = await db.select().from(receiverLocations).where(eq(receiverLocations.parcelId, req.params.parcelId)).orderBy(desc(receiverLocations.timestamp)).limit(1);
+      res.json(loc[0] || null);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch receiver location" });
+    }
+  });
+
+  app.post("/api/parcels/:parcelId/receiver-location", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const parsed = insertReceiverLocationSchema.safeParse({
+        parcelId: req.params.parcelId,
+        receiverId: req.user!.uid,
+        lat: req.body.lat,
+        lng: req.body.lng,
+        accuracy: req.body.accuracy,
+      });
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.errors });
+      const loc = await db.insert(receiverLocations).values(parsed.data).returning();
+      res.json(loc[0]);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to save receiver location" });
     }
   });
 

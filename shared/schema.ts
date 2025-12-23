@@ -119,6 +119,43 @@ export const connections = pgTable("connections", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const parcelMessages = pgTable("parcel_messages", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  parcelId: varchar("parcel_id").notNull().references(() => parcels.id),
+  senderId: varchar("sender_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  senderRole: text("sender_role").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const carrierLocations = pgTable("carrier_locations", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  parcelId: varchar("parcel_id").notNull().references(() => parcels.id),
+  carrierId: varchar("carrier_id").notNull().references(() => users.id),
+  lat: real("lat").notNull(),
+  lng: real("lng").notNull(),
+  heading: real("heading"),
+  speed: real("speed"),
+  accuracy: real("accuracy"),
+  timestamp: timestamp("timestamp").defaultNow(),
+});
+
+export const receiverLocations = pgTable("receiver_locations", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  parcelId: varchar("parcel_id").notNull().references(() => parcels.id),
+  receiverId: varchar("receiver_id").notNull().references(() => users.id),
+  lat: real("lat").notNull(),
+  lng: real("lng").notNull(),
+  accuracy: real("accuracy"),
+  timestamp: timestamp("timestamp").defaultNow(),
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   sentParcels: many(parcels, { relationName: "sender" }),
   transportingParcels: many(parcels, { relationName: "transporter" }),
@@ -190,6 +227,39 @@ export const connectionsRelations = relations(connections, ({ one }) => ({
     fields: [connections.connectedUserId],
     references: [users.id],
     relationName: "connectedByUsers",
+  }),
+}));
+
+export const parcelMessagesRelations = relations(parcelMessages, ({ one }) => ({
+  parcel: one(parcels, {
+    fields: [parcelMessages.parcelId],
+    references: [parcels.id],
+  }),
+  sender: one(users, {
+    fields: [parcelMessages.senderId],
+    references: [users.id],
+  }),
+}));
+
+export const carrierLocationsRelations = relations(carrierLocations, ({ one }) => ({
+  parcel: one(parcels, {
+    fields: [carrierLocations.parcelId],
+    references: [parcels.id],
+  }),
+  carrier: one(users, {
+    fields: [carrierLocations.carrierId],
+    references: [users.id],
+  }),
+}));
+
+export const receiverLocationsRelations = relations(receiverLocations, ({ one }) => ({
+  parcel: one(parcels, {
+    fields: [receiverLocations.parcelId],
+    references: [parcels.id],
+  }),
+  receiver: one(users, {
+    fields: [receiverLocations.receiverId],
+    references: [users.id],
   }),
 }));
 
@@ -286,6 +356,21 @@ export const insertPushTokenSchema = createInsertSchema(pushTokens).omit({
   updatedAt: true,
 });
 
+export const insertParcelMessageSchema = createInsertSchema(parcelMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertCarrierLocationSchema = createInsertSchema(carrierLocations).omit({
+  id: true,
+  timestamp: true,
+});
+
+export const insertReceiverLocationSchema = createInsertSchema(receiverLocations).omit({
+  id: true,
+  timestamp: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertParcel = z.infer<typeof insertParcelSchema>;
@@ -302,3 +387,9 @@ export type InsertReview = z.infer<typeof insertReviewSchema>;
 export type Review = typeof reviews.$inferSelect;
 export type InsertPushToken = z.infer<typeof insertPushTokenSchema>;
 export type PushToken = typeof pushTokens.$inferSelect;
+export type InsertParcelMessage = z.infer<typeof insertParcelMessageSchema>;
+export type ParcelMessage = typeof parcelMessages.$inferSelect;
+export type InsertCarrierLocation = z.infer<typeof insertCarrierLocationSchema>;
+export type CarrierLocation = typeof carrierLocations.$inferSelect;
+export type InsertReceiverLocation = z.infer<typeof insertReceiverLocationSchema>;
+export type ReceiverLocation = typeof receiverLocations.$inferSelect;

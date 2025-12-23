@@ -1,19 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-  collection,
-  query,
-  where,
-  onSnapshot,
-  addDoc,
-  serverTimestamp,
-  Timestamp,
-  orderBy,
-  limit,
-} from "firebase/firestore";
 import * as Location from "expo-location";
 import { Platform, Alert, Linking } from "react-native";
-import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/query-client";
 
 export interface ReceiverLocation {
@@ -23,55 +12,25 @@ export interface ReceiverLocation {
   lat: number;
   lng: number;
   accuracy?: number | null;
-  timestamp: Date;
+  timestamp: Date | string;
 }
 
 export function useReceiverLocation(parcelId?: string) {
   const { user } = useAuth();
-  const [receiverLocation, setReceiverLocation] = useState<ReceiverLocation | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [locationSubscription, setLocationSubscription] = useState<Location.LocationSubscription | null>(null);
   const [permissionStatus, setPermissionStatus] = useState<Location.PermissionStatus | null>(null);
 
-  useEffect(() => {
-    if (!parcelId) return;
-
-    const locationsRef = collection(db, "receiverLocations");
-    const q = query(
-      locationsRef,
-      where("parcelId", "==", parcelId),
-      orderBy("timestamp", "desc"),
-      limit(1)
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        if (!snapshot.empty) {
-          const docData = snapshot.docs[0];
-          const data = docData.data();
-          const timestamp = data.timestamp instanceof Timestamp
-            ? data.timestamp.toDate()
-            : new Date(data.timestamp);
-
-          setReceiverLocation({
-            id: docData.id,
-            parcelId: data.parcelId,
-            receiverId: data.receiverId,
-            lat: data.lat,
-            lng: data.lng,
-            accuracy: data.accuracy,
-            timestamp,
-          });
-        }
-      },
-      (err) => {
-        console.error("Error fetching receiver location:", err);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [parcelId]);
+  const { data: receiverLocation } = useQuery<ReceiverLocation | null>({
+    queryKey: ["/api/parcels", parcelId, "receiver-location"],
+    queryFn: async () => {
+      if (!parcelId) return null;
+      const response = (await apiRequest("GET", `/api/parcels/${parcelId}/receiver-location`)) as any;
+      return response ? { ...response, timestamp: new Date(response.timestamp) } : null;
+    },
+    enabled: !!parcelId,
+    refetchInterval: 10000,
+  });
 
   const checkPermission = useCallback(async () => {
     const { status } = await Location.getForegroundPermissionsAsync();
@@ -94,8 +53,7 @@ export function useReceiverLocation(parcelId?: string) {
             onPress: async () => {
               try {
                 await Linking.openSettings();
-              } catch {
-              }
+              } catch {}
             }
           },
         ]
@@ -131,23 +89,11 @@ export function useReceiverLocation(parcelId?: string) {
 
       const { latitude, longitude, accuracy } = location.coords;
 
-      await addDoc(collection(db, "receiverLocations"), {
-        parcelId: sharingParcelId,
-        receiverId: user.uid,
+      await apiRequest("POST", `/api/parcels/${sharingParcelId}/receiver-location`, {
         lat: latitude,
         lng: longitude,
         accuracy: accuracy ?? null,
-        timestamp: serverTimestamp(),
       });
-
-      try {
-        await apiRequest("PATCH", `/api/parcels/${sharingParcelId}/receiver-location`, {
-          lat: latitude,
-          lng: longitude,
-        });
-      } catch (apiErr) {
-        console.warn("Failed to sync receiver location with server:", apiErr);
-      }
 
       setIsSharing(false);
       return { lat: latitude, lng: longitude };
@@ -183,18 +129,10 @@ export function useReceiverLocation(parcelId?: string) {
           const { latitude, longitude, accuracy } = location.coords;
 
           try {
-            await addDoc(collection(db, "receiverLocations"), {
-              parcelId: sharingParcelId,
-              receiverId: user.uid,
+            await apiRequest("POST", `/api/parcels/${sharingParcelId}/receiver-location`, {
               lat: latitude,
               lng: longitude,
               accuracy: accuracy ?? null,
-              timestamp: serverTimestamp(),
-            });
-
-            apiRequest("PATCH", `/api/parcels/${sharingParcelId}/receiver-location`, {
-              lat: latitude,
-              lng: longitude,
             }).catch(() => {});
           } catch (err) {
             console.error("Error updating receiver location:", err);
@@ -226,7 +164,7 @@ export function useReceiverLocation(parcelId?: string) {
   }, [locationSubscription]);
 
   return {
-    receiverLocation,
+    receiverLocation: receiverLocation || null,
     isSharing,
     permissionStatus,
     checkPermission,

@@ -1,8 +1,7 @@
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
-import { doc, setDoc } from "firebase/firestore";
-import { db } from "./firebase";
+import { apiRequest } from "./query-client";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -49,11 +48,13 @@ export async function registerForPushNotifications(userId: string): Promise<stri
     
     const token = tokenData.data;
 
-    await setDoc(
-      doc(db, "users", userId),
-      { expoPushToken: token },
-      { merge: true }
-    );
+    try {
+      await apiRequest("PATCH", `/api/users/${userId}`, {
+        expoPushToken: token,
+      });
+    } catch (error) {
+      console.error("Error syncing push token:", error);
+    }
 
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {

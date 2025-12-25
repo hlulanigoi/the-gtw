@@ -10,6 +10,7 @@ import {
   type Route, type InsertRoute, routes,
   type Review, type InsertReview, reviews,
   type PushToken, type InsertPushToken, pushTokens,
+  type Payment, type InsertPayment, payments,
 } from "@shared/schema";
 
 const pool = new Pool({
@@ -278,6 +279,25 @@ export class DatabaseStorage implements IStorage {
   async deletePushToken(token: string): Promise<boolean> {
     const result = await db.delete(pushTokens).where(eq(pushTokens.token, token)).returning();
     return result.length > 0;
+  }
+
+  async createPayment(insertPayment: InsertPayment): Promise<Payment> {
+    const result = await db.insert(payments).values(insertPayment).returning();
+    return result[0];
+  }
+
+  async getPaymentByReference(reference: string): Promise<Payment | undefined> {
+    const result = await db.select().from(payments).where(eq(payments.reference, reference));
+    return result[0];
+  }
+
+  async updatePayment(id: string, updates: Partial<Payment>): Promise<Payment | undefined> {
+    const result = await db.update(payments).set({ ...updates, updatedAt: new Date() }).where(eq(payments.id, id)).returning();
+    return result[0];
+  }
+
+  async getPaymentsByUserId(userId: string): Promise<Payment[]> {
+    return await db.select().from(payments).where(eq(payments.userId, userId)).orderBy(desc(payments.createdAt));
   }
 }
 

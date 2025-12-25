@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { storage, db } from "./storage";
-import { users, parcels, conversations, messages, connections, routes, reviews, pushTokens, parcelMessages, carrierLocations, receiverLocations, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema, insertReviewSchema, insertPushTokenSchema, insertParcelMessageSchema, insertCarrierLocationSchema, insertReceiverLocationSchema } from "@shared/schema";
+import { users, parcels, conversations, messages, connections, routes, reviews, pushTokens, parcelMessages, carrierLocations, receiverLocations, payments, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema, insertReviewSchema, insertPushTokenSchema, insertParcelMessageSchema, insertCarrierLocationSchema, insertReceiverLocationSchema, insertPaymentSchema } from "@shared/schema";
+import { createHmac } from "crypto";
 import { eq, desc, and, gte, lte, ne, sql } from "drizzle-orm";
 import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./firebase-admin";
 
@@ -521,7 +522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           amount: Math.round(amount * 100), // Convert to kobo/cents
           email,
           metadata,
-          callback_url: `${process.env.EXPO_PUBLIC_DOMAIN}/api/payments/verify-web`,
+          callback_url: `${process.env.EXPO_PUBLIC_DOMAIN}/api/payments/webhook`,
         }),
       });
 
@@ -529,6 +530,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!data.status) {
         throw new Error(data.message || "Failed to initialize Paystack transaction");
       }
+
+      // Store payment record
+      const platformFee = Math.round(amount * 0.03);
+      const totalAmount = amount + platformFee;
+      
+      await storage.createPayment({
+        parcelId: metadata.parcelId,
+        userId: req.user!.uid,
+        reference: data.data.reference,
+        amount: Math.round(amount),
+        platformFee,
+        totalAmount,
+        status: "pending",
+        paymentMethod: "paystack",
+        paystackData: JSON.stringify(data.data),
+      });
 
       res.json(data.data);
     } catch (error: any) {
@@ -561,14 +578,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Web fallback for callback_url
+  // Paystack webhook endpoint
+  app.post("/api/payments/webhook", async (req, res) => {
+    try {
+      const hash = createHmac("sha512", process.env.PAYSTACK_SECRET_KEY || "").update(JSON.stringify(req.body)).digest("hex");
+      
+      if (hash !== req.headers["x-paystack-signature"]) {
+        console.warn("Invalid Paystack webhook signature");
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { event, data } = req.body;
+      
+      if (event === "charge.success") {
+        const { reference, status, metadata } = data;
+        
+        // Update payment record
+        const payment = await storage.getPaymentByReference(reference);
+        if (payment) {
+          await storage.updatePayment(payment.id, { status: "success" });
+          
+          // Update parcel status
+          if (metadata?.parcelId) {
+            await storage.updateParcel(metadata.parcelId, { status: "Paid" });
+          }
+        }
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Webhook error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Web fallback for browser payment completion
   app.get("/api/payments/verify-web", async (req, res) => {
-    const { trxref, reference } = req.query;
+    const { reference } = req.query;
     res.send(`
       <html>
         <body>
           <h1>Payment Processing</h1>
-          <p>You can now close this window and return to the app.</p>
+          <p>Your payment is being verified. You can close this window.</p>
           <script>
             setTimeout(() => window.close(), 3000);
           </script>

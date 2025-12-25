@@ -287,6 +287,36 @@ export const pushTokens = pgTable("push_tokens", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const paymentStatusEnum = pgEnum("payment_status", ["pending", "success", "failed", "cancelled"]);
+
+export const payments = pgTable("payments", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  parcelId: varchar("parcel_id").notNull().references(() => parcels.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  reference: text("reference").notNull().unique(),
+  amount: integer("amount").notNull(),
+  platformFee: integer("platform_fee").notNull(),
+  totalAmount: integer("total_amount").notNull(),
+  status: paymentStatusEnum("status").default("pending"),
+  paymentMethod: text("payment_method").notNull(),
+  paystackData: text("paystack_data"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  parcel: one(parcels, {
+    fields: [payments.parcelId],
+    references: [parcels.id],
+  }),
+  user: one(users, {
+    fields: [payments.userId],
+    references: [users.id],
+  }),
+}));
+
 export const reviewsRelations = relations(reviews, ({ one }) => ({
   parcel: one(parcels, {
     fields: [reviews.parcelId],
@@ -356,6 +386,12 @@ export const insertPushTokenSchema = createInsertSchema(pushTokens).omit({
   updatedAt: true,
 });
 
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertParcelMessageSchema = createInsertSchema(parcelMessages).omit({
   id: true,
   createdAt: true,
@@ -393,3 +429,5 @@ export type InsertCarrierLocation = z.infer<typeof insertCarrierLocationSchema>;
 export type CarrierLocation = typeof carrierLocations.$inferSelect;
 export type InsertReceiverLocation = z.infer<typeof insertReceiverLocationSchema>;
 export type ReceiverLocation = typeof receiverLocations.$inferSelect;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type Payment = typeof payments.$inferSelect;

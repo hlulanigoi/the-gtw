@@ -5,6 +5,7 @@ import SettingsScreen from "@/screens/SettingsScreen";
 import ConnectionsScreen from "@/screens/ConnectionsScreen";
 import ReviewsScreen from "@/screens/ReviewsScreen";
 import PaymentHistoryScreen from "@/screens/PaymentHistoryScreen";
+import ReceiptScreen from "@/screens/ReceiptScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type ProfileStackParamList = {
@@ -13,6 +14,7 @@ export type ProfileStackParamList = {
   Connections: undefined;
   Reviews: undefined;
   PaymentHistory: undefined;
+  Receipt: { payment: any };
 };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
@@ -55,6 +57,13 @@ export default function ProfileStackNavigator() {
         component={PaymentHistoryScreen}
         options={{
           headerTitle: "Transaction History",
+        }}
+      />
+      <Stack.Screen
+        name="Receipt"
+        component={ReceiptScreen}
+        options={{
+          headerTitle: "Receipt",
         }}
       />
     </Stack.Navigator>

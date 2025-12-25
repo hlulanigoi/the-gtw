@@ -3,6 +3,8 @@ import { View, StyleSheet, FlatList, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 
 import { useTheme } from "@/hooks/useTheme";
@@ -11,12 +13,16 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { Card } from "@/components/Card";
 import { usePayments } from "@/hooks/usePayments";
+import { ProfileStackParamList } from "@/navigation/ProfileStackNavigator";
+
+type NavigationProp = NativeStackNavigationProp<ProfileStackParamList>;
 
 export default function PaymentHistoryScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
+  const navigation = useNavigation<NavigationProp>();
   const { payments, isLoading } = usePayments();
 
   const getStatusColor = (status: string) => {
@@ -100,6 +106,24 @@ export default function PaymentHistoryScreen() {
           {item.paymentMethod === "paystack" ? "Paystack" : "Cash"}
         </ThemedText>
       </View>
+
+      {item.status === "success" && (
+        <Pressable
+          onPress={() => navigation.navigate("Receipt", { payment: item })}
+          style={({ pressed }) => [
+            styles.receiptButton,
+            {
+              backgroundColor: Colors.primary,
+              opacity: pressed ? 0.8 : 1,
+            },
+          ]}
+        >
+          <Feather name="download" size={16} color="#FFFFFF" />
+          <ThemedText type="small" style={{ color: "#FFFFFF", marginLeft: Spacing.sm, fontWeight: "600" }}>
+            View Receipt
+          </ThemedText>
+        </Pressable>
+      )}
     </Card>
   );
 
@@ -177,6 +201,15 @@ const styles = StyleSheet.create({
   methodSection: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  receiptButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
   },
   emptyContainer: {
     flex: 1,

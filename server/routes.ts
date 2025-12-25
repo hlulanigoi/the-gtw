@@ -623,6 +623,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate receipt for payment
+  app.get("/api/payments/:paymentId/receipt", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const payment = await db.select().from(payments).where(eq(payments.id, req.params.paymentId));
+      if (!payment.length) {
+        return res.status(404).json({ error: "Payment not found" });
+      }
+
+      const paymentRecord = payment[0];
+      if (paymentRecord.userId !== req.user!.uid) {
+        return res.status(403).json({ error: "Not authorized to view this receipt" });
+      }
+
+      const parcelData = await storage.getParcel(paymentRecord.parcelId);
+      const userData = await storage.getUser(req.user!.uid);
+
+      const receiptHTML = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Receipt</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+            .receipt { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #007AFF; padding-bottom: 20px; }
+            .header h1 { margin: 0; font-size: 24px; color: #333; }
+            .header p { margin: 5px 0 0 0; color: #666; font-size: 14px; }
+            .section { margin-bottom: 20px; }
+            .section-title { font-weight: 600; color: #333; margin-bottom: 10px; font-size: 14px; text-transform: uppercase; color: #666; }
+            .row { display: flex; justify-content: space-between; margin: 8px 0; }
+            .label { color: #666; font-size: 14px; }
+            .value { color: #333; font-weight: 500; font-size: 14px; font-family: monospace; }
+            .divider { height: 1px; background: #eee; margin: 15px 0; }
+            .total-section { background: #f9f9f9; padding: 15px; border-radius: 6px; margin-top: 20px; }
+            .total-row { display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; color: #007AFF; }
+            .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+            .footer p { margin: 5px 0; color: #999; font-size: 12px; }
+            .status-success { color: #34C759; }
+            .status-pending { color: #FF9500; }
+            .status-failed { color: #FF3B30; }
+          </style>
+        </head>
+        <body>
+          <div class="receipt">
+            <div class="header">
+              <h1>Payment Receipt</h1>
+              <p>ParcelPeer</p>
+            </div>
+
+            <div class="section">
+              <div class="section-title">Transaction Details</div>
+              <div class="row">
+                <span class="label">Reference:</span>
+                <span class="value">${paymentRecord.reference}</span>
+              </div>
+              <div class="row">
+                <span class="label">Status:</span>
+                <span class="value status-${paymentRecord.status || 'pending'}">${(paymentRecord.status || 'pending').toUpperCase()}</span>
+              </div>
+              <div class="row">
+                <span class="label">Date:</span>
+                <span class="value">${new Date(paymentRecord.createdAt || new Date()).toLocaleDateString()}</span>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="section">
+              <div class="section-title">Parcel Information</div>
+              <div class="row">
+                <span class="label">Parcel ID:</span>
+                <span class="value">${paymentRecord.parcelId}</span>
+              </div>
+              <div class="row">
+                <span class="label">From:</span>
+                <span class="value">${parcelData?.origin || 'N/A'}</span>
+              </div>
+              <div class="row">
+                <span class="label">To:</span>
+                <span class="value">${parcelData?.destination || 'N/A'}</span>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="section">
+              <div class="section-title">Amount Breakdown</div>
+              <div class="row">
+                <span class="label">Base Amount:</span>
+                <span class="value">₦${paymentRecord.amount.toLocaleString()}</span>
+              </div>
+              <div class="row">
+                <span class="label">Platform Fee (3%):</span>
+                <span class="value">₦${paymentRecord.platformFee.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div class="total-section">
+              <div class="total-row">
+                <span>Total Paid:</span>
+                <span>₦${paymentRecord.totalAmount.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-title">Payment Method</div>
+              <div class="row">
+                <span class="label">Method:</span>
+                <span class="value">${paymentRecord.paymentMethod === "paystack" ? "Paystack Card" : "Cash"}</span>
+              </div>
+            </div>
+
+            <div class="footer">
+              <p>Payer: ${userData?.name || 'Unknown'}</p>
+              <p>Email: ${userData?.email || 'N/A'}</p>
+              <p style="margin-top: 15px; font-size: 11px;">Generated on ${new Date().toLocaleString()}</p>
+              <p style="margin-top: 10px;">Thank you for using ParcelPeer</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.send(receiptHTML);
+    } catch (error: any) {
+      console.error("Failed to generate receipt:", error);
+      res.status(500).json({ error: error.message || "Failed to generate receipt" });
+    }
+  });
+
   // Web fallback for browser payment completion
   app.get("/api/payments/verify-web", async (req, res) => {
     const { reference } = req.query;

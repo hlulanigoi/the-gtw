@@ -612,6 +612,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get payment history for authenticated user
+  app.get("/api/payments/history", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const payments = await storage.getPaymentsByUserId(req.user!.uid);
+      res.json(payments);
+    } catch (error: any) {
+      console.error("Failed to fetch payment history:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch payment history" });
+    }
+  });
+
   // Web fallback for browser payment completion
   app.get("/api/payments/verify-web", async (req, res) => {
     const { reference } = req.query;

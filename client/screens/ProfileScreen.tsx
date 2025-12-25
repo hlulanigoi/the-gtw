@@ -35,6 +35,10 @@ export default function ProfileScreen() {
     navigation.navigate("Reviews");
   };
 
+  const handlePaymentHistory = () => {
+    navigation.navigate("PaymentHistory");
+  };
+
   const stats = [
     { label: "Parcels Sent", value: 12, icon: "package" as const },
     { label: "Delivered", value: 8, icon: "check-circle" as const },
@@ -45,8 +49,7 @@ export default function ProfileScreen() {
     { label: "Edit Profile", icon: "edit-2" as const, onPress: () => {} },
     { label: "My Connections", icon: "users" as const, onPress: handleConnections },
     { label: "My Reviews", icon: "star" as const, onPress: handleReviews },
-    { label: "Payment Methods", icon: "credit-card" as const, onPress: () => {} },
-    { label: "Transaction History", icon: "clock" as const, onPress: () => {} },
+    { label: "Transaction History", icon: "clock" as const, onPress: handlePaymentHistory },
     { label: "Settings", icon: "settings" as const, onPress: handleSettings },
     { label: "Help & Support", icon: "help-circle" as const, onPress: () => {} },
   ];

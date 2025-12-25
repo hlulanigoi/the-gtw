@@ -323,11 +323,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/users", async (req, res) => {
     try {
+      // Check if user already exists
+      const existing = await storage.getUser(req.body.id);
+      if (existing) {
+        return res.status(201).json(existing);
+      }
       const user = await storage.createUser(req.body);
       res.status(201).json(user);
     } catch (error) {
       console.error("Failed to create user:", error);
       res.status(500).json({ error: "Failed to create user" });
+    }
+  });
+
+  app.patch("/api/users/:id", async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      // Update user in database
+      const updated = await db
+        .update(users)
+        .set(req.body)
+        .where(eq(users.id, req.params.id))
+        .returning();
+      res.json(updated[0] || user);
+    } catch (error) {
+      console.error("Failed to update user:", error);
+      res.status(500).json({ error: "Failed to update user" });
     }
   });
 

@@ -10,11 +10,11 @@ import {
   GoogleAuthProvider,
   signInWithCredential,
 } from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import { Platform } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
+import { apiRequest } from "@/lib/query-client";
 
 interface UserProfile {
   id: string;
@@ -86,16 +86,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const result = await signInWithCredential(auth, credential);
           const firebaseUser = result.user;
           
-          const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-          if (!profileDoc.exists()) {
-            await setDoc(doc(db, "users", firebaseUser.uid), {
+          // Sync user to PostgreSQL
+          try {
+            await apiRequest("POST", "/api/users", {
+              id: firebaseUser.uid,
               name: firebaseUser.displayName || "",
               email: firebaseUser.email || "",
               rating: 5.0,
               verified: false,
               emailVerified: true,
-              createdAt: serverTimestamp(),
             });
+          } catch (dbError: any) {
+            // User may already exist, that's okay
+            if (!dbError?.message?.includes("already exists")) {
+              console.error("Error syncing user to DB:", dbError);
+            }
           }
           setGoogleLoading(false);
         } catch (error: any) {
@@ -115,16 +120,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const result = await signInWithPopup(auth, provider);
         const firebaseUser = result.user;
         
-        const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-        if (!profileDoc.exists()) {
-          await setDoc(doc(db, "users", firebaseUser.uid), {
+        // Sync user to PostgreSQL
+        try {
+          await apiRequest("POST", "/api/users", {
+            id: firebaseUser.uid,
             name: firebaseUser.displayName || "",
             email: firebaseUser.email || "",
             rating: 5.0,
             verified: false,
             emailVerified: true,
-            createdAt: serverTimestamp(),
           });
+        } catch (dbError: any) {
+          // User may already exist, that's okay
+          if (!dbError?.message?.includes("already exists")) {
+            console.error("Error syncing user to DB:", dbError);
+          }
         }
       } catch (error: any) {
         console.error("Google sign-in error:", error);
@@ -156,9 +166,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(firebaseUser);
       
       if (firebaseUser) {
-        const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-        if (profileDoc.exists()) {
-          const data = profileDoc.data();
+        try {
+          const response = await apiRequest("GET", `/api/users/${firebaseUser.uid}`);
+          const data = response as any;
           setUserProfile({
             id: firebaseUser.uid,
             name: data.name || firebaseUser.displayName || "",
@@ -167,12 +177,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             rating: data.rating || 5.0,
             verified: data.verified || false,
             emailVerified: data.emailVerified || false,
-            createdAt: data.createdAt?.toDate() || new Date(),
+            createdAt: new Date(data.createdAt),
             savedLocationName: data.savedLocationName,
             savedLocationAddress: data.savedLocationAddress,
             savedLocationLat: data.savedLocationLat,
             savedLocationLng: data.savedLocationLng,
           });
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+          setUserProfile(null);
         }
       } else {
         setUserProfile(null);
@@ -194,22 +207,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     await updateProfile(firebaseUser, { displayName: name });
 
-    await setDoc(doc(db, "users", firebaseUser.uid), {
-      name,
-      email,
-      rating: 5.0,
-      verified: false,
-      emailVerified: isEmailVerified,
-      createdAt: serverTimestamp(),
-    });
-
-    setUserProfile({
+    // Sync user to PostgreSQL
+    const newUser = {
       id: firebaseUser.uid,
       name,
       email,
       rating: 5.0,
       verified: false,
       emailVerified: isEmailVerified,
+    };
+    await apiRequest("POST", "/api/users", newUser);
+
+    setUserProfile({
+      ...newUser,
       createdAt: new Date(),
     });
   };
@@ -231,7 +241,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateUserProfile = async (data: Partial<UserProfile>) => {
     if (!user) return;
 
-    await setDoc(doc(db, "users", user.uid), data, { merge: true });
+    // Update in PostgreSQL
+    await apiRequest("PATCH", `/api/users/${user.uid}`, data);
 
     if (data.name) {
       await updateProfile(user, { displayName: data.name });
@@ -244,36 +255,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const code = generateVerificationCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     
-    await setDoc(doc(db, "verificationCodes", email.toLowerCase()), {
-      code,
-      email: email.toLowerCase(),
-      expiresAt,
-      createdAt: serverTimestamp(),
-    });
+    // Store in memory (in-app only for demo purposes)
+    // For production, use /api/verification-codes endpoint
+    const storageKey = `code_${email.toLowerCase()}`;
+    const codeData = { code, expiresAt: expiresAt.toISOString() };
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(storageKey, JSON.stringify(codeData));
+    }
     
     console.log(`Verification code for ${email}: ${code}`);
   };
 
   const verifyCode = async (email: string, code: string): Promise<boolean> => {
-    const codeDoc = await getDoc(doc(db, "verificationCodes", email.toLowerCase()));
+    const storageKey = `code_${email.toLowerCase()}`;
+    let codeData = null;
     
-    if (!codeDoc.exists()) {
+    if (typeof localStorage !== "undefined") {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        try {
+          codeData = JSON.parse(stored);
+        } catch (e) {
+          return false;
+        }
+      }
+    }
+    
+    if (!codeData) {
       return false;
     }
     
-    const data = codeDoc.data();
-    const expiresAt = data.expiresAt?.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt);
+    const expiresAt = new Date(codeData.expiresAt);
     
     if (new Date() > expiresAt) {
-      await deleteDoc(doc(db, "verificationCodes", email.toLowerCase()));
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(storageKey);
+      }
       return false;
     }
     
-    if (data.code !== code) {
+    if (codeData.code !== code) {
       return false;
     }
     
-    await deleteDoc(doc(db, "verificationCodes", email.toLowerCase()));
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(storageKey);
+    }
     return true;
   };
 

@@ -183,9 +183,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             savedLocationLat: data.savedLocationLat,
             savedLocationLng: data.savedLocationLng,
           });
-        } catch (error) {
-          console.error("Error fetching user profile:", error);
-          setUserProfile(null);
+        } catch (error: any) {
+          // If user doesn't exist in DB, create them
+          if (error?.message?.includes("404")) {
+            try {
+              await apiRequest("POST", "/api/users", {
+                id: firebaseUser.uid,
+                name: firebaseUser.displayName || "",
+                email: firebaseUser.email || "",
+                rating: 5.0,
+                verified: false,
+                emailVerified: firebaseUser.emailVerified || false,
+              });
+              // Fetch again after creating
+              const response = await apiRequest("GET", `/api/users/${firebaseUser.uid}`);
+              const data = response as any;
+              setUserProfile({
+                id: firebaseUser.uid,
+                name: data.name || firebaseUser.displayName || "",
+                email: data.email || firebaseUser.email || "",
+                phone: data.phone,
+                rating: data.rating || 5.0,
+                verified: data.verified || false,
+                emailVerified: data.emailVerified || false,
+                createdAt: new Date(data.createdAt),
+                savedLocationName: data.savedLocationName,
+                savedLocationAddress: data.savedLocationAddress,
+                savedLocationLat: data.savedLocationLat,
+                savedLocationLng: data.savedLocationLng,
+              });
+            } catch (createError) {
+              console.error("Error creating user:", createError);
+              setUserProfile(null);
+            }
+          } else {
+            console.error("Error fetching user profile:", error);
+            setUserProfile(null);
+          }
         }
       } else {
         setUserProfile(null);

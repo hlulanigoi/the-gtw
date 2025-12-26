@@ -306,14 +306,19 @@ export default function CreateParcelScreen() {
       receiverPhone: receiverPhone.trim() || null,
       receiverEmail: receiverEmail.trim() || null,
       receiverId: selectedReceiver?.id || null,
-    });
-
-    Alert.alert("Success", "Your parcel has been created!", [
-      {
-        text: "OK",
-        onPress: () => navigation.goBack(),
+    }, {
+      onSuccess: () => {
+        Alert.alert("Success", "Your parcel has been created!", [
+          {
+            text: "OK",
+            onPress: () => navigation.goBack(),
+          },
+        ]);
       },
-    ]);
+      onError: (error: any) => {
+        Alert.alert("Creation Failed", error.message || "An unexpected error occurred. Please check your balance.");
+      }
+    });
   };
 
   const sizeOptions: { key: SizeType; label: string; icon: string; desc: string }[] = [

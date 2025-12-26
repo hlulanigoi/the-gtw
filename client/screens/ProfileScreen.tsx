@@ -40,8 +40,8 @@ export default function ProfileScreen() {
   };
 
   const stats = [
-    { label: "Parcels Sent", value: 12, icon: "package" as const },
-    { label: "Delivered", value: 8, icon: "check-circle" as const },
+    { label: "Wallet", value: "R 0", icon: "credit-card" as const },
+    { label: "Plan", value: "Free", icon: "award" as const },
     { label: "Rating", value: "4.8", icon: "star" as const },
   ];
 

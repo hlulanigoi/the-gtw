@@ -73,6 +73,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createParcel(insertParcel: InsertParcel): Promise<Parcel> {
+    const user = await this.getUser(insertParcel.senderId);
+    if (!user) throw new Error("User not found");
+
+    if (user.subscriptionStatus === "free" && user.walletBalance < insertParcel.compensation) {
+      throw new Error("Insufficient wallet balance for this compensation amount. Please recharge your wallet or upgrade your subscription.");
+    }
+
+    // Deduct from wallet if not on a premium subscription
+    if (user.subscriptionStatus === "free") {
+      await db.update(users)
+        .set({ walletBalance: user.walletBalance - insertParcel.compensation })
+        .where(eq(users.id, user.id));
+    }
+
     const result = await db.insert(parcels).values(insertParcel).returning();
     return result[0];
   }

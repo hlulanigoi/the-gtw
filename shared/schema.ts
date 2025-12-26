@@ -18,6 +18,21 @@ export const users = pgTable("users", {
   phone: text("phone"),
   rating: real("rating").default(5.0),
   verified: boolean("verified").default(false),
+  walletBalance: integer("wallet_balance").default(0).notNull(),
+  subscriptionStatus: text("subscription_status").default("free").notNull(),
+  subscriptionExpiresAt: timestamp("subscription_expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const subscriptions = pgTable("subscriptions", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  planId: text("plan_id").notNull(),
+  status: text("status").notNull(),
+  currentPeriodStart: timestamp("current_period_start").notNull(),
+  currentPeriodEnd: timestamp("current_period_end").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

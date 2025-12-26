@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { View, StyleSheet, TextInput, Pressable, Alert, Switch, Platform, ActivityIndicator } from "react-native";
+import { View, StyleSheet, TextInput, Pressable, Alert, Switch, Platform, ActivityIndicator, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
+import * as ImagePicker from "expo-image-picker";
 import { WebView } from "react-native-webview";
 import Animated, {
   useAnimatedStyle,
@@ -169,6 +170,29 @@ export default function CreateParcelScreen() {
   const [receiverName, setReceiverName] = useState("");
   const [receiverPhone, setReceiverPhone] = useState("");
   const [receiverEmail, setReceiverEmail] = useState("");
+  const [photo, setPhoto] = useState<string | null>(null);
+
+  const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission Needed", "We need camera roll permissions to upload a parcel photo.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setPhoto(result.assets[0].uri);
+      if (Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    }
+  };
 
   const handleSelectReceiver = (receiver: SearchableUser) => {
     setSelectedReceiver(receiver);
@@ -306,6 +330,7 @@ export default function CreateParcelScreen() {
       receiverPhone: receiverPhone.trim() || null,
       receiverEmail: receiverEmail.trim() || null,
       receiverId: selectedReceiver?.id || null,
+      photoUrl: photo,
     }, {
       onSuccess: () => {
         Alert.alert("Success", "Your parcel has been created!", [
@@ -506,8 +531,41 @@ export default function CreateParcelScreen() {
 
         <View style={styles.formGroup}>
           <ThemedText type="h3" style={styles.sectionTitle}>
-            Parcel Size
+            Parcel Info
           </ThemedText>
+          
+          <View style={styles.photoContainer}>
+            <Pressable 
+              onPress={handlePickImage}
+              style={[
+                styles.photoButton,
+                { backgroundColor: theme.backgroundDefault, borderColor: theme.border }
+              ]}
+            >
+              {photo ? (
+                <View style={styles.photoWrapper}>
+                  <Image source={{ uri: photo }} style={styles.photo} />
+                  <Pressable 
+                    style={styles.removePhoto} 
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setPhoto(null);
+                    }}
+                  >
+                    <Feather name="x" size={16} color="#FFFFFF" />
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={styles.photoPlaceholder}>
+                  <Feather name="camera" size={32} color={theme.textSecondary} />
+                  <ThemedText type="caption" style={{ color: theme.textSecondary, marginTop: Spacing.xs }}>
+                    Add Photo (Optional)
+                  </ThemedText>
+                </View>
+              )}
+            </Pressable>
+          </View>
+
           <View style={styles.sizeContainer}>
             {sizeOptions.map((option) => (
               <Pressable
@@ -1145,6 +1203,40 @@ const styles = StyleSheet.create({
   miniMap: {
     flex: 1,
     backgroundColor: "transparent",
+  },
+  photoContainer: {
+    marginBottom: Spacing.lg,
+  },
+  photoButton: {
+    height: 160,
+    borderRadius: BorderRadius.md,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    overflow: "hidden",
+  },
+  photoWrapper: {
+    flex: 1,
+  },
+  photo: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  photoPlaceholder: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  removePhoto: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
   formGroup: {
     marginBottom: Spacing.xl,

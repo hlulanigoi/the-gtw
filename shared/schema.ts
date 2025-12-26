@@ -65,6 +65,7 @@ export const parcels = pgTable("parcels", {
   senderId: varchar("sender_id").notNull().references(() => users.id),
   transporterId: varchar("transporter_id").references(() => users.id),
   receiverId: varchar("receiver_id").references(() => users.id),
+  photoUrl: text("photo_url"),
   receiverName: text("receiver_name"),
   receiverPhone: text("receiver_phone"),
   receiverEmail: text("receiver_email"),

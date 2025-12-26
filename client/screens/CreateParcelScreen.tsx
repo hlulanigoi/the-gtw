@@ -697,19 +697,47 @@ export default function CreateParcelScreen() {
           <ThemedText type="body" style={styles.label}>
             Weight (kg)
           </ThemedText>
+          <View style={styles.weightButtonsContainer}>
+            {[1, 2, 5, 10, 20].map((w) => (
+              <Pressable
+                key={w}
+                onPress={() => {
+                  setWeight(w.toString());
+                  if (Platform.OS !== "web") {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                }}
+                style={[
+                  styles.weightButton,
+                  {
+                    backgroundColor: weight === w.toString() ? Colors.primary : theme.backgroundDefault,
+                    borderColor: weight === w.toString() ? Colors.primary : theme.border,
+                  },
+                ]}
+              >
+                <ThemedText
+                  type="body"
+                  style={{ color: weight === w.toString() ? "#FFFFFF" : theme.text, fontWeight: "600" }}
+                >
+                  {w}kg
+                </ThemedText>
+              </Pressable>
+            ))}
+          </View>
           <View
             style={[
               styles.inputContainer,
               {
                 backgroundColor: theme.backgroundDefault,
                 borderColor: theme.border,
+                marginTop: Spacing.sm,
               },
             ]}
           >
             <Feather name="package" size={18} color={theme.textSecondary} />
             <TextInput
               style={[styles.input, { color: theme.text }]}
-              placeholder="e.g., 2.5"
+              placeholder="Custom weight..."
               placeholderTextColor={theme.textSecondary}
               value={weight}
               onChangeText={setWeight}
@@ -1280,6 +1308,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
+  },
+  weightButtonsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  weightButton: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.xs,
+    borderWidth: 1,
+    minWidth: 60,
+    alignItems: "center",
   },
   switchRow: {
     flexDirection: "row",

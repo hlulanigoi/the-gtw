@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 
-const primaryColor = "#0A7EA4";
-const secondaryColor = "#F97316";
+const primaryColor = "#F97316";
+const secondaryColor = "#1E40AF";
 
 export const Colors = {
   primary: primaryColor,

@@ -324,10 +324,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/users", async (req, res) => {
     try {
+      if (!req.body.id) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
       // Check if user already exists
       const existing = await storage.getUser(req.body.id);
       if (existing) {
-        return res.status(201).json(existing);
+        return res.status(200).json(existing);
       }
       const user = await storage.createUser(req.body);
       res.status(201).json(user);

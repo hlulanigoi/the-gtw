@@ -330,7 +330,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user already exists
       const existing = await storage.getUser(req.body.id);
       if (existing) {
-        return res.status(200).json(existing);
+        return res.json(existing);
       }
       const user = await storage.createUser(req.body);
       res.status(201).json(user);

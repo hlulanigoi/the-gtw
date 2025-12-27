@@ -199,46 +199,6 @@ export default function CreateParcelScreen() {
     setReceiverName(receiver.name);
     setReceiverEmail(receiver.email);
     setReceiverPhone(receiver.phone || "");
-
-    if (receiver.savedLocationLat && receiver.savedLocationLng && receiver.savedLocationName) {
-      if (!destinationLocation) {
-        setDestinationLocation({
-          name: receiver.savedLocationName,
-          fullAddress: receiver.savedLocationAddress || receiver.savedLocationName,
-          lat: receiver.savedLocationLat,
-          lng: receiver.savedLocationLng,
-        });
-        if (Platform.OS !== "web") {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-        Alert.alert(
-          "Destination Set",
-          `Using ${receiver.name}'s saved location as the delivery destination.\n\n${receiver.savedLocationName}\n\nYou can change this by tapping the destination field.`
-        );
-      } else {
-        Alert.alert(
-          "Use Receiver's Location?",
-          `${receiver.name} has a saved delivery location:\n\n${receiver.savedLocationName}\n\nWould you like to use it as the destination?`,
-          [
-            { text: "Keep Current", style: "cancel" },
-            {
-              text: "Use Their Location",
-              onPress: () => {
-                setDestinationLocation({
-                  name: receiver.savedLocationName!,
-                  fullAddress: receiver.savedLocationAddress || receiver.savedLocationName!,
-                  lat: receiver.savedLocationLat!,
-                  lng: receiver.savedLocationLng!,
-                });
-                if (Platform.OS !== "web") {
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                }
-              },
-            },
-          ]
-        );
-      }
-    }
   };
 
   useEffect(() => {
@@ -331,18 +291,15 @@ export default function CreateParcelScreen() {
       receiverEmail: receiverEmail.trim() || null,
       receiverId: selectedReceiver?.id || null,
       photoUrl: photo,
-    }, {
-      onSuccess: () => {
+    }).then(() => {
         Alert.alert("Success", "Your parcel has been created!", [
           {
             text: "OK",
             onPress: () => navigation.goBack(),
           },
         ]);
-      },
-      onError: (error: any) => {
+    }).catch((error: any) => {
         Alert.alert("Creation Failed", error.message || "An unexpected error occurred. Please check your balance.");
-      }
     });
   };
 

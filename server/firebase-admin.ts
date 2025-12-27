@@ -12,7 +12,7 @@ export interface AuthenticatedRequest extends Request {
 export async function verifyFirebaseToken(idToken: string): Promise<{ uid: string; email?: string } | null> {
   try {
     const response = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${process.env.FIREBASE_API_KEY}`,
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${process.env.EXPO_PUBLIC_FIREBASE_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

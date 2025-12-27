@@ -8,11 +8,6 @@
     "scheme": "thegtw",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "extra": {
-      "eas": {
-        "projectId": "85510738-6441-4898-b5ae-b6f236d1529d"
-      }
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.thegtw.app"

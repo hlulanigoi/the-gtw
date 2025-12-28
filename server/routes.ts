@@ -286,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/users/search", async (req, res) => {
+  app.get("/api/users/search", optionalAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const searchTerm = req.query.q as string;
       if (!searchTerm || searchTerm.trim().length < 2) {
@@ -302,7 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const userName = (user.name || "").toLowerCase();
           const userEmail = (user.email || "").toLowerCase();
           return (
-            user.id !== currentUserId &&
+            (currentUserId ? user.id !== currentUserId : true) &&
             (userName.includes(searchLower) || userEmail.includes(searchLower))
           );
         })

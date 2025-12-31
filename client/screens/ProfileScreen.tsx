@@ -12,6 +12,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
+import { useAuth } from "@/contexts/AuthContext";
 import { ProfileStackParamList } from "@/navigation/ProfileStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<ProfileStackParamList>;
@@ -22,6 +23,7 @@ export default function ProfileScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
+  const { userProfile } = useAuth();
 
   const handleSettings = () => {
     navigation.navigate("Settings");
@@ -40,9 +42,9 @@ export default function ProfileScreen() {
   };
 
   const stats = [
-    { label: "Wallet", value: "R 0", icon: "credit-card" as const },
-    { label: "Plan", value: "Free", icon: "award" as const },
-    { label: "Rating", value: "4.8", icon: "star" as const },
+    { label: "Wallet", value: `R ${userProfile?.walletBalance || 0}`, icon: "credit-card" as const },
+    { label: "Plan", value: userProfile?.subscriptionStatus === "premium" ? "Premium" : "Free", icon: "award" as const },
+    { label: "Rating", value: userProfile?.rating?.toFixed(1) || "5.0", icon: "star" as const },
   ];
 
   const menuItems = [
@@ -72,16 +74,16 @@ export default function ProfileScreen() {
           ]}
         >
           <ThemedText type="h1" style={{ color: "#FFFFFF" }}>
-            JD
+            {(userProfile?.name || "U").substring(0, 2).toUpperCase()}
           </ThemedText>
         </View>
         <ThemedText type="h2" style={styles.userName}>
-          John Doe
+          {userProfile?.name || "User"}
         </ThemedText>
         <View style={styles.ratingContainer}>
           <Feather name="star" size={16} color={Colors.warning} />
           <ThemedText type="body" style={styles.ratingText}>
-            4.8 Rating
+            {userProfile?.rating?.toFixed(1) || "5.0"} Rating
           </ThemedText>
         </View>
         <View style={styles.verifiedBadge}>

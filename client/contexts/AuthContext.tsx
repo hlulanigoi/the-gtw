@@ -28,7 +28,8 @@ interface UserProfile {
   savedLocationName?: string;
   savedLocationAddress?: string;
   savedLocationLat?: number;
-  savedLocationLng?: number;
+  walletBalance: number;
+  subscriptionStatus: "free" | "premium";
 }
 
 interface AuthContextType {
@@ -182,6 +183,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             savedLocationAddress: data.savedLocationAddress,
             savedLocationLat: data.savedLocationLat,
             savedLocationLng: data.savedLocationLng,
+            walletBalance: data.walletBalance || 0,
+            subscriptionStatus: data.subscriptionStatus || "free",
           });
         } catch (error: any) {
           // If user doesn't exist in DB, create them
@@ -211,6 +214,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 savedLocationAddress: data.savedLocationAddress,
                 savedLocationLat: data.savedLocationLat,
                 savedLocationLng: data.savedLocationLng,
+                walletBalance: data.walletBalance || 0,
+                subscriptionStatus: data.subscriptionStatus || "free",
               });
             } catch (createError) {
               console.error("Error creating user:", createError);

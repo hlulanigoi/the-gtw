@@ -28,6 +28,7 @@ interface UserProfile {
   savedLocationName?: string;
   savedLocationAddress?: string;
   savedLocationLat?: number;
+  savedLocationLng?: number;
   walletBalance: number;
   subscriptionStatus: "free" | "premium";
 }
@@ -96,6 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               rating: 5.0,
               verified: false,
               emailVerified: true,
+              walletBalance: 0,
+              subscriptionStatus: "free",
             });
           } catch (dbError: any) {
             // User may already exist, that's okay
@@ -130,6 +133,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             rating: 5.0,
             verified: false,
             emailVerified: true,
+            walletBalance: 0,
+            subscriptionStatus: "free",
           });
         } catch (dbError: any) {
           // User may already exist, that's okay
@@ -197,6 +202,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 rating: 5.0,
                 verified: false,
                 emailVerified: firebaseUser.emailVerified || false,
+                walletBalance: 0,
+                subscriptionStatus: "free",
               });
               // Fetch again after creating
               const response = await apiRequest("GET", `/api/users/${firebaseUser.uid}`);
@@ -254,6 +261,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       rating: 5.0,
       verified: false,
       emailVerified: isEmailVerified,
+      walletBalance: 0,
+      subscriptionStatus: "free" as const,
     };
     await apiRequest("POST", "/api/users", newUser);
 

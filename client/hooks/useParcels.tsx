@@ -42,6 +42,7 @@ export interface Parcel {
   deliveryProofPhoto?: string | null;
   receiverRating?: number | null;
   isReceiver?: boolean;
+  photoUrl?: string | null;
 }
 
 export function useParcels() {

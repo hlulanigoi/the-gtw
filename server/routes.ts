@@ -101,10 +101,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = { ...req.body };
       if (typeof data.pickupDate === "string") data.pickupDate = new Date(data.pickupDate);
-      if (typeof data.pickupWindowEnd === "string") data.pickupWindowEnd = new Date(data.pickupWindowEnd);
-      if (typeof data.deliveryWindowStart === "string") data.deliveryWindowStart = new Date(data.deliveryWindowStart);
-      if (typeof data.deliveryWindowEnd === "string") data.deliveryWindowEnd = new Date(data.deliveryWindowEnd);
-      if (typeof data.expiresAt === "string") data.expiresAt = new Date(data.expiresAt);
+      if (typeof data.pickupWindowEnd === "string" && data.pickupWindowEnd) data.pickupWindowEnd = new Date(data.pickupWindowEnd);
+      if (typeof data.deliveryWindowStart === "string" && data.deliveryWindowStart) data.deliveryWindowStart = new Date(data.deliveryWindowStart);
+      if (typeof data.deliveryWindowEnd === "string" && data.deliveryWindowEnd) data.deliveryWindowEnd = new Date(data.deliveryWindowEnd);
+      if (typeof data.expiresAt === "string" && data.expiresAt) data.expiresAt = new Date(data.expiresAt);
 
       const parsed = insertParcelSchema.safeParse({
         ...data,

@@ -30,9 +30,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/auth/me", requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.get("/api/auth/me", optionalAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const user = await storage.getUser(req.user!.uid);
+      if (!req.user) {
+        return res.json(null);
+      }
+      const user = await storage.getUser(req.user.uid);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
@@ -294,7 +297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const searchLower = searchTerm.toLowerCase().trim();
-      const currentUserId = (req as any).user?.uid;
+      const currentUserId = req.user?.uid;
 
       const allUsers = await db.select().from(users);
       const results = allUsers

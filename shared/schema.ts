@@ -260,6 +260,10 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
 
 export const pushTokensRelations = relations(pushTokens, ({ one }) => ({
   user: one(users, {
+    fields: [pushTokens.userId],
+    references: [users.id],
+  }),
+}));
 
 export const paymentsRelations = relations(payments, ({ one }) => ({
   parcel: one(parcels, {
@@ -275,11 +279,6 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
     fields: [payments.carrierId],
     references: [users.id],
     relationName: "paymentsReceived",
-  }),
-}));
-
-    fields: [pushTokens.userId],
-    references: [users.id],
   }),
 }));
 

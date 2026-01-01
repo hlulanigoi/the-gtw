@@ -30,122 +30,112 @@ export function useConversations() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const { subscribe } = useWebSocket();
 
-  useEffect(() => {
+  const loadConversations = useCallback(async () => {
     if (!user) {
       setConversations([]);
       setIsLoading(false);
       return;
     }
 
-    const conversationsRef = collection(db, "conversations");
-    const q1 = query(conversationsRef, where("participant1Id", "==", user.uid));
-    const q2 = query(conversationsRef, where("participant2Id", "==", user.uid));
+    try {
+      const response = await apiRequest('GET', `/api/users/${user.uid}/conversations`);
+      const data = await response.json();
+      
+      setConversations(data);
+      setIsLoading(false);
+    } catch (err) {
+      console.error("Error fetching conversations:", err);
+      setError(err as Error);
+      setIsLoading(false);
+    }
+  }, [user]);
 
-    const loadConversations = async () => {
-      try {
-        const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-        const allDocs = [...snap1.docs, ...snap2.docs];
-        
-        const uniqueDocs = new Map();
-        allDocs.forEach(docSnap => {
-          uniqueDocs.set(docSnap.id, docSnap);
-        });
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
 
-        const conversationsData: Conversation[] = [];
+  // Subscribe to new messages via WebSocket
+  useEffect(() => {
+    if (!user) return;
 
-        for (const docSnapshot of uniqueDocs.values()) {
-          const data = docSnapshot.data();
-          const conversationId = docSnapshot.id;
-
-          const otherUserId = data.participant1Id === user.uid
-            ? data.participant2Id
-            : data.participant1Id;
-
-          let userName = "Unknown User";
-          if (otherUserId) {
-            try {
-              const userDoc = await getDoc(doc(db, "users", otherUserId));
-              if (userDoc.exists()) {
-                userName = userDoc.data().name || "Unknown User";
-              }
-            } catch {}
-          }
-
-          const messagesRef = collection(db, "conversations", conversationId, "messages");
-          const messagesQuery = query(messagesRef, orderBy("createdAt", "asc"));
-          const messagesSnapshot = await getDocs(messagesQuery);
-
-          const messagesData: Message[] = messagesSnapshot.docs.map((msgDoc) => {
-            const msgData = msgDoc.data();
-            const timestamp = msgData.createdAt instanceof Timestamp
-              ? msgData.createdAt.toDate()
-              : new Date();
-
-            return {
-              id: msgDoc.id,
-              text: msgData.text,
-              isMe: msgData.senderId === user.uid,
-              timestamp,
-              senderId: msgData.senderId,
-              conversationId,
-            };
-          });
-
-          const lastMessage = messagesData.length > 0
-            ? messagesData[messagesData.length - 1].text
-            : "No messages yet";
-
-          const lastMessageTime = messagesData.length > 0
-            ? messagesData[messagesData.length - 1].timestamp
-            : data.createdAt instanceof Timestamp
-              ? data.createdAt.toDate()
-              : new Date();
-
-          conversationsData.push({
-            id: conversationId,
-            userName,
-            lastMessage,
-            lastMessageTime,
-            unread: false,
-            messages: messagesData,
-            parcelId: data.parcelId,
-            participant1Id: data.participant1Id,
-            participant2Id: data.participant2Id,
-            otherUserId,
-          });
+    const unsubscribe = subscribe('new_message', (payload) => {
+      const message = payload;
+      
+      // Update conversations with new message
+      setConversations(prev => {
+        const convIndex = prev.findIndex(c => c.id === message.conversationId);
+        if (convIndex === -1) {
+          // New conversation, reload
+          loadConversations();
+          return prev;
         }
 
-        conversationsData.sort((a, b) => b.lastMessageTime.getTime() - a.lastMessageTime.getTime());
-        setConversations(conversationsData);
-        setIsLoading(false);
-      } catch (err) {
-        console.error("Error fetching conversations:", err);
-        setError(err as Error);
-        setIsLoading(false);
-      }
-    };
+        const updated = [...prev];
+        const conv = { ...updated[convIndex] };
+        
+        // Add message to conversation
+        conv.messages = [...(conv.messages || []), {
+          id: message.id,
+          text: message.text,
+          isMe: message.senderId === user.uid,
+          timestamp: new Date(message.createdAt || Date.now()),
+          senderId: message.senderId,
+          conversationId: message.conversationId,
+        }];
+        
+        // Update last message info
+        conv.lastMessage = message.text;
+        conv.lastMessageTime = new Date(message.createdAt || Date.now());
+        
+        updated[convIndex] = conv;
+        
+        // Sort by last message time
+        updated.sort((a, b) => b.lastMessageTime.getTime() - a.lastMessageTime.getTime());
+        
+        return updated;
+      });
+    });
 
-    loadConversations();
-
-    const unsubscribe1 = onSnapshot(q1, () => loadConversations());
-    const unsubscribe2 = onSnapshot(q2, () => loadConversations());
-
-    return () => {
-      unsubscribe1();
-      unsubscribe2();
-    };
-  }, [user?.uid]);
+    return () => unsubscribe();
+  }, [user, subscribe, loadConversations]);
 
   const addMessage = async (conversationId: string, message: Message) => {
     if (!user) return;
 
     try {
-      const messagesRef = collection(db, "conversations", conversationId, "messages");
-      await addDoc(messagesRef, {
+      const response = await apiRequest('POST', `/api/conversations/${conversationId}/messages`, {
         text: message.text,
         senderId: user.uid,
-        createdAt: serverTimestamp(),
+      });
+      
+      const newMessage = await response.json();
+      
+      // Optimistically update local state
+      setConversations(prev => {
+        const convIndex = prev.findIndex(c => c.id === conversationId);
+        if (convIndex === -1) return prev;
+
+        const updated = [...prev];
+        const conv = { ...updated[convIndex] };
+        
+        conv.messages = [...(conv.messages || []), {
+          id: newMessage.id,
+          text: newMessage.text,
+          isMe: true,
+          timestamp: new Date(newMessage.createdAt || Date.now()),
+          senderId: user.uid,
+          conversationId,
+        }];
+        
+        conv.lastMessage = newMessage.text;
+        conv.lastMessageTime = new Date(newMessage.createdAt || Date.now());
+        
+        updated[convIndex] = conv;
+        updated.sort((a, b) => b.lastMessageTime.getTime() - a.lastMessageTime.getTime());
+        
+        return updated;
       });
     } catch (err) {
       console.error("Error adding message:", err);
@@ -157,20 +147,27 @@ export function useConversations() {
     if (!user) return null;
 
     try {
-      const conversationRef = await addDoc(collection(db, "conversations"), {
+      const response = await apiRequest('POST', '/api/conversations', {
         participant1Id: user.uid,
         participant2Id: otherUserId,
         parcelId: parcelId || null,
-        createdAt: serverTimestamp(),
       });
-      return conversationRef.id;
+      
+      const conversation = await response.json();
+      
+      // Reload conversations to get the new one
+      await loadConversations();
+      
+      return conversation.id;
     } catch (err) {
       console.error("Error creating conversation:", err);
       throw err;
     }
   };
 
-  const markAsRead = (conversationId: string) => {};
+  const markAsRead = (conversationId: string) => {
+    // TODO: Implement mark as read functionality
+  };
 
   return {
     conversations,

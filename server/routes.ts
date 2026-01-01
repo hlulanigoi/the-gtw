@@ -4,8 +4,11 @@ import { storage, db } from "./storage";
 import { users, parcels, conversations, messages, connections, routes, reviews, pushTokens, payments, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema, insertReviewSchema, insertPushTokenSchema } from "@shared/schema";
 import { eq, desc, and, gte, lte, ne, sql } from "drizzle-orm";
 import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./firebase-admin";
+import { registerAdminRoutes } from "./admin-routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Register admin routes
+  registerAdminRoutes(app);
   app.post("/api/auth/sync", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const { uid, email } = req.user!;

@@ -3866,7 +3866,7 @@ dotenv@~16.4.5:
   resolved "https://registry.yarnpkg.com/dotenv/-/dotenv-16.4.7.tgz#0e20c5b82950140aa99be360a8a5f52335f53c26"
   integrity sha512-47qPchRCykZC03FhkYAhrvwU4xDBFIj1QPqaarj6mdM/hgUzfPHcpkHJOn3mJAufFeeAxAzeGsr5X0M4k6fLZQ==
 
-drizzle-kit@^0.31.4:
+drizzle-kit@^0.31.8:
   version "0.31.8"
   resolved "https://registry.yarnpkg.com/drizzle-kit/-/drizzle-kit-0.31.8.tgz#feef5850eab22a01a0f919247c66efb648d57734"
   integrity sha512-O9EC/miwdnRDY10qRxM8P3Pg8hXe3LyU4ZipReKOgTwn4OqANmftj8XJz1UPUAS6NMHf0E2htjsbQujUTkncCg==

@@ -11,6 +11,7 @@ import {
   type Review, type InsertReview, reviews,
   type PushToken, type InsertPushToken, pushTokens,
   type Payment, type InsertPayment, payments,
+  type Subscription, type InsertSubscription, subscriptions,
 } from "@shared/schema";
 
 const pool = new Pool({

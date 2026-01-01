@@ -188,6 +188,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const parcelData = { ...parsed.data };
       
+      // Generate unique tracking code
+      let trackingCode = generateTrackingCode();
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      // Ensure tracking code is unique
+      while (attempts < maxAttempts) {
+        const existing = await db
+          .select()
+          .from(parcels)
+          .where(eq(parcels.trackingCode, trackingCode))
+          .limit(1);
+        
+        if (existing.length === 0) {
+          break;
+        }
+        trackingCode = generateTrackingCode();
+        attempts++;
+      }
+      
+      parcelData.trackingCode = trackingCode;
+      
       try {
         const [originGeo, destGeo] = await Promise.all([
           fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(parsed.data.origin)}&limit=1`, {

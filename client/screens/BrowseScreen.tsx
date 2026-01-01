@@ -267,6 +267,9 @@ export default function BrowseScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
       switch (actionId) {
+        case "scan":
+          navigation.navigate("Scan");
+          break;
         case "track":
           fromInputRef.current?.focus();
           break;

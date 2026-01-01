@@ -305,14 +305,30 @@ export default function CreateParcelScreen() {
       receiverPhone: receiverPhone.trim() || null,
       receiverEmail: receiverEmail.trim() || null,
       receiverId: selectedReceiver?.id || null,
-    });
-
-    Alert.alert("Success", "Your parcel has been created!", [
-      {
-        text: "OK",
-        onPress: () => navigation.goBack(),
+    }, {
+      onError: (error: any) => {
+        if (error.message?.includes("limit") || error.message?.includes("subscription")) {
+          Alert.alert(
+            "Subscription Required",
+            error.message,
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Upgrade Now", onPress: () => navigation.navigate("Main", { screen: "ProfileTab", params: { screen: "Settings" } } as any) }
+            ]
+          );
+        } else {
+          Alert.alert("Error", error.message || "Failed to create parcel");
+        }
       },
-    ]);
+      onSuccess: () => {
+        Alert.alert("Success", "Your parcel has been created!", [
+          {
+            text: "OK",
+            onPress: () => navigation.goBack(),
+          },
+        ]);
+      }
+    });
   };
 
   const sizeOptions: { key: SizeType; label: string; icon: string; desc: string }[] = [

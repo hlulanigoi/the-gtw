@@ -120,6 +120,24 @@ export default function SettingsScreen() {
       ],
     },
     {
+      title: "Subscription",
+      items: [
+        {
+          label: "Current Plan",
+          icon: "credit-card" as const,
+          onPress: () => {},
+          value: (userProfile as any)?.subscriptionTier ? (userProfile as any).subscriptionTier.toUpperCase() : "FREE",
+          highlight: true,
+        },
+        {
+          label: "Usage",
+          icon: "bar-chart-2" as const,
+          onPress: () => {},
+          value: `${(userProfile as any)?.monthlyParcelCount || 0} parcels this month`,
+        },
+      ],
+    },
+    {
       title: "Delivery",
       items: [
         {

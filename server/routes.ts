@@ -1064,6 +1064,289 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Subscription Management Routes
+  app.get("/api/subscriptions/plans", async (req, res) => {
+    try {
+      res.json({ plans: Object.values(SUBSCRIPTION_PLANS) });
+    } catch (error) {
+      console.error("Failed to fetch subscription plans:", error);
+      res.status(500).json({ error: "Failed to fetch subscription plans" });
+    }
+  });
+
+  app.get("/api/subscriptions/me", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const user = await storage.getUser(req.user!.uid);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const subscription = await storage.getUserSubscription(req.user!.uid);
+      const status = getSubscriptionStatus(user);
+      const plan = getSubscriptionPlan(user.subscriptionTier || "free");
+
+      res.json({
+        subscription,
+        user: {
+          subscriptionTier: user.subscriptionTier,
+          subscriptionStatus: user.subscriptionStatus,
+          monthlyParcelCount: user.monthlyParcelCount,
+          subscriptionEndDate: user.subscriptionEndDate,
+        },
+        status,
+        plan,
+      });
+    } catch (error) {
+      console.error("Failed to fetch subscription:", error);
+      res.status(500).json({ error: "Failed to fetch subscription" });
+    }
+  });
+
+  app.post("/api/subscriptions/subscribe", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { tier } = req.body;
+
+      if (!tier || !["premium", "business"].includes(tier)) {
+        return res.status(400).json({ error: "Invalid subscription tier" });
+      }
+
+      const user = await storage.getUser(req.user!.uid);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const plan = getSubscriptionPlan(tier);
+
+      // Initialize Paystack subscription
+      const response = await fetch("https://api.paystack.co/transaction/initialize", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: plan.priceInKobo,
+          email: user.email,
+          plan: plan.paystackPlanCode,
+          metadata: {
+            userId: user.id,
+            subscriptionTier: tier,
+          },
+        }),
+      });
+
+      const data = await response.json();
+      if (!data.status) {
+        throw new Error(data.message || "Failed to initialize subscription");
+      }
+
+      // Create subscription record
+      const startDate = new Date();
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + 1);
+
+      const subscription = await storage.createSubscription({
+        userId: user.id,
+        tier,
+        status: "active",
+        amount: plan.price,
+        currency: "NGN",
+        paystackPlanCode: plan.paystackPlanCode,
+        startDate,
+        endDate,
+        nextBillingDate: endDate,
+      });
+
+      res.json({
+        ...data.data,
+        subscriptionId: subscription.id,
+      });
+    } catch (error: any) {
+      console.error("Subscription error:", error);
+      res.status(500).json({ error: error.message || "Failed to create subscription" });
+    }
+  });
+
+  app.post("/api/subscriptions/verify/:reference", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { reference } = req.params;
+
+      const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.status && data.data.status === "success") {
+        const metadata = data.data.metadata;
+        const userId = metadata.userId;
+        const tier = metadata.subscriptionTier;
+
+        // Update user subscription
+        const startDate = new Date();
+        const endDate = new Date(startDate);
+        endDate.setMonth(endDate.getMonth() + 1);
+
+        await storage.updateUser(userId, {
+          subscriptionTier: tier,
+          subscriptionStatus: "active",
+          subscriptionStartDate: startDate,
+          subscriptionEndDate: endDate,
+          paystackCustomerCode: data.data.customer?.customer_code,
+        });
+
+        res.json({
+          success: true,
+          message: "Subscription activated successfully",
+        });
+      } else {
+        res.json({
+          success: false,
+          message: data.message || "Subscription verification failed",
+        });
+      }
+    } catch (error: any) {
+      console.error("Subscription verification error:", error);
+      res.status(500).json({ error: error.message || "Failed to verify subscription" });
+    }
+  });
+
+  app.post("/api/subscriptions/cancel", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { reason } = req.body;
+
+      const user = await storage.getUser(req.user!.uid);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const subscription = await storage.getUserSubscription(req.user!.uid);
+      if (!subscription) {
+        return res.status(404).json({ error: "No active subscription found" });
+      }
+
+      // Cancel Paystack subscription if exists
+      if (user.paystackSubscriptionCode) {
+        try {
+          const response = await fetch(
+            `https://api.paystack.co/subscription/disable`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                code: user.paystackSubscriptionCode,
+                token: subscription.paystackSubscriptionCode,
+              }),
+            }
+          );
+          const data = await response.json();
+          console.log("Paystack cancellation response:", data);
+        } catch (paystackError) {
+          console.error("Paystack cancellation error:", paystackError);
+        }
+      }
+
+      // Update subscription
+      await storage.updateSubscription(subscription.id, {
+        status: "cancelled",
+        cancelledAt: new Date(),
+        cancellationReason: reason || "User requested cancellation",
+      });
+
+      // Update user - keep subscription tier until end date but mark as cancelled
+      await storage.updateUser(user.id, {
+        subscriptionStatus: "cancelled",
+      });
+
+      res.json({
+        success: true,
+        message: "Subscription cancelled. You can continue using premium features until the end of your billing period.",
+      });
+    } catch (error: any) {
+      console.error("Subscription cancellation error:", error);
+      res.status(500).json({ error: error.message || "Failed to cancel subscription" });
+    }
+  });
+
+  app.post("/api/subscriptions/webhook", async (req, res) => {
+    try {
+      // Verify Paystack webhook signature
+      const hash = require("crypto")
+        .createHmac("sha512", process.env.PAYSTACK_SECRET_KEY || "")
+        .update(JSON.stringify(req.body))
+        .digest("hex");
+
+      if (hash !== req.headers["x-paystack-signature"]) {
+        return res.status(401).json({ error: "Invalid signature" });
+      }
+
+      const event = req.body;
+
+      switch (event.event) {
+        case "subscription.create":
+        case "charge.success":
+          // Handle successful subscription payment
+          if (event.data.metadata?.subscriptionTier) {
+            const userId = event.data.metadata.userId;
+            const tier = event.data.metadata.subscriptionTier;
+
+            const startDate = new Date();
+            const endDate = new Date(startDate);
+            endDate.setMonth(endDate.getMonth() + 1);
+
+            await storage.updateUser(userId, {
+              subscriptionTier: tier,
+              subscriptionStatus: "active",
+              subscriptionStartDate: startDate,
+              subscriptionEndDate: endDate,
+            });
+          }
+          break;
+
+        case "subscription.disable":
+          // Handle subscription cancellation
+          const subscription = await storage.getSubscriptionByPaystackCode(
+            event.data.subscription_code
+          );
+          if (subscription) {
+            await storage.updateSubscription(subscription.id, {
+              status: "cancelled",
+              cancelledAt: new Date(),
+            });
+            await storage.updateUser(subscription.userId, {
+              subscriptionStatus: "cancelled",
+            });
+          }
+          break;
+
+        case "invoice.payment_failed":
+          // Handle failed payment
+          if (event.data.subscription?.subscription_code) {
+            const subscription = await storage.getSubscriptionByPaystackCode(
+              event.data.subscription.subscription_code
+            );
+            if (subscription) {
+              await storage.updateUser(subscription.userId, {
+                subscriptionStatus: "past_due",
+              });
+            }
+          }
+          break;
+      }
+
+      res.sendStatus(200);
+    } catch (error) {
+      console.error("Webhook error:", error);
+      res.sendStatus(500);
+    }
+  });
+
+
   async function checkAndExpireItems() {
     const now = new Date();
     

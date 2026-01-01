@@ -337,6 +337,72 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result[0];
   }
+
+  async getUserSubscription(userId: string): Promise<Subscription | undefined> {
+    const result = await db
+      .select()
+      .from(subscriptions)
+      .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, "active")))
+      .orderBy(desc(subscriptions.createdAt));
+    return result[0];
+  }
+
+  async getSubscription(id: string): Promise<Subscription | undefined> {
+    const result = await db.select().from(subscriptions).where(eq(subscriptions.id, id));
+    return result[0];
+  }
+
+  async getSubscriptionByPaystackCode(code: string): Promise<Subscription | undefined> {
+    const result = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.paystackSubscriptionCode, code));
+    return result[0];
+  }
+
+  async createSubscription(insertSubscription: InsertSubscription): Promise<Subscription> {
+    const result = await db.insert(subscriptions).values(insertSubscription).returning();
+    return result[0];
+  }
+
+  async updateSubscription(id: string, updates: Partial<Subscription>): Promise<Subscription | undefined> {
+    const result = await db
+      .update(subscriptions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(subscriptions.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    const result = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async resetMonthlyParcelCount(userId: string): Promise<User | undefined> {
+    const result = await db
+      .update(users)
+      .set({ monthlyParcelCount: 0, lastParcelResetDate: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return result[0];
+  }
+
+  async incrementParcelCount(userId: string): Promise<User | undefined> {
+    const user = await this.getUser(userId);
+    if (!user) return undefined;
+    
+    const result = await db
+      .update(users)
+      .set({ monthlyParcelCount: (user.monthlyParcelCount || 0) + 1 })
+      .where(eq(users.id, userId))
+      .returning();
+    return result[0];
+  }
 }
 
 export const storage = new DatabaseStorage();

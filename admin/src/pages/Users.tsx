@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { fetchWithAuth } from '../lib/api'
+import { useToast } from '../contexts/ToastContext'
 import Table from '../components/Table'
-import { Search, CheckCircle, XCircle, Shield, Ban } from 'lucide-react'
+import { Search, CheckCircle, XCircle, Shield, Ban, Eye } from 'lucide-react'
 import { format } from 'date-fns'
 
 export default function Users() {

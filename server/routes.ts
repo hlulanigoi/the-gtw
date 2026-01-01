@@ -1300,12 +1300,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/subscriptions/webhook", async (req, res) => {
     try {
       // Verify Paystack webhook signature
-      const hash = require("crypto")
-        .createHmac("sha512", process.env.PAYSTACK_SECRET_KEY || "")
+      const secret = process.env.PAYSTACK_SECRET_KEY;
+      if (!secret) {
+        logger.error('PAYSTACK_SECRET_KEY not configured');
+        return res.status(500).json({ error: 'Server configuration error' });
+      }
+
+      const hash = crypto
+        .createHmac("sha512", secret)
         .update(JSON.stringify(req.body))
         .digest("hex");
 
-      if (hash !== req.headers["x-paystack-signature"]) {
+      const signature = req.headers["x-paystack-signature"];
+      
+      if (hash !== signature) {
+        logger.error('Invalid webhook signature', {
+          received: signature,
+          expected: hash.substring(0, 10) + '...',
+        });
         return res.status(401).json({ error: "Invalid signature" });
       }
 

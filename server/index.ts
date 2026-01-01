@@ -98,7 +98,23 @@ function setupRequestLogging(app: express.Application) {
         logLine = logLine.slice(0, 79) + "…";
       }
 
-      log(logLine);
+      // Use structured logging
+      if (res.statusCode >= 400) {
+        logger.error(logLine, {
+          method: req.method,
+          path,
+          statusCode: res.statusCode,
+          duration,
+          ip: req.ip,
+        });
+      } else {
+        logger.info(logLine, {
+          method: req.method,
+          path,
+          statusCode: res.statusCode,
+          duration,
+        });
+      }
     });
 
     next();

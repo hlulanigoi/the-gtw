@@ -29,6 +29,10 @@ export default function Parcels() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'parcels'] })
+      showToast('Parcel updated successfully', 'success')
+    },
+    onError: () => {
+      showToast('Failed to update parcel', 'error')
     },
   })
 
@@ -37,6 +41,10 @@ export default function Parcels() {
       fetchWithAuth(`/admin/parcels/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'parcels'] })
+      showToast('Parcel deleted successfully', 'success')
+    },
+    onError: () => {
+      showToast('Failed to delete parcel', 'error')
     },
   })
 

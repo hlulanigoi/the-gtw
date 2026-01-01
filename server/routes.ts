@@ -193,12 +193,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/parcels/:id", async (req, res) => {
+  app.patch("/api/parcels/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
+      const existingParcel = await storage.getParcel(req.params.id);
+      if (!existingParcel) {
+        return res.status(404).json({ error: "Parcel not found" });
+      }
+      
       const parcel = await storage.updateParcel(req.params.id, req.body);
       if (!parcel) {
         return res.status(404).json({ error: "Parcel not found" });
       }
+      
+      // Notify sender if status changed
+      if (req.body.status && req.body.status !== existingParcel.status) {
+        await notificationService.notifyParcelStatusChange(
+          req.params.id,
+          req.body.status,
+          parcel.senderId
+        );
+        
+        // Also notify transporter if parcel is delivered
+        if (req.body.status === 'Delivered' && parcel.transporterId) {
+          await notificationService.notifyParcelStatusChange(
+            req.params.id,
+            req.body.status,
+            parcel.transporterId
+          );
+        }
+      }
+      
       res.json(parcel);
     } catch (error) {
       res.status(500).json({ error: "Failed to update parcel" });

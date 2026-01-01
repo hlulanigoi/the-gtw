@@ -1109,7 +1109,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const revieweeTokens = await storage.getUserPushTokens(parsed.data.revieweeId);
       if (revieweeTokens.length > 0) {
-        console.log(`Would send notification to ${revieweeTokens.length} devices for new review`);
+        const reviewer = await storage.getUser(req.user!.uid);
+        await notificationService.notifyNewReview(
+          parsed.data.revieweeId,
+          reviewer?.name || 'Someone',
+          parsed.data.rating,
+          parsed.data.parcelId
+        );
       }
 
       res.status(201).json(review);

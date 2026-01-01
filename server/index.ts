@@ -18,28 +18,33 @@ declare module "http" {
 }
 
 function setupCors(app: express.Application) {
+  // Production-ready CORS configuration
+  const allowedOrigins = process.env.NODE_ENV === 'production'
+    ? (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean)
+    : [
+        'http://localhost:3000',
+        'http://localhost:5000',
+        'http://localhost:3001',
+        ...(process.env.REPLIT_DEV_DOMAIN ? [`https://${process.env.REPLIT_DEV_DOMAIN}`] : [])
+      ];
+
+  // Add Replit domains if available
+  if (process.env.REPLIT_DOMAINS) {
+    process.env.REPLIT_DOMAINS.split(",").forEach((d: string) => {
+      allowedOrigins.push(`https://${d.trim()}`);
+    });
+  }
+
   app.use((req, res, next) => {
-    const origins = new Set<string>();
-
-    if (process.env.REPLIT_DEV_DOMAIN) {
-      origins.add(`https://${process.env.REPLIT_DEV_DOMAIN}`);
-    }
-
-    if (process.env.REPLIT_DOMAINS) {
-      process.env.REPLIT_DOMAINS.split(",").forEach((d: string) => {
-        origins.add(`https://${d.trim()}`);
-      });
-    }
-
     const origin = req.header("origin");
 
-    if (origin && origins.has(origin)) {
+    if (origin && allowedOrigins.some(allowed => origin === allowed || origin.startsWith(allowed))) {
       res.header("Access-Control-Allow-Origin", origin);
       res.header(
         "Access-Control-Allow-Methods",
-        "GET, POST, PUT, DELETE, OPTIONS",
+        "GET, POST, PUT, PATCH, DELETE, OPTIONS",
       );
-      res.header("Access-Control-Allow-Headers", "Content-Type");
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
       res.header("Access-Control-Allow-Credentials", "true");
     }
 

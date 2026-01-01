@@ -41,6 +41,10 @@ export default function RoutesPage() {
       fetchWithAuth(`/admin/routes/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'routes'] })
+      showToast('Route deleted successfully', 'success')
+    },
+    onError: () => {
+      showToast('Failed to delete route', 'error')
     },
   })
 

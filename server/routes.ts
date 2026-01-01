@@ -13,8 +13,32 @@ import {
   shouldResetParcelCount,
   getSubscriptionStatus 
 } from "./subscription-utils";
+import crypto from "crypto";
+import logger from "./logger";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint
+  app.get("/health", async (req, res) => {
+    const checks = {
+      database: false,
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+    };
+
+    try {
+      await db.execute(sql`SELECT 1`);
+      checks.database = true;
+    } catch (error) {
+      logger.error('Database health check failed', { error });
+    }
+
+    const isHealthy = checks.database;
+    res.status(isHealthy ? 200 : 503).json({
+      status: isHealthy ? 'healthy' : 'unhealthy',
+      checks,
+    });
+  });
+
   // Register admin routes
   registerAdminRoutes(app);
   app.post("/api/auth/sync", requireAuth, async (req: AuthenticatedRequest, res) => {

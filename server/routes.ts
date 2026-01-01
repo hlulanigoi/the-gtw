@@ -469,11 +469,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/conversations", async (req, res) => {
     try {
+      const { participant1Id, participant2Id, parcelId } = req.body;
+      
+      // Check if conversation already exists between these two users for this parcel
+      const existing = await db
+        .select()
+        .from(conversations)
+        .where(
+          and(
+            parcelId ? eq(conversations.parcelId, parcelId) : sql`true`,
+            or(
+              and(
+                eq(conversations.participant1Id, participant1Id),
+                eq(conversations.participant2Id, participant2Id)
+              ),
+              and(
+                eq(conversations.participant1Id, participant2Id),
+                eq(conversations.participant2Id, participant1Id)
+              )
+            )
+          )
+        );
+
+      if (existing.length > 0) {
+        // Return existing conversation
+        return res.json(existing[0]);
+      }
+
+      // Create new conversation
       const conversation = await storage.createConversation(req.body);
       res.status(201).json(conversation);
     } catch (error) {
       console.error("Failed to create conversation:", error);
       res.status(500).json({ error: "Failed to create conversation" });
+    }
+  });
+
+  // Helper endpoint to get or create a conversation for a parcel
+  app.post("/api/parcels/:parcelId/conversation", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { otherUserId } = req.body;
+      const parcelId = req.params.parcelId;
+      
+      if (!otherUserId) {
+        return res.status(400).json({ error: "otherUserId is required" });
+      }
+
+      const parcel = await storage.getParcel(parcelId);
+      if (!parcel) {
+        return res.status(404).json({ error: "Parcel not found" });
+      }
+
+      // Verify user is involved in this parcel
+      const userId = req.user!.uid;
+      const isInvolved = 
+        userId === parcel.senderId || 
+        userId === parcel.transporterId || 
+        userId === parcel.receiverId;
+      
+      if (!isInvolved) {
+        return res.status(403).json({ error: "Not authorized to create conversation for this parcel" });
+      }
+
+      // Check if conversation already exists
+      const existing = await db
+        .select()
+        .from(conversations)
+        .where(
+          and(
+            eq(conversations.parcelId, parcelId),
+            or(
+              and(
+                eq(conversations.participant1Id, userId),
+                eq(conversations.participant2Id, otherUserId)
+              ),
+              and(
+                eq(conversations.participant1Id, otherUserId),
+                eq(conversations.participant2Id, userId)
+              )
+            )
+          )
+        );
+
+      if (existing.length > 0) {
+        return res.json(existing[0]);
+      }
+
+      // Create new conversation
+      const conversation = await storage.createConversation({
+        participant1Id: userId,
+        participant2Id: otherUserId,
+        parcelId: parcelId,
+      });
+
+      res.status(201).json(conversation);
+    } catch (error) {
+      console.error("Failed to get or create conversation:", error);
+      res.status(500).json({ error: "Failed to get or create conversation" });
     }
   });
 

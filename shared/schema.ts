@@ -20,6 +20,8 @@ export const users = pgTable("users", {
   phone: text("phone"),
   rating: real("rating").default(5.0),
   verified: boolean("verified").default(false),
+  role: userRoleEnum("role").default("user"),
+  suspended: boolean("suspended").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -21,6 +21,10 @@ export default function Reviews() {
       fetchWithAuth(`/admin/reviews/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'reviews'] })
+      showToast('Review deleted successfully', 'success')
+    },
+    onError: () => {
+      showToast('Failed to delete review', 'error')
     },
   })
 

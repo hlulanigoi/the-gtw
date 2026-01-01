@@ -1,19 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  doc,
-  getDoc,
-  getDocs,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiRequest } from "@/lib/query-client";
+import { useWebSocket } from "./useWebSocket";
 
 export interface Message {
   id: string;

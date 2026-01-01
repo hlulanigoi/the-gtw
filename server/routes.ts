@@ -498,12 +498,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const amount = parcel.compensation;
+      
+      // Calculate platform fee based on user's subscription tier
+      const { platformFee, carrierAmount, platformFeePercentage } = calculatePlatformFee(
+        amount,
+        user.subscriptionTier || "free"
+      );
+
       const metadata = {
         parcelId,
         senderId: req.user!.uid,
         carrierId,
         parcelOrigin: parcel.origin,
         parcelDestination: parcel.destination,
+        platformFee,
+        carrierAmount,
+        platformFeePercentage,
       };
 
       const response = await fetch("https://api.paystack.co/transaction/initialize", {
@@ -529,6 +539,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         senderId: req.user!.uid,
         carrierId,
         amount,
+        carrierAmount,
+        platformFee,
+        platformFeePercentage,
         currency: "NGN",
         status: "pending",
         paystackReference: data.data.reference,
@@ -540,6 +553,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         ...data.data,
         paymentId: payment.id,
+        platformFee,
+        carrierAmount,
       });
     } catch (error: any) {
       console.error("Paystack initialization error:", error);

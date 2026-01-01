@@ -15,6 +15,8 @@ import {
 } from "./subscription-utils";
 import crypto from "crypto";
 import logger from "./logger";
+import { wsManager } from "./websocket";
+import { notificationService } from "./notifications";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint

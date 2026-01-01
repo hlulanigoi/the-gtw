@@ -95,6 +95,13 @@ export default function Users() {
       label: 'Actions',
       render: (_: any, row: any) => (
         <div className="flex space-x-2">
+          <Link
+            to={`/users/${row.id}`}
+            className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+            title="View Details"
+          >
+            <Eye className="w-4 h-4" />
+          </Link>
           {!row.verified && (
             <button
               onClick={() =>
@@ -102,6 +109,7 @@ export default function Users() {
               }
               className="p-1 text-green-600 hover:bg-green-50 rounded"
               title="Verify User"
+              data-testid="verify-user-btn"
             >
               <CheckCircle className="w-4 h-4" />
             </button>
@@ -113,6 +121,7 @@ export default function Users() {
               }
               className="p-1 text-purple-600 hover:bg-purple-50 rounded"
               title="Make Admin"
+              data-testid="make-admin-btn"
             >
               <Shield className="w-4 h-4" />
             </button>
@@ -130,6 +139,7 @@ export default function Users() {
                 : 'text-red-600 hover:bg-red-50'
             }`}
             title={row.suspended ? 'Unsuspend' : 'Suspend'}
+            data-testid="suspend-user-btn"
           >
             <Ban className="w-4 h-4" />
           </button>

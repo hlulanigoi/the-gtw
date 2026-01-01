@@ -183,6 +183,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Increment parcel count for the user
       await storage.incrementParcelCount(user.id);
+
+      // Auto-create conversation between sender and receiver when parcel is created (if receiver is set)
+      if (parcel.receiverId && parcel.receiverId !== parcel.senderId) {
+        try {
+          // Check if conversation already exists
+          const existingConv = await db
+            .select()
+            .from(conversations)
+            .where(
+              and(
+                eq(conversations.parcelId, parcel.id),
+                or(
+                  and(
+                    eq(conversations.participant1Id, parcel.senderId),
+                    eq(conversations.participant2Id, parcel.receiverId)
+                  ),
+                  and(
+                    eq(conversations.participant1Id, parcel.receiverId),
+                    eq(conversations.participant2Id, parcel.senderId)
+                  )
+                )
+              )
+            );
+
+          if (existingConv.length === 0) {
+            await storage.createConversation({
+              participant1Id: parcel.senderId,
+              participant2Id: parcel.receiverId,
+              parcelId: parcel.id,
+            });
+            console.log(`Created conversation between sender ${parcel.senderId} and receiver ${parcel.receiverId} for new parcel`);
+          }
+        } catch (convError) {
+          console.error("Error creating sender-receiver conversation:", convError);
+          // Don't fail the request if conversation creation fails
+        }
+      }
       
       res.status(201).json(parcel);
     } catch (error) {

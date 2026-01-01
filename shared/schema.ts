@@ -9,6 +9,7 @@ export const connectionTypeEnum = pgEnum("connection_type", ["trusted_carrier", 
 export const routeStatusEnum = pgEnum("route_status", ["Active", "Completed", "Expired", "Cancelled"]);
 export const routeFrequencyEnum = pgEnum("route_frequency", ["one_time", "daily", "weekly", "monthly"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "success", "failed", "cancelled"]);
+export const userRoleEnum = pgEnum("user_role", ["user", "admin"]);
 
 export const users = pgTable("users", {
   id: varchar("id")

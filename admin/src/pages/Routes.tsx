@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchWithAuth } from '../lib/api'
+import { useToast } from '../contexts/ToastContext'
 import Table from '../components/Table'
 import { Search, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
@@ -10,6 +11,7 @@ export default function RoutesPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [page, setPage] = useState(1)
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'routes', page, search, statusFilter],

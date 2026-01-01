@@ -229,19 +229,35 @@ function configureExpoAndLanding(app: express.Application) {
 }
 
 function setupErrorHandler(app: express.Application) {
-  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
     const error = err as {
       status?: number;
       statusCode?: number;
       message?: string;
+      stack?: string;
     };
 
     const status = error.status || error.statusCode || 500;
-    const message = error.message || "Internal Server Error";
+    
+    // Log full error details
+    logger.error('Request error', {
+      error: error.message,
+      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
+      path: req.path,
+      method: req.method,
+      ip: req.ip,
+      userId: (req as any).user?.uid,
+    });
 
-    res.status(status).json({ message });
+    // Send sanitized error to client
+    const message = process.env.NODE_ENV === 'production' 
+      ? (status === 500 ? 'Internal server error' : error.message)
+      : error.message;
 
-    throw err;
+    res.status(status).json({ 
+      error: message,
+      ...(process.env.NODE_ENV !== 'production' && { stack: error.stack })
+    });
   });
 }
 

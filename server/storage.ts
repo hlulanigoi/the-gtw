@@ -14,11 +14,29 @@ import {
   type Subscription, type InsertSubscription, subscriptions,
 } from "@shared/schema";
 
+// Database connection pool with production-ready configuration
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  max: 20, // Maximum pool size
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+  ssl: process.env.NODE_ENV === 'production' ? {
+    rejectUnauthorized: false
+  } : undefined
 });
 
 export const db = drizzle(pool);
+
+// Graceful shutdown
+const gracefulShutdown = () => {
+  pool.end(() => {
+    console.log('Database pool closed');
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;

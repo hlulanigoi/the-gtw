@@ -24,6 +24,14 @@ export const users = pgTable("users", {
   verified: boolean("verified").default(false),
   role: userRoleEnum("role").default("user"),
   suspended: boolean("suspended").default(false),
+  subscriptionTier: subscriptionTierEnum("subscription_tier").default("free"),
+  subscriptionStatus: subscriptionStatusEnum("subscription_status").default("active"),
+  subscriptionStartDate: timestamp("subscription_start_date"),
+  subscriptionEndDate: timestamp("subscription_end_date"),
+  paystackCustomerCode: text("paystack_customer_code"),
+  paystackSubscriptionCode: text("paystack_subscription_code"),
+  monthlyParcelCount: integer("monthly_parcel_count").default(0),
+  lastParcelResetDate: timestamp("last_parcel_reset_date").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

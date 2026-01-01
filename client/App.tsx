@@ -15,9 +15,11 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Colors } from "@/constants/theme";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 function NotificationHandler() {
   useNotifications();
+  useWebSocket(); // Initialize WebSocket connection
   return null;
 }
 

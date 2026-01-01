@@ -318,6 +318,8 @@ export const insertRouteSchema = createInsertSchema(routes).omit({
 
 export const insertReviewSchema = createInsertSchema(reviews).omit({
   id: true,
+  createdAt: true,
+});
 
 export const insertPaymentSchema = createInsertSchema(payments).omit({
   id: true,
@@ -327,9 +329,6 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({
 
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type Payment = typeof payments.$inferSelect;
-
-  createdAt: true,
-});
 
 export const insertPushTokenSchema = createInsertSchema(pushTokens).omit({
   id: true,

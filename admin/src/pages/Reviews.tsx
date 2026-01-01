@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchWithAuth } from '../lib/api'
+import { useToast } from '../contexts/ToastContext'
 import Table from '../components/Table'
 import { Trash2, Star } from 'lucide-react'
 import { format } from 'date-fns'
@@ -8,6 +9,7 @@ import { format } from 'date-fns'
 export default function Reviews() {
   const [page, setPage] = useState(1)
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'reviews', page],

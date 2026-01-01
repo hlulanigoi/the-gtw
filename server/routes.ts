@@ -1,10 +1,18 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { storage, db } from "./storage";
-import { users, parcels, conversations, messages, connections, routes, reviews, pushTokens, payments, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema, insertReviewSchema, insertPushTokenSchema } from "@shared/schema";
+import { users, parcels, conversations, messages, connections, routes, reviews, pushTokens, payments, subscriptions, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema, insertReviewSchema, insertPushTokenSchema } from "@shared/schema";
 import { eq, desc, and, gte, lte, ne, sql } from "drizzle-orm";
 import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./firebase-admin";
 import { registerAdminRoutes } from "./admin-routes";
+import { 
+  SUBSCRIPTION_PLANS, 
+  getSubscriptionPlan, 
+  canCreateParcel, 
+  calculatePlatformFee, 
+  shouldResetParcelCount,
+  getSubscriptionStatus 
+} from "./subscription-utils";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register admin routes

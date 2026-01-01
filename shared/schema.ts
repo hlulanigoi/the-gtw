@@ -239,6 +239,9 @@ export const payments = pgTable("payments", {
   senderId: varchar("sender_id").notNull().references(() => users.id),
   carrierId: varchar("carrier_id").notNull().references(() => users.id),
   amount: integer("amount").notNull(),
+  carrierAmount: integer("carrier_amount").notNull(),
+  platformFee: integer("platform_fee").notNull(),
+  platformFeePercentage: real("platform_fee_percentage").notNull(),
   currency: text("currency").default("NGN"),
   status: paymentStatusEnum("status").default("pending"),
   paystackReference: text("paystack_reference").unique(),
@@ -246,6 +249,27 @@ export const payments = pgTable("payments", {
   paystackAuthorizationUrl: text("paystack_authorization_url"),
   paidAt: timestamp("paid_at"),
   metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const subscriptions = pgTable("subscriptions", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  tier: subscriptionTierEnum("tier").notNull(),
+  status: subscriptionStatusEnum("status").default("active"),
+  amount: integer("amount").notNull(),
+  currency: text("currency").default("NGN"),
+  paystackPlanCode: text("paystack_plan_code"),
+  paystackSubscriptionCode: text("paystack_subscription_code"),
+  paystackCustomerCode: text("paystack_customer_code"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  nextBillingDate: timestamp("next_billing_date"),
+  cancelledAt: timestamp("cancelled_at"),
+  cancellationReason: text("cancellation_reason"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

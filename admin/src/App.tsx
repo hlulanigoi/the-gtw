@@ -31,28 +31,31 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route
-              path="/"
-              element={
-                <PrivateRoute>
-                  <Layout />
-                </PrivateRoute>
-              }
-            >
-              <Route index element={<Dashboard />} />
-              <Route path="users" element={<Users />} />
-              <Route path="parcels" element={<Parcels />} />
-              <Route path="routes" element={<RoutesPage />} />
-              <Route path="payments" element={<Payments />} />
-              <Route path="reviews" element={<Reviews />} />
-            </Route>
-          </Routes>
-        </Router>
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <Router>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/"
+                element={
+                  <PrivateRoute>
+                    <Layout />
+                  </PrivateRoute>
+                }
+              >
+                <Route index element={<Dashboard />} />
+                <Route path="users" element={<Users />} />
+                <Route path="users/:id" element={<UserDetail />} />
+                <Route path="parcels" element={<Parcels />} />
+                <Route path="routes" element={<RoutesPage />} />
+                <Route path="payments" element={<Payments />} />
+                <Route path="reviews" element={<Reviews />} />
+              </Route>
+            </Routes>
+          </Router>
+        </AuthProvider>
+      </ToastProvider>
     </QueryClientProvider>
   )
 }

@@ -229,7 +229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/parcels/:id/accept", async (req, res) => {
+  app.patch("/api/parcels/:id/accept", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const { transporterId } = req.body;
       if (!transporterId) {
@@ -242,6 +242,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!parcel) {
         return res.status(404).json({ error: "Parcel not found" });
       }
+      
+      // Notify sender that parcel was accepted
+      await notificationService.notifyParcelStatusChange(
+        req.params.id,
+        "In Transit",
+        parcel.senderId
+      );
+      
       res.json(parcel);
     } catch (error) {
       res.status(500).json({ error: "Failed to accept parcel" });

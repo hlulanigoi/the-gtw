@@ -12,6 +12,7 @@ export default function Users() {
   const [roleFilter, setRoleFilter] = useState('')
   const [page, setPage] = useState(1)
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'users', page, search, roleFilter],
@@ -29,6 +30,10 @@ export default function Users() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+      showToast('User updated successfully', 'success')
+    },
+    onError: () => {
+      showToast('Failed to update user', 'error')
     },
   })
 

@@ -10,6 +10,8 @@ export const routeStatusEnum = pgEnum("route_status", ["Active", "Completed", "E
 export const routeFrequencyEnum = pgEnum("route_frequency", ["one_time", "daily", "weekly", "monthly"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "success", "failed", "cancelled"]);
 export const userRoleEnum = pgEnum("user_role", ["user", "admin"]);
+export const subscriptionTierEnum = pgEnum("subscription_tier", ["free", "premium", "business"]);
+export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "cancelled", "expired", "past_due"]);
 
 export const users = pgTable("users", {
   id: varchar("id")

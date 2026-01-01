@@ -129,6 +129,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get parcel by tracking code (for scanner)
+  app.get("/api/parcels/tracking/:trackingCode", async (req, res) => {
+    try {
+      const result = await db
+        .select({
+          parcel: parcels,
+          sender: users,
+        })
+        .from(parcels)
+        .innerJoin(users, eq(parcels.senderId, users.id))
+        .where(eq(parcels.trackingCode, req.params.trackingCode))
+        .limit(1);
+
+      if (result.length === 0) {
+        return res.status(404).json({ error: "Parcel not found" });
+      }
+
+      const { parcel, sender } = result[0];
+      res.json({
+        ...parcel,
+        senderName: sender.name,
+        senderRating: sender.rating,
+      });
+    } catch (error) {
+      console.error("Failed to fetch parcel by tracking code:", error);
+      res.status(500).json({ error: "Failed to fetch parcel" });
+    }
+  });
+
+
   app.post("/api/parcels", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const user = await storage.getUser(req.user!.uid);

@@ -5,12 +5,14 @@ import CreateParcelScreen from "@/screens/CreateParcelScreen";
 import RouteFilterScreen from "@/screens/RouteFilterScreen";
 import PaymentScreen from "@/screens/PaymentScreen";
 import PaymentHistoryScreen from "@/screens/PaymentHistoryScreen";
+import ScanScreen from "@/screens/ScanScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type RootStackParamList = {
   Main: undefined;
   CreateParcel: undefined;
   RouteFilter: undefined;
+  Scan: undefined;
   Payment: {
     authorizationUrl: string;
     reference: string;

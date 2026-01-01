@@ -3,9 +3,13 @@ import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import * as fs from "fs";
 import * as path from "path";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import compression from "compression";
+import logger from "./logger";
 
 const app = express();
-const log = console.log;
+const log = logger.info.bind(logger);
 
 declare module "http" {
   interface IncomingMessage {

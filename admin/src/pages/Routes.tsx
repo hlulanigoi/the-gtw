@@ -29,6 +29,10 @@ export default function RoutesPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'routes'] })
+      showToast('Route updated successfully', 'success')
+    },
+    onError: () => {
+      showToast('Failed to update route', 'error')
     },
   })
 

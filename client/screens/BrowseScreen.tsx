@@ -407,16 +407,13 @@ export default function BrowseScreen() {
       </ThemedText>
       <View style={styles.quickActionsGrid}>
         {quickActions.map((action) => {
-          const isDisabled = action.id === "scan";
           return (
             <Pressable
               key={action.id}
-              onPress={isDisabled ? undefined : () => handleQuickAction(action.id)}
-              disabled={isDisabled}
+              onPress={() => handleQuickAction(action.id)}
               style={[
                 styles.quickActionButton,
                 { backgroundColor: theme.backgroundDefault },
-                isDisabled && { opacity: 0.5 },
               ]}
             >
               <View
@@ -425,18 +422,11 @@ export default function BrowseScreen() {
                   { backgroundColor: `${action.color}15` },
                 ]}
               >
-                <Feather name={action.icon} size={22} color={isDisabled ? theme.textSecondary : action.color} />
+                <Feather name={action.icon} size={22} color={action.color} />
               </View>
-              <ThemedText type="caption" style={{ marginTop: Spacing.xs, color: isDisabled ? theme.textSecondary : theme.text }}>
+              <ThemedText type="caption" style={{ marginTop: Spacing.xs, color: theme.text }}>
                 {action.label}
               </ThemedText>
-              {isDisabled ? (
-                <View style={styles.comingSoonBadge}>
-                  <ThemedText type="caption" style={styles.comingSoonText}>
-                    Soon
-                  </ThemedText>
-                </View>
-              ) : null}
             </Pressable>
           );
         })}

@@ -316,16 +316,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/conversations/:id/messages", async (req, res) => {
+  app.post("/api/conversations/:id/messages", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const parsed = insertMessageSchema.safeParse({
         ...req.body,
         conversationId: req.params.id,
+        senderId: req.user!.uid,
       });
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.errors });
       }
+      
       const message = await storage.createMessage(parsed.data);
+      
+      // Get conversation to find recipient
+      const conversation = await storage.getConversation(req.params.id);
+      if (conversation) {
+        const recipientId = conversation.participant1Id === req.user!.uid 
+          ? conversation.participant2Id 
+          : conversation.participant1Id;
+        
+        // Send via WebSocket if user is online
+        const sent = wsManager.sendToUser(recipientId, {
+          type: 'new_message',
+          payload: message,
+        });
+        
+        // Send push notification if user is not online or WebSocket failed
+        if (!sent) {
+          const sender = await storage.getUser(req.user!.uid);
+          await notificationService.notifyNewMessage(
+            req.params.id,
+            req.user!.uid,
+            sender?.name || 'Someone',
+            message.text
+          );
+        }
+      }
+      
       res.status(201).json(message);
     } catch (error) {
       console.error("Failed to create message:", error);

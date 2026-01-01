@@ -675,6 +675,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           transporterId: payment.carrierId,
           status: "In Transit",
         });
+        
+        // Notify sender of successful payment
+        await notificationService.notifyPaymentSuccess(
+          payment.senderId,
+          payment.amount,
+          payment.parcelId
+        );
+        
+        // Notify sender of parcel status change
+        await notificationService.notifyParcelStatusChange(
+          payment.parcelId,
+          "In Transit",
+          payment.senderId
+        );
 
         res.json({
           success: true,

@@ -13,6 +13,7 @@ import {
   shouldResetParcelCount,
   getSubscriptionStatus 
 } from "./subscription-utils";
+import { generateTrackingCode } from "./tracking-utils";
 import crypto from "crypto";
 import logger from "./logger";
 

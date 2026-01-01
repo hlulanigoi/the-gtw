@@ -106,6 +106,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/parcels", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
+      const user = await storage.getUser(req.user!.uid);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Check if monthly parcel count needs to be reset
+      if (shouldResetParcelCount(user)) {
+        await storage.resetMonthlyParcelCount(user.id);
+        user.monthlyParcelCount = 0;
+      }
+
+      // Check subscription limits
+      const { allowed, reason } = canCreateParcel(user);
+      if (!allowed) {
+        return res.status(403).json({ error: reason });
+      }
+
       const parsed = insertParcelSchema.safeParse({
         ...req.body,
         senderId: req.user!.uid,
@@ -139,6 +156,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const parcel = await storage.createParcel(parcelData);
+      
+      // Increment parcel count for the user
+      await storage.incrementParcelCount(user.id);
+      
       res.status(201).json(parcel);
     } catch (error) {
       console.error("Failed to create parcel:", error);

@@ -1,0 +1,63 @@
+entrypoint = "README.md"
+modules = ["nodejs-22", "postgresql-16"]
+
+[nix]
+channel = "stable-24_05"
+packages = ["gh"]
+
+[deployment]
+deploymentTarget = "cloudrun"
+build = ["sh", "-c", "npm run expo:static:build && npm run server:build"]
+run = ["npm", "run", "server:prod"]
+
+[[ports]]
+localPort = 5000
+externalPort = 5000
+
+[[ports]]
+localPort = 8081
+externalPort = 80
+
+[[ports]]
+localPort = 8082
+externalPort = 3000
+
+[env]
+PORT = "5000"
+
+[agent]
+stack = "EXPO"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start dev servers"
+
+[[workflows.workflow]]
+name = "Start dev servers"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run all:dev"
+waitForPort = 8081
+ensurePreviewReachable = "/status"
+
+[userenv]
+
+[userenv.shared]
+EXPO_PUBLIC_FIREBASE_API_KEY = "AIzaSyD9pMTWieHyJ9z7qtg_BAKRZ8pqgNDnQiM"
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN = "irgadgetsofficialweb.firebaseapp.com"
+EXPO_PUBLIC_FIREBASE_PROJECT_ID = "irgadgetsofficialweb"
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET = "irgadgetsofficialweb.firebasestorage.app"
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "855107386441"
+EXPO_PUBLIC_FIREBASE_APP_ID = "1:855107386441:web:d64c2fb26bd3056b3e5398"
+EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID = "G-7TXF3ZWZCC"
+

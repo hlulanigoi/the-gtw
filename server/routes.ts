@@ -216,8 +216,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!parcel) {
         return res.status(404).json({ error: "Parcel not found" });
       }
+
+      // Auto-create conversations between all parties when parcel is accepted
+      try {
+        // Conversation 1: Sender <-> Carrier (transporter)
+        const senderCarrierConv = await db
+          .select()
+          .from(conversations)
+          .where(
+            and(
+              eq(conversations.parcelId, parcel.id),
+              or(
+                and(
+                  eq(conversations.participant1Id, parcel.senderId),
+                  eq(conversations.participant2Id, transporterId)
+                ),
+                and(
+                  eq(conversations.participant1Id, transporterId),
+                  eq(conversations.participant2Id, parcel.senderId)
+                )
+              )
+            )
+          );
+
+        if (senderCarrierConv.length === 0) {
+          await storage.createConversation({
+            participant1Id: parcel.senderId,
+            participant2Id: transporterId,
+            parcelId: parcel.id,
+          });
+          console.log(`Created conversation between sender ${parcel.senderId} and carrier ${transporterId}`);
+        }
+
+        // Conversation 2: Sender <-> Receiver (if receiver is set)
+        if (parcel.receiverId && parcel.receiverId !== parcel.senderId) {
+          const senderReceiverConv = await db
+            .select()
+            .from(conversations)
+            .where(
+              and(
+                eq(conversations.parcelId, parcel.id),
+                or(
+                  and(
+                    eq(conversations.participant1Id, parcel.senderId),
+                    eq(conversations.participant2Id, parcel.receiverId)
+                  ),
+                  and(
+                    eq(conversations.participant1Id, parcel.receiverId),
+                    eq(conversations.participant2Id, parcel.senderId)
+                  )
+                )
+              )
+            );
+
+          if (senderReceiverConv.length === 0) {
+            await storage.createConversation({
+              participant1Id: parcel.senderId,
+              participant2Id: parcel.receiverId,
+              parcelId: parcel.id,
+            });
+            console.log(`Created conversation between sender ${parcel.senderId} and receiver ${parcel.receiverId}`);
+          }
+        }
+
+        // Conversation 3: Carrier <-> Receiver (if receiver is set)
+        if (parcel.receiverId && parcel.receiverId !== transporterId) {
+          const carrierReceiverConv = await db
+            .select()
+            .from(conversations)
+            .where(
+              and(
+                eq(conversations.parcelId, parcel.id),
+                or(
+                  and(
+                    eq(conversations.participant1Id, transporterId),
+                    eq(conversations.participant2Id, parcel.receiverId)
+                  ),
+                  and(
+                    eq(conversations.participant1Id, parcel.receiverId),
+                    eq(conversations.participant2Id, transporterId)
+                  )
+                )
+              )
+            );
+
+          if (carrierReceiverConv.length === 0) {
+            await storage.createConversation({
+              participant1Id: transporterId,
+              participant2Id: parcel.receiverId,
+              parcelId: parcel.id,
+            });
+            console.log(`Created conversation between carrier ${transporterId} and receiver ${parcel.receiverId}`);
+          }
+        }
+      } catch (convError) {
+        console.error("Error creating conversations:", convError);
+        // Don't fail the request if conversation creation fails
+      }
+
       res.json(parcel);
     } catch (error) {
+      console.error("Failed to accept parcel:", error);
       res.status(500).json({ error: "Failed to accept parcel" });
     }
   });

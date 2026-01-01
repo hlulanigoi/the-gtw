@@ -50,6 +50,14 @@ export default function RootStackNavigator() {
         }}
       />
       <Stack.Screen
+        name="Scan"
+        component={ScanScreen}
+        options={{
+          presentation: "fullScreenModal",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="Payment"
         component={PaymentScreen}
         options={{

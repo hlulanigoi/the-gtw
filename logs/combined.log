@@ -68,3 +68,5 @@
 {"level":"info","message":"WebSocket server initialized on /ws","service":"parcelpeer-api","timestamp":"2026-01-02 09:14:39"}
 {"level":"info","message":"express server serving on port 5000","service":"parcelpeer-api","timestamp":"2026-01-02 09:14:39"}
 {"level":"info","message":"New WebSocket connection attempt","service":"parcelpeer-api","timestamp":"2026-01-02 09:15:08"}
+{"duration":48,"ip":"172.31.70.66","level":"error","message":"GET /api/routes 500 in 48ms :: {\"error\":\"Failed to fetch routes\"}","method":"GET","path":"/api/routes","service":"parcelpeer-api","statusCode":500,"timestamp":"2026-01-02 09:15:12"}
+{"level":"info","message":"New WebSocket connection attempt","service":"parcelpeer-api","timestamp":"2026-01-02 09:15:12"}

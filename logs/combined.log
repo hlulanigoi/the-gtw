@@ -1,0 +1,3 @@
+{"level":"info","message":"Serving static Expo files with dynamic manifest routing","service":"parcelpeer-api","timestamp":"2026-01-01 17:28:39"}
+{"level":"info","message":"Expo routing: Checking expo-platform header on / and /manifest","service":"parcelpeer-api","timestamp":"2026-01-01 17:28:39"}
+{"level":"info","message":"express server serving on port 5000","service":"parcelpeer-api","timestamp":"2026-01-01 17:28:39"}

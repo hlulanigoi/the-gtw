@@ -21,11 +21,17 @@ class WebSocketManager {
 
   init(server: Server) {
     this.wss = new WebSocketServer({ 
-      server,
+      noServer: true,
       path: '/ws',
-      verifyClient: (info, callback) => {
-        // Allow all connections, authentication happens after connection
-        callback(true);
+    });
+
+    server.on('upgrade', (request, socket, head) => {
+      const pathname = request.url ? new URL(request.url, `http://${request.headers.host}`).pathname : '';
+
+      if (pathname === '/ws') {
+        this.wss?.handleUpgrade(request, socket, head, (ws) => {
+          this.wss?.emit('connection', ws, request);
+        });
       }
     });
 

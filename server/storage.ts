@@ -42,9 +42,11 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser & { id?: string }): Promise<User>;
+  updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
   getAllParcels(): Promise<Parcel[]>;
   getParcel(id: string): Promise<Parcel | undefined>;
   getParcelWithSender(id: string): Promise<(Parcel & { sender: User }) | undefined>;
+  getUserParcels(userId: string): Promise<Parcel[]>;
   createParcel(parcel: InsertParcel): Promise<Parcel>;
   updateParcel(id: string, updates: Partial<Parcel>): Promise<Parcel | undefined>;
   getUserConversations(userId: string): Promise<Conversation[]>;
@@ -52,6 +54,14 @@ export interface IStorage {
   createConversation(conversation: InsertConversation): Promise<Conversation>;
   getConversationMessages(conversationId: string): Promise<Message[]>;
   createMessage(message: InsertMessage): Promise<Message>;
+  createPushToken(token: InsertPushToken): Promise<PushToken>;
+  incrementParcelCount(userId: string): Promise<User | undefined>;
+  resetMonthlyParcelCount(userId: string): Promise<User | undefined>;
+  createRoute(route: InsertRoute): Promise<Route>;
+  createReview(review: InsertReview): Promise<Review>;
+  getUserReviews(userId: string): Promise<(Review & { reviewer: User })[]>;
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  createSubscription(subscription: InsertSubscription): Promise<Subscription>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -67,6 +77,15 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser & { id?: string }): Promise<User> {
     const result = await db.insert(users).values(insertUser).returning();
+    return result[0];
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    const result = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
     return result[0];
   }
 
@@ -89,6 +108,20 @@ export class DatabaseStorage implements IStorage {
       return { ...result[0].parcels, sender: result[0].users };
     }
     return undefined;
+  }
+
+  async getUserParcels(userId: string): Promise<Parcel[]> {
+    return await db
+      .select()
+      .from(parcels)
+      .where(
+        or(
+          eq(parcels.senderId, userId),
+          eq(parcels.transporterId, userId),
+          eq(parcels.receiverId, userId)
+        )
+      )
+      .orderBy(desc(parcels.createdAt));
   }
 
   async createParcel(insertParcel: InsertParcel): Promise<Parcel> {
@@ -137,266 +170,19 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async deleteParcel(id: string): Promise<boolean> {
-    const result = await db.delete(parcels).where(eq(parcels.id, id)).returning();
-    return result.length > 0;
-  }
-
-  async deleteMessage(id: string): Promise<boolean> {
-    const result = await db.delete(messages).where(eq(messages.id, id)).returning();
-    return result.length > 0;
-  }
-
-  async getUserConnections(userId: string): Promise<(Connection & { connectedUser: User })[]> {
-    const result = await db
-      .select()
-      .from(connections)
-      .innerJoin(users, eq(connections.connectedUserId, users.id))
-      .where(eq(connections.userId, userId))
-      .orderBy(desc(connections.createdAt));
-    return result.map(r => ({ ...r.connections, connectedUser: r.users }));
-  }
-
-  async getConnection(userId: string, connectedUserId: string): Promise<Connection | undefined> {
-    const result = await db
-      .select()
-      .from(connections)
-      .where(and(eq(connections.userId, userId), eq(connections.connectedUserId, connectedUserId)));
-    return result[0];
-  }
-
-  async createConnection(insertConnection: InsertConnection): Promise<Connection> {
-    const result = await db.insert(connections).values(insertConnection).returning();
-    return result[0];
-  }
-
-  async deleteConnection(userId: string, connectedUserId: string): Promise<boolean> {
-    const result = await db
-      .delete(connections)
-      .where(and(eq(connections.userId, userId), eq(connections.connectedUserId, connectedUserId)))
-      .returning();
-    return result.length > 0;
-  }
-
-  async getRoute(id: string): Promise<Route | undefined> {
-    const result = await db.select().from(routes).where(eq(routes.id, id));
-    return result[0];
-  }
-
-  async getRouteWithCarrier(id: string): Promise<(Route & { carrier: User }) | undefined> {
-    const result = await db
-      .select()
-      .from(routes)
-      .innerJoin(users, eq(routes.carrierId, users.id))
-      .where(eq(routes.id, id));
-    if (result[0]) {
-      return { ...result[0].routes, carrier: result[0].users };
-    }
-    return undefined;
-  }
-
-  async getUserRoutes(userId: string): Promise<Route[]> {
-    return await db
-      .select()
-      .from(routes)
-      .where(eq(routes.carrierId, userId))
-      .orderBy(desc(routes.departureDate));
-  }
-
-  async getAllActiveRoutes(): Promise<Route[]> {
-    return await db
-      .select()
-      .from(routes)
-      .where(eq(routes.status, "Active"))
-      .orderBy(desc(routes.departureDate));
-  }
-
-  async createRoute(insertRoute: InsertRoute): Promise<Route> {
-    const result = await db.insert(routes).values(insertRoute).returning();
-    return result[0];
-  }
-
-  async updateRoute(id: string, updates: Partial<Route>): Promise<Route | undefined> {
-    const result = await db
-      .update(routes)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(routes.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async deleteRoute(id: string): Promise<boolean> {
-    const result = await db.delete(routes).where(eq(routes.id, id)).returning();
-    return result.length > 0;
-  }
-
-  async getUserReviews(userId: string): Promise<(Review & { reviewer: User })[]> {
-    const result = await db
-      .select()
-      .from(reviews)
-      .innerJoin(users, eq(reviews.reviewerId, users.id))
-      .where(eq(reviews.revieweeId, userId))
-      .orderBy(desc(reviews.createdAt));
-    return result.map(r => ({ ...r.reviews, reviewer: r.users }));
-  }
-
-  async getReviewByParcelAndReviewer(parcelId: string, reviewerId: string): Promise<Review | undefined> {
-    const result = await db
-      .select()
-      .from(reviews)
-      .where(and(eq(reviews.parcelId, parcelId), eq(reviews.reviewerId, reviewerId)));
-    return result[0];
-  }
-
-  async createReview(insertReview: InsertReview): Promise<Review> {
-    const result = await db.insert(reviews).values(insertReview).returning();
-    
-    const avgResult = await db
-      .select({ avgRating: avg(reviews.rating) })
-      .from(reviews)
-      .where(eq(reviews.revieweeId, insertReview.revieweeId));
-    
-    if (avgResult[0]?.avgRating) {
-      await db
-        .update(users)
-        .set({ rating: parseFloat(avgResult[0].avgRating) })
-        .where(eq(users.id, insertReview.revieweeId));
-    }
-    
-    return result[0];
-  }
-
-  async getUserPushTokens(userId: string): Promise<PushToken[]> {
-    return await db
-      .select()
-      .from(pushTokens)
-      .where(eq(pushTokens.userId, userId));
-  }
-
-  async getPushTokenByToken(token: string): Promise<PushToken | undefined> {
-    const result = await db
-      .select()
-      .from(pushTokens)
-      .where(eq(pushTokens.token, token));
-    return result[0];
-  }
-
-  async createOrUpdatePushToken(insertPushToken: InsertPushToken): Promise<PushToken> {
-    const existing = await this.getPushTokenByToken(insertPushToken.token);
-    if (existing) {
-      const result = await db
-        .update(pushTokens)
-        .set({ userId: insertPushToken.userId, updatedAt: new Date() })
-        .where(eq(pushTokens.token, insertPushToken.token))
-        .returning();
-      return result[0];
-    }
+  async createPushToken(insertPushToken: InsertPushToken): Promise<PushToken> {
     const result = await db.insert(pushTokens).values(insertPushToken).returning();
     return result[0];
   }
 
-  async deletePushToken(token: string): Promise<boolean> {
-    const result = await db.delete(pushTokens).where(eq(pushTokens.token, token)).returning();
-    return result.length > 0;
-  }
-
-  async getPayment(id: string): Promise<Payment | undefined> {
-    const result = await db.select().from(payments).where(eq(payments.id, id));
-    return result[0];
-  }
-
-  async getPaymentByReference(reference: string): Promise<Payment | undefined> {
-    const result = await db
-      .select()
-      .from(payments)
-      .where(eq(payments.paystackReference, reference));
-    return result[0];
-  }
-
-  async getUserPayments(userId: string): Promise<Payment[]> {
-    return await db
-      .select()
-      .from(payments)
-      .where(or(eq(payments.senderId, userId), eq(payments.carrierId, userId)))
-      .orderBy(desc(payments.createdAt));
-  }
-
-  async getParcelPayment(parcelId: string): Promise<Payment | undefined> {
-    const result = await db
-      .select()
-      .from(payments)
-      .where(eq(payments.parcelId, parcelId))
-      .orderBy(desc(payments.createdAt));
-    return result[0];
-  }
-
-  async createPayment(insertPayment: InsertPayment): Promise<Payment> {
-    const result = await db.insert(payments).values(insertPayment).returning();
-    return result[0];
-  }
-
-  async updatePayment(id: string, updates: Partial<Payment>): Promise<Payment | undefined> {
-    const result = await db
-      .update(payments)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(payments.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async updatePaymentByReference(
-    reference: string,
-    updates: Partial<Payment>
-  ): Promise<Payment | undefined> {
-    const result = await db
-      .update(payments)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(payments.paystackReference, reference))
-      .returning();
-    return result[0];
-  }
-
-  async getUserSubscription(userId: string): Promise<Subscription | undefined> {
-    const result = await db
-      .select()
-      .from(subscriptions)
-      .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, "active")))
-      .orderBy(desc(subscriptions.createdAt));
-    return result[0];
-  }
-
-  async getSubscription(id: string): Promise<Subscription | undefined> {
-    const result = await db.select().from(subscriptions).where(eq(subscriptions.id, id));
-    return result[0];
-  }
-
-  async getSubscriptionByPaystackCode(code: string): Promise<Subscription | undefined> {
-    const result = await db
-      .select()
-      .from(subscriptions)
-      .where(eq(subscriptions.paystackSubscriptionCode, code));
-    return result[0];
-  }
-
-  async createSubscription(insertSubscription: InsertSubscription): Promise<Subscription> {
-    const result = await db.insert(subscriptions).values(insertSubscription).returning();
-    return result[0];
-  }
-
-  async updateSubscription(id: string, updates: Partial<Subscription>): Promise<Subscription | undefined> {
-    const result = await db
-      .update(subscriptions)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(subscriptions.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+  async incrementParcelCount(userId: string): Promise<User | undefined> {
+    const user = await this.getUser(userId);
+    if (!user) return undefined;
+    
     const result = await db
       .update(users)
-      .set(updates)
-      .where(eq(users.id, id))
+      .set({ monthlyParcelCount: (user.monthlyParcelCount || 0) + 1 })
+      .where(eq(users.id, userId))
       .returning();
     return result[0];
   }
@@ -410,15 +196,38 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async incrementParcelCount(userId: string): Promise<User | undefined> {
-    const user = await this.getUser(userId);
-    if (!user) return undefined;
-    
+  async createRoute(insertRoute: InsertRoute): Promise<Route> {
+    const result = await db.insert(routes).values(insertRoute).returning();
+    return result[0];
+  }
+
+  async createReview(insertReview: InsertReview): Promise<Review> {
+    const result = await db.insert(reviews).values(insertReview).returning();
+    return result[0];
+  }
+
+  async getUserReviews(userId: string): Promise<(Review & { reviewer: User })[]> {
     const result = await db
-      .update(users)
-      .set({ monthlyParcelCount: (user.monthlyParcelCount || 0) + 1 })
-      .where(eq(users.id, userId))
-      .returning();
+      .select()
+      .from(reviews)
+      .innerJoin(users, eq(reviews.reviewerId, users.id))
+      .where(eq(reviews.revieweeId, userId))
+      .orderBy(desc(reviews.createdAt));
+    return result.map(r => ({ ...r.reviews, reviewer: r.users }));
+  }
+
+  async createPayment(insertPayment: InsertPayment): Promise<Payment> {
+    const result = await db.insert(payments).values(insertPayment).returning();
+    return result[0];
+  }
+
+  async createSubscription(insertSubscription: InsertSubscription): Promise<Subscription> {
+    const result = await db.insert(subscriptions).values(insertSubscription).returning();
+    return result[0];
+  }
+
+  async createConnection(insertConnection: InsertConnection): Promise<Connection> {
+    const result = await db.insert(connections).values(insertConnection).returning();
     return result[0];
   }
 }

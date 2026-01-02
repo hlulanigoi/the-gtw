@@ -19,7 +19,7 @@ class WebSocketManager {
   private clients: Map<string, Set<AuthenticatedWebSocket>> = new Map();
   private heartbeatInterval: NodeJS.Timeout | null = null;
 
-  initialize(server: Server) {
+  init(server: Server) {
     this.wss = new WebSocketServer({ 
       server,
       path: '/ws',

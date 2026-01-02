@@ -16,6 +16,8 @@ import {
 import { generateTrackingCode } from "./tracking-utils";
 import crypto from "crypto";
 import logger from "./logger";
+import { wsManager } from "./websocket";
+import { notificationService } from "./notifications";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
@@ -244,19 +246,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/parcels/:id", async (req, res) => {
+  app.patch("/api/parcels/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
+      const existingParcel = await storage.getParcel(req.params.id);
+      if (!existingParcel) {
+        return res.status(404).json({ error: "Parcel not found" });
+      }
+      
       const parcel = await storage.updateParcel(req.params.id, req.body);
       if (!parcel) {
         return res.status(404).json({ error: "Parcel not found" });
       }
+      
+      // Notify sender if status changed
+      if (req.body.status && req.body.status !== existingParcel.status) {
+        await notificationService.notifyParcelStatusChange(
+          req.params.id,
+          req.body.status,
+          parcel.senderId
+        );
+        
+        // Also notify transporter if parcel is delivered
+        if (req.body.status === 'Delivered' && parcel.transporterId) {
+          await notificationService.notifyParcelStatusChange(
+            req.params.id,
+            req.body.status,
+            parcel.transporterId
+          );
+        }
+      }
+      
       res.json(parcel);
     } catch (error) {
       res.status(500).json({ error: "Failed to update parcel" });
     }
   });
 
-  app.patch("/api/parcels/:id/accept", async (req, res) => {
+  app.patch("/api/parcels/:id/accept", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const { transporterId } = req.body;
       if (!transporterId) {
@@ -269,6 +295,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!parcel) {
         return res.status(404).json({ error: "Parcel not found" });
       }
+      
+      // Notify sender that parcel was accepted
+      await notificationService.notifyParcelStatusChange(
+        req.params.id,
+        "In Transit",
+        parcel.senderId
+      );
+      
       res.json(parcel);
     } catch (error) {
       res.status(500).json({ error: "Failed to accept parcel" });
@@ -367,16 +401,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/conversations/:id/messages", async (req, res) => {
+  app.post("/api/conversations/:id/messages", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const parsed = insertMessageSchema.safeParse({
         ...req.body,
         conversationId: req.params.id,
+        senderId: req.user!.uid,
       });
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.errors });
       }
+      
       const message = await storage.createMessage(parsed.data);
+      
+      // Get conversation to find recipient
+      const conversation = await storage.getConversation(req.params.id);
+      if (conversation) {
+        const recipientId = conversation.participant1Id === req.user!.uid 
+          ? conversation.participant2Id 
+          : conversation.participant1Id;
+        
+        // Send via WebSocket if user is online
+        const sent = wsManager.sendToUser(recipientId, {
+          type: 'new_message',
+          payload: message,
+        });
+        
+        // Send push notification if user is not online or WebSocket failed
+        if (!sent) {
+          const sender = await storage.getUser(req.user!.uid);
+          await notificationService.notifyNewMessage(
+            req.params.id,
+            req.user!.uid,
+            sender?.name || 'Someone',
+            message.text
+          );
+        }
+      }
+      
       res.status(201).json(message);
     } catch (error) {
       console.error("Failed to create message:", error);
@@ -666,6 +728,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           transporterId: payment.carrierId,
           status: "In Transit",
         });
+        
+        // Notify sender of successful payment
+        await notificationService.notifyPaymentSuccess(
+          payment.senderId,
+          payment.amount,
+          payment.parcelId
+        );
+        
+        // Notify sender of parcel status change
+        await notificationService.notifyParcelStatusChange(
+          payment.parcelId,
+          "In Transit",
+          payment.senderId
+        );
 
         res.json({
           success: true,
@@ -1100,7 +1176,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const revieweeTokens = await storage.getUserPushTokens(parsed.data.revieweeId);
       if (revieweeTokens.length > 0) {
-        console.log(`Would send notification to ${revieweeTokens.length} devices for new review`);
+        const reviewer = await storage.getUser(req.user!.uid);
+        await notificationService.notifyNewReview(
+          parsed.data.revieweeId,
+          reviewer?.name || 'Someone',
+          parsed.data.rating,
+          parsed.data.parcelId
+        );
       }
 
       res.status(201).json(review);

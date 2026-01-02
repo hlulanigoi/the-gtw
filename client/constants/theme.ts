@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 
-const primaryColor = "#0A7EA4";
-const secondaryColor = "#F97316";
+const primaryColor = "#F97316";
+const secondaryColor = "#0047AB";
 
 export const Colors = {
   primary: primaryColor,
@@ -27,8 +27,8 @@ export const Colors = {
     textSecondary: "#9CA3AF",
     buttonText: "#FFFFFF",
     tabIconDefault: "#9CA3AF",
-    tabIconSelected: "#0A84FF",
-    link: "#0A84FF",
+    tabIconSelected: "#F97316",
+    link: "#F97316",
     backgroundRoot: "#1A1A1A",
     backgroundDefault: "#2A2A2A",
     backgroundSecondary: "#353535",

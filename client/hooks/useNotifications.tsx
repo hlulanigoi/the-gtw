@@ -122,6 +122,8 @@ export function useNotifications() {
 
   const handleNotificationResponse = (data: NotificationData) => {
     console.log("Notification tapped:", data);
+    // Navigation will be handled by the navigation system
+    // The data contains the necessary information to navigate
   };
 
   const requestPermissions = async () => {

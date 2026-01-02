@@ -39,7 +39,7 @@ function setupCors(app: express.Application) {
   app.use((req, res, next) => {
     const origin = req.header("origin");
 
-    if (origin && allowedOrigins.some(allowed => origin === allowed || origin.startsWith(allowed))) {
+    if (origin && allowedOrigins.some((allowed: string) => origin === allowed || origin.startsWith(allowed))) {
       res.header("Access-Control-Allow-Origin", origin);
       res.header(
         "Access-Control-Allow-Methods",

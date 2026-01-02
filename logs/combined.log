@@ -29,3 +29,17 @@
 {"level":"info","message":"express server serving on port 5000","service":"parcelpeer-api","timestamp":"2026-01-02 09:03:13"}
 {"level":"info","message":"baseUrl","service":"parcelpeer-api","timestamp":"2026-01-02 09:03:27"}
 {"level":"info","message":"expsUrl","service":"parcelpeer-api","timestamp":"2026-01-02 09:03:27"}
+{"level":"info","message":"baseUrl","service":"parcelpeer-api","timestamp":"2026-01-02 09:05:31"}
+{"level":"info","message":"expsUrl","service":"parcelpeer-api","timestamp":"2026-01-02 09:05:31"}
+{"level":"info","message":"Serving static Expo files with dynamic manifest routing","service":"parcelpeer-api","timestamp":"2026-01-02 09:05:35"}
+{"level":"info","message":"Expo routing: Checking expo-platform header on / and /manifest","service":"parcelpeer-api","timestamp":"2026-01-02 09:05:35"}
+{"level":"info","message":"WebSocket server initialized on /ws","service":"parcelpeer-api","timestamp":"2026-01-02 09:05:35"}
+{"level":"info","message":"WebSocket server initialized on /ws","service":"parcelpeer-api","timestamp":"2026-01-02 09:05:35"}
+{"level":"info","message":"express server serving on port 5000","service":"parcelpeer-api","timestamp":"2026-01-02 09:05:35"}
+{"level":"info","message":"Serving static Expo files with dynamic manifest routing","service":"parcelpeer-api","timestamp":"2026-01-02 09:07:31"}
+{"level":"info","message":"Expo routing: Checking expo-platform header on / and /manifest","service":"parcelpeer-api","timestamp":"2026-01-02 09:07:31"}
+{"level":"info","message":"WebSocket server initialized on /ws","service":"parcelpeer-api","timestamp":"2026-01-02 09:07:31"}
+{"level":"info","message":"WebSocket server initialized on /ws","service":"parcelpeer-api","timestamp":"2026-01-02 09:07:31"}
+{"level":"info","message":"express server serving on port 5000","service":"parcelpeer-api","timestamp":"2026-01-02 09:07:31"}
+{"level":"info","message":"baseUrl","service":"parcelpeer-api","timestamp":"2026-01-02 09:07:33"}
+{"level":"info","message":"expsUrl","service":"parcelpeer-api","timestamp":"2026-01-02 09:07:33"}

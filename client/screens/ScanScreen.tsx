@@ -6,7 +6,7 @@ import {
   Alert,
   Platform,
 } from "react-native";
-import { BarCodeScanner, BarCodeScannerResult } from "expo-barcode-scanner";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -29,20 +29,11 @@ export default function ScanScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  useEffect(() => {
-    const getBarCodeScannerPermissions = async () => {
-      const { status } = await BarCodeScanner.requestPermissionsAsync();
-      setHasPermission(status === "granted");
-    };
-
-    getBarCodeScannerPermissions();
-  }, []);
-
-  const handleBarCodeScanned = async ({ type, data }: BarCodeScannerResult) => {
+  const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
     if (scanned || isProcessing) return;
 
     setScanned(true);
@@ -110,7 +101,7 @@ export default function ScanScreen() {
     navigation.goBack();
   };
 
-  if (hasPermission === null) {
+  if (!permission) {
     return (
       <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
         <View style={[styles.permissionContainer, { paddingTop: insets.top }]}>
@@ -120,7 +111,7 @@ export default function ScanScreen() {
     );
   }
 
-  if (hasPermission === false) {
+  if (!permission.granted) {
     return (
       <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
         <View style={[styles.permissionContainer, { paddingTop: insets.top }]}>
@@ -137,10 +128,18 @@ export default function ScanScreen() {
             Please enable camera access in your device settings to scan parcel codes.
           </ThemedText>
           <Pressable
-            onPress={handleClose}
-            style={[styles.permissionButton, { backgroundColor: Colors.primary }]}
+            onPress={requestPermission}
+            style={[styles.permissionButton, { backgroundColor: Colors.primary, marginBottom: Spacing.md }]}
           >
             <ThemedText type="body" style={{ color: "#FFFFFF" }}>
+              Enable Camera
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={handleClose}
+            style={[styles.permissionButton, { backgroundColor: theme.backgroundSecondary }]}
+          >
+            <ThemedText type="body" style={{ color: theme.textSecondary }}>
               Go Back
             </ThemedText>
           </Pressable>
@@ -151,8 +150,8 @@ export default function ScanScreen() {
 
   return (
     <View style={styles.container}>
-      <BarCodeScanner
-        onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+      <CameraView
+        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
         style={StyleSheet.absoluteFillObject}
       />
 

@@ -43,3 +43,28 @@
 {"level":"info","message":"express server serving on port 5000","service":"parcelpeer-api","timestamp":"2026-01-02 09:07:31"}
 {"level":"info","message":"baseUrl","service":"parcelpeer-api","timestamp":"2026-01-02 09:07:33"}
 {"level":"info","message":"expsUrl","service":"parcelpeer-api","timestamp":"2026-01-02 09:07:33"}
+{"level":"info","message":"Serving static Expo files with dynamic manifest routing","service":"parcelpeer-api","timestamp":"2026-01-02 09:10:44"}
+{"level":"info","message":"Expo routing: Checking expo-platform header on / and /manifest","service":"parcelpeer-api","timestamp":"2026-01-02 09:10:44"}
+{"level":"info","message":"WebSocket server initialized on /ws","service":"parcelpeer-api","timestamp":"2026-01-02 09:10:44"}
+{"level":"info","message":"WebSocket server initialized on /ws","service":"parcelpeer-api","timestamp":"2026-01-02 09:10:44"}
+{"level":"info","message":"express server serving on port 5000","service":"parcelpeer-api","timestamp":"2026-01-02 09:10:44"}
+{"level":"info","message":"Serving static Expo files with dynamic manifest routing","service":"parcelpeer-api","timestamp":"2026-01-02 09:11:14"}
+{"level":"info","message":"Expo routing: Checking expo-platform header on / and /manifest","service":"parcelpeer-api","timestamp":"2026-01-02 09:11:14"}
+{"level":"info","message":"WebSocket server initialized on /ws","service":"parcelpeer-api","timestamp":"2026-01-02 09:11:14"}
+{"level":"info","message":"WebSocket server initialized on /ws","service":"parcelpeer-api","timestamp":"2026-01-02 09:11:14"}
+{"level":"info","message":"express server serving on port 5000","service":"parcelpeer-api","timestamp":"2026-01-02 09:11:14"}
+{"level":"info","message":"baseUrl","service":"parcelpeer-api","timestamp":"2026-01-02 09:11:14"}
+{"level":"info","message":"expsUrl","service":"parcelpeer-api","timestamp":"2026-01-02 09:11:14"}
+{"level":"info","message":"Serving static Expo files with dynamic manifest routing","service":"parcelpeer-api","timestamp":"2026-01-02 09:11:44"}
+{"level":"info","message":"Expo routing: Checking expo-platform header on / and /manifest","service":"parcelpeer-api","timestamp":"2026-01-02 09:11:44"}
+{"level":"info","message":"WebSocket server initialized on /ws","service":"parcelpeer-api","timestamp":"2026-01-02 09:11:44"}
+{"level":"info","message":"WebSocket server initialized on /ws","service":"parcelpeer-api","timestamp":"2026-01-02 09:11:44"}
+{"level":"info","message":"express server serving on port 5000","service":"parcelpeer-api","timestamp":"2026-01-02 09:11:44"}
+{"level":"info","message":"baseUrl","service":"parcelpeer-api","timestamp":"2026-01-02 09:11:45"}
+{"level":"info","message":"expsUrl","service":"parcelpeer-api","timestamp":"2026-01-02 09:11:45"}
+{"level":"info","message":"Serving static Expo files with dynamic manifest routing","service":"parcelpeer-api","timestamp":"2026-01-02 09:14:39"}
+{"level":"info","message":"Expo routing: Checking expo-platform header on / and /manifest","service":"parcelpeer-api","timestamp":"2026-01-02 09:14:39"}
+{"level":"info","message":"WebSocket server initialized on /ws","service":"parcelpeer-api","timestamp":"2026-01-02 09:14:39"}
+{"level":"info","message":"WebSocket server initialized on /ws","service":"parcelpeer-api","timestamp":"2026-01-02 09:14:39"}
+{"level":"info","message":"express server serving on port 5000","service":"parcelpeer-api","timestamp":"2026-01-02 09:14:39"}
+{"level":"info","message":"New WebSocket connection attempt","service":"parcelpeer-api","timestamp":"2026-01-02 09:15:08"}

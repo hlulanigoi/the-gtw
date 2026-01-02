@@ -4138,7 +4138,7 @@ expo-auth-session@^7.0.10:
     expo-web-browser "~15.0.10"
     invariant "^2.2.4"
 
-expo-barcode-scanner@^13.0.1:
+expo-barcode-scanner@~13.0.1:
   version "13.0.1"
   resolved "https://registry.npmjs.org/expo-barcode-scanner/-/expo-barcode-scanner-13.0.1.tgz"
   integrity sha512-xBGLT1An2gpAMIQRTLU3oHydKohX8r8F9/ait1Fk9Vgd0GraFZbP4IiT7nHMlaw4H6E7Muucf7vXpGV6u7d4HQ==
@@ -4149,6 +4149,13 @@ expo-blur@^15.0.7:
   version "15.0.7"
   resolved "https://registry.npmjs.org/expo-blur/-/expo-blur-15.0.7.tgz"
   integrity sha512-SugQQbQd+zRPy8z2G5qDD4NqhcD7srBF7fN7O7yq6q7ZFK59VWvpDxtMoUkmSfdxgqONsrBN/rLdk00USADrMg==
+
+expo-camera@~16.0.10:
+  version "16.0.18"
+  resolved "https://registry.npmjs.org/expo-camera/-/expo-camera-16.0.18.tgz"
+  integrity sha512-NP5u2yyc+wZc9GdUXH+jcEytyXZwBnHxItMwXoZQQxi4wgltwvs4XfSWjBtRZe1LngnhpBfPyPJV0aShjWlLDg==
+  dependencies:
+    invariant "^2.2.4"
 
 expo-constants@~18.0.10, expo-constants@~18.0.11, expo-constants@~18.0.12, expo-constants@~18.0.9:
   version "18.0.12"

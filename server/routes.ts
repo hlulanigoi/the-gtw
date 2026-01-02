@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { storage, db } from "./storage";
 import { users, parcels, conversations, messages, connections, routes, reviews, pushTokens, payments, subscriptions, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema, insertReviewSchema, insertPushTokenSchema } from "@shared/schema";
-import { eq, desc, and, gte, lte, ne, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte, ne, sql, or } from "drizzle-orm";
 import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./firebase-admin";
 import { registerAdminRoutes } from "./admin-routes";
 import { 
@@ -332,7 +332,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!parcel) {
         return res.status(404).json({ error: "Parcel not found" });
       }
-<<<<<<< HEAD
 
       // Auto-create conversations between all parties when parcel is accepted
       try {
@@ -431,8 +430,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Don't fail the request if conversation creation fails
       }
 
-=======
-      
       // Notify sender that parcel was accepted
       await notificationService.notifyParcelStatusChange(
         req.params.id,
@@ -440,7 +437,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parcel.senderId
       );
       
->>>>>>> origin/payments
       res.json(parcel);
     } catch (error) {
       console.error("Failed to accept parcel:", error);
@@ -673,123 +669,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(existing[0]);
       }
 
-      // Create new conversation
       const conversation = await storage.createConversation({
         participant1Id: userId,
         participant2Id: otherUserId,
-        parcelId: parcelId,
+        parcelId,
       });
 
       res.status(201).json(conversation);
     } catch (error) {
-      console.error("Failed to get or create conversation:", error);
-      res.status(500).json({ error: "Failed to get or create conversation" });
+      res.status(500).json({ error: "Failed to handle conversation" });
     }
   });
 
-  app.post("/api/users", async (req, res) => {
+  app.get("/api/users/:userId/parcels", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const user = await storage.createUser(req.body);
-      res.status(201).json(user);
+      const userParcels = await storage.getUserParcels(req.params.userId);
+      res.json(userParcels);
     } catch (error) {
-      console.error("Failed to create user:", error);
-      res.status(500).json({ error: "Failed to create user" });
+      res.status(500).json({ error: "Failed to fetch user parcels" });
     }
   });
 
-  app.delete("/api/parcels/:id", async (req, res) => {
+  app.post("/api/connections", async (req, res) => {
     try {
-      const deleted = await storage.deleteParcel(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({ error: "Parcel not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      console.error("Failed to delete parcel:", error);
-      res.status(500).json({ error: "Failed to delete parcel" });
-    }
-  });
-
-  app.delete("/api/messages/:id", async (req, res) => {
-    try {
-      const deleted = await storage.deleteMessage(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({ error: "Message not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      console.error("Failed to delete message:", error);
-      res.status(500).json({ error: "Failed to delete message" });
-    }
-  });
-
-  app.get("/api/users/:userId/connections", async (req, res) => {
-    try {
-      const userConnections = await storage.getUserConnections(req.params.userId);
-      res.json(userConnections);
-    } catch (error) {
-      console.error("Failed to fetch connections:", error);
-      res.status(500).json({ error: "Failed to fetch connections" });
-    }
-  });
-
-  app.post("/api/users/:userId/connections", async (req, res) => {
-    try {
-      const parsed = insertConnectionSchema.safeParse({
-        ...req.body,
-        userId: req.params.userId,
-      });
+      const parsed = insertConnectionSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.errors });
       }
-      const connectedUser = await storage.getUser(parsed.data.connectedUserId);
-      if (!connectedUser) {
-        return res.status(404).json({ error: "Connected user not found" });
-      }
-      const existing = await storage.getConnection(req.params.userId, parsed.data.connectedUserId);
-      if (existing) {
-        return res.status(409).json({ error: "Connection already exists" });
-      }
       const connection = await storage.createConnection(parsed.data);
-      res.status(201).json({ ...connection, connectedUser });
+      res.status(201).json(connection);
     } catch (error) {
-      console.error("Failed to create connection:", error);
       res.status(500).json({ error: "Failed to create connection" });
     }
   });
 
-  app.delete("/api/users/:userId/connections/:connectedUserId", async (req, res) => {
+  app.post("/api/routes", async (req, res) => {
     try {
-      const deleted = await storage.deleteConnection(req.params.userId, req.params.connectedUserId);
-      if (!deleted) {
-        return res.status(404).json({ error: "Connection not found" });
+      const parsed = insertRouteSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors });
       }
-      res.status(204).send();
+      const route = await storage.createRoute(parsed.data);
+      res.status(201).json(route);
     } catch (error) {
-      console.error("Failed to delete connection:", error);
-      res.status(500).json({ error: "Failed to delete connection" });
-    }
-  });
-
-  app.get("/api/geocode", async (req, res) => {
-    try {
-      const { q } = req.query;
-      if (!q || typeof q !== "string") {
-        return res.status(400).json({ error: "Query parameter 'q' is required" });
-      }
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`,
-        {
-          headers: {
-            "User-Agent": "ParcelPeer/1.0",
-          },
-        }
-      );
-      const data = await response.json();
-      res.json(data);
-    } catch (error) {
-      console.error("Geocoding failed:", error);
-      res.status(500).json({ error: "Geocoding failed" });
+      res.status(500).json({ error: "Failed to create route" });
     }
   });
 
@@ -798,572 +721,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allRoutes = await db
         .select({
           route: routes,
-          carrier: users,
+          user: users,
         })
         .from(routes)
-        .innerJoin(users, eq(routes.carrierId, users.id))
-        .where(eq(routes.status, "Active"))
-        .orderBy(desc(routes.departureDate));
+        .innerJoin(users, eq(routes.userId, users.id))
+        .orderBy(desc(routes.createdAt));
 
-      const result = allRoutes.map(({ route, carrier }) => ({
+      const result = allRoutes.map(({ route, user }) => ({
         ...route,
-        carrierName: carrier.name,
-        carrierRating: carrier.rating,
+        userName: user.name,
+        userRating: user.rating,
       }));
 
       res.json(result);
     } catch (error) {
-      console.error("Failed to fetch routes:", error);
       res.status(500).json({ error: "Failed to fetch routes" });
     }
   });
 
-  app.get("/api/routes/:id", async (req, res) => {
+  app.post("/api/reviews", async (req, res) => {
     try {
-      const routeWithCarrier = await storage.getRouteWithCarrier(req.params.id);
-      if (!routeWithCarrier) {
-        return res.status(404).json({ error: "Route not found" });
-      }
-      res.json({
-        ...routeWithCarrier,
-        carrierName: routeWithCarrier.carrier.name,
-        carrierRating: routeWithCarrier.carrier.rating,
-      });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch route" });
-    }
-  });
-
-  app.get("/api/users/:userId/routes", async (req, res) => {
-    try {
-      const userRoutes = await storage.getUserRoutes(req.params.userId);
-      res.json(userRoutes);
-    } catch (error) {
-      console.error("Failed to fetch user routes:", error);
-      res.status(500).json({ error: "Failed to fetch user routes" });
-    }
-  });
-
-  // Paystack Payment Integration
-  app.post("/api/payments/initialize", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const { parcelId, carrierId } = req.body;
-      
-      if (!parcelId || !carrierId) {
-        return res.status(400).json({ error: "Parcel ID and carrier ID are required" });
-      }
-
-      const parcel = await storage.getParcel(parcelId);
-      if (!parcel) {
-        return res.status(404).json({ error: "Parcel not found" });
-      }
-
-      if (parcel.senderId !== req.user!.uid) {
-        return res.status(403).json({ error: "Only the sender can initiate payment" });
-      }
-
-      const user = await storage.getUser(req.user!.uid);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const amount = parcel.compensation;
-      
-      // Calculate platform fee based on user's subscription tier
-      const { platformFee, carrierAmount, platformFeePercentage } = calculatePlatformFee(
-        amount,
-        user.subscriptionTier || "free"
-      );
-
-      const metadata = {
-        parcelId,
-        senderId: req.user!.uid,
-        carrierId,
-        parcelOrigin: parcel.origin,
-        parcelDestination: parcel.destination,
-        platformFee,
-        carrierAmount,
-        platformFeePercentage,
-      };
-
-      const response = await fetch("https://api.paystack.co/transaction/initialize", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: Math.round(amount * 100), // Convert to kobo/cents
-          email: user.email,
-          metadata,
-        }),
-      });
-
-      const data = await response.json();
-      if (!data.status) {
-        throw new Error(data.message || "Failed to initialize Paystack transaction");
-      }
-
-      const payment = await storage.createPayment({
-        parcelId,
-        senderId: req.user!.uid,
-        carrierId,
-        amount,
-        carrierAmount,
-        platformFee,
-        platformFeePercentage,
-        currency: "NGN",
-        status: "pending",
-        paystackReference: data.data.reference,
-        paystackAccessCode: data.data.access_code,
-        paystackAuthorizationUrl: data.data.authorization_url,
-        metadata: JSON.stringify(metadata),
-      });
-
-      res.json({
-        ...data.data,
-        paymentId: payment.id,
-        platformFee,
-        carrierAmount,
-      });
-    } catch (error: any) {
-      console.error("Paystack initialization error:", error);
-      res.status(500).json({ error: error.message || "Failed to initialize payment" });
-    }
-  });
-
-  app.get("/api/payments/verify/:reference", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const { reference } = req.params;
-      
-      const payment = await storage.getPaymentByReference(reference);
-      if (!payment) {
-        return res.status(404).json({ error: "Payment not found" });
-      }
-
-      const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-        },
-      });
-
-      const data = await response.json();
-      
-      if (data.status && data.data.status === "success") {
-        await storage.updatePayment(payment.id, {
-          status: "success",
-          paidAt: new Date(),
-        });
-
-        await storage.updateParcel(payment.parcelId, {
-          transporterId: payment.carrierId,
-          status: "In Transit",
-        });
-        
-        // Notify sender of successful payment
-        await notificationService.notifyPaymentSuccess(
-          payment.senderId,
-          payment.amount,
-          payment.parcelId
-        );
-        
-        // Notify sender of parcel status change
-        await notificationService.notifyParcelStatusChange(
-          payment.parcelId,
-          "In Transit",
-          payment.senderId
-        );
-
-        res.json({
-          success: true,
-          payment: await storage.getPayment(payment.id),
-          message: "Payment successful",
-        });
-      } else {
-        await storage.updatePayment(payment.id, {
-          status: data.data.status === "failed" ? "failed" : "pending",
-        });
-
-        res.json({
-          success: false,
-          payment: await storage.getPayment(payment.id),
-          message: data.message || "Payment not successful",
-        });
-      }
-    } catch (error: any) {
-      console.error("Paystack verification error:", error);
-      res.status(500).json({ error: error.message || "Failed to verify payment" });
-    }
-  });
-
-  app.get("/api/payments/user/:userId", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      if (req.params.userId !== req.user!.uid) {
-        return res.status(403).json({ error: "Unauthorized" });
-      }
-
-      const payments = await storage.getUserPayments(req.params.userId);
-      res.json(payments);
-    } catch (error) {
-      console.error("Failed to fetch user payments:", error);
-      res.status(500).json({ error: "Failed to fetch payments" });
-    }
-  });
-
-  app.get("/api/payments/parcel/:parcelId", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const parcel = await storage.getParcel(req.params.parcelId);
-      if (!parcel) {
-        return res.status(404).json({ error: "Parcel not found" });
-      }
-
-      const isAuthorized = parcel.senderId === req.user!.uid || parcel.transporterId === req.user!.uid;
-      if (!isAuthorized) {
-        return res.status(403).json({ error: "Unauthorized" });
-      }
-
-      const payment = await storage.getParcelPayment(req.params.parcelId);
-      res.json(payment || null);
-    } catch (error) {
-      console.error("Failed to fetch parcel payment:", error);
-      res.status(500).json({ error: "Failed to fetch payment" });
-    }
-  });
-
-  // Web fallback for callback_url
-  app.get("/api/payments/verify-web", async (req, res) => {
-    const { trxref, reference } = req.query;
-    res.send(`
-      <html>
-        <head>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <style>
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              min-height: 100vh;
-              margin: 0;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: white;
-              text-align: center;
-              padding: 20px;
-            }
-            .container {
-              background: rgba(255, 255, 255, 0.1);
-              backdrop-filter: blur(10px);
-              border-radius: 20px;
-              padding: 40px;
-              box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            }
-            h1 { margin-top: 0; font-size: 28px; }
-            p { font-size: 16px; opacity: 0.9; }
-            .spinner {
-              border: 3px solid rgba(255, 255, 255, 0.3);
-              border-top: 3px solid white;
-              border-radius: 50%;
-              width: 40px;
-              height: 40px;
-              animation: spin 1s linear infinite;
-              margin: 20px auto;
-            }
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1>✅ Payment Processing</h1>
-            <div class="spinner"></div>
-            <p>Verifying your payment...</p>
-            <p style="font-size: 14px; margin-top: 30px;">You can close this window and return to the app.</p>
-          </div>
-          <script>
-            setTimeout(() => {
-              if (window.opener) {
-                window.close();
-              } else {
-                window.location.href = 'about:blank';
-              }
-            }, 3000);
-          </script>
-        </body>
-      </html>
-    `);
-  });
-
-  app.post("/api/routes", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const parsed = insertRouteSchema.safeParse({
-        ...req.body,
-        carrierId: req.user!.uid,
-      });
+      const parsed = insertReviewSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.errors });
       }
-
-      const routeData = { ...parsed.data };
-
-      try {
-        const [originGeo, destGeo] = await Promise.all([
-          fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(parsed.data.origin)}&limit=1`, {
-            headers: { "User-Agent": "ParcelPeer/1.0" }
-          }).then(r => r.json()),
-          fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(parsed.data.destination)}&limit=1`, {
-            headers: { "User-Agent": "ParcelPeer/1.0" }
-          }).then(r => r.json())
-        ]);
-
-        if (originGeo[0]) {
-          routeData.originLat = parseFloat(originGeo[0].lat);
-          routeData.originLng = parseFloat(originGeo[0].lon);
-        }
-        if (destGeo[0]) {
-          routeData.destinationLat = parseFloat(destGeo[0].lat);
-          routeData.destinationLng = parseFloat(destGeo[0].lon);
-        }
-      } catch (geoError) {
-        console.warn("Geocoding failed, continuing without coordinates:", geoError);
-      }
-
-      const route = await storage.createRoute(routeData);
-      res.status(201).json(route);
+      const review = await storage.createReview(parsed.data);
+      
+      // Update user rating
+      const allReviews = await storage.getUserReviews(parsed.data.targetId);
+      const avgRating = allReviews.reduce((acc, r) => acc + r.rating, 0) / allReviews.length;
+      await storage.updateUser(parsed.data.targetId, { rating: avgRating });
+      
+      res.status(201).json(review);
     } catch (error) {
-      console.error("Failed to create route:", error);
-      res.status(500).json({ error: "Failed to create route" });
-    }
-  });
-
-  app.patch("/api/routes/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const existingRoute = await storage.getRoute(req.params.id);
-      if (!existingRoute) {
-        return res.status(404).json({ error: "Route not found" });
-      }
-      if (existingRoute.carrierId !== req.user!.uid) {
-        return res.status(403).json({ error: "Not authorized to update this route" });
-      }
-
-      const route = await storage.updateRoute(req.params.id, req.body);
-      res.json(route);
-    } catch (error) {
-      console.error("Failed to update route:", error);
-      res.status(500).json({ error: "Failed to update route" });
-    }
-  });
-
-  app.delete("/api/routes/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const existingRoute = await storage.getRoute(req.params.id);
-      if (!existingRoute) {
-        return res.status(404).json({ error: "Route not found" });
-      }
-      if (existingRoute.carrierId !== req.user!.uid) {
-        return res.status(403).json({ error: "Not authorized to delete this route" });
-      }
-
-      const deleted = await storage.deleteRoute(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({ error: "Route not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      console.error("Failed to delete route:", error);
-      res.status(500).json({ error: "Failed to delete route" });
-    }
-  });
-
-  function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  }
-
-  const SIZE_ORDER = { small: 1, medium: 2, large: 3 };
-
-  app.get("/api/routes/:routeId/matching-parcels", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const route = await storage.getRoute(req.params.routeId);
-      if (!route) {
-        return res.status(404).json({ error: "Route not found" });
-      }
-
-      const pendingParcels = await db
-        .select({ parcel: parcels, sender: users })
-        .from(parcels)
-        .innerJoin(users, eq(parcels.senderId, users.id))
-        .where(and(
-          eq(parcels.status, "Pending"),
-          ne(parcels.senderId, req.user!.uid)
-        ));
-
-      const maxDistanceKm = 50;
-      const matchingParcels = pendingParcels
-        .filter(({ parcel }) => {
-          if (!route.originLat || !route.originLng || !route.destinationLat || !route.destinationLng) {
-            return parcel.origin.toLowerCase().includes(route.origin.toLowerCase()) ||
-              route.origin.toLowerCase().includes(parcel.origin.toLowerCase());
-          }
-          if (!parcel.originLat || !parcel.originLng || !parcel.destinationLat || !parcel.destinationLng) {
-            return parcel.origin.toLowerCase().includes(route.origin.toLowerCase()) ||
-              route.origin.toLowerCase().includes(parcel.origin.toLowerCase());
-          }
-
-          const originDistance = calculateDistance(
-            route.originLat, route.originLng,
-            parcel.originLat, parcel.originLng
-          );
-          const destDistance = calculateDistance(
-            route.destinationLat, route.destinationLng,
-            parcel.destinationLat, parcel.destinationLng
-          );
-
-          return originDistance <= maxDistanceKm && destDistance <= maxDistanceKm;
-        })
-        .filter(({ parcel }) => {
-          const routeDate = new Date(route.departureDate);
-          const parcelDate = new Date(parcel.pickupDate);
-          const daysDiff = Math.abs((routeDate.getTime() - parcelDate.getTime()) / (1000 * 60 * 60 * 24));
-
-          if (route.frequency === "one_time") {
-            return daysDiff <= 2;
-          } else if (route.frequency === "daily") {
-            return true;
-          } else if (route.frequency === "weekly") {
-            return daysDiff <= 7;
-          } else {
-            return daysDiff <= 30;
-          }
-        })
-        .filter(({ parcel }) => {
-          if (!route.maxParcelSize) return true;
-          return SIZE_ORDER[parcel.size] <= SIZE_ORDER[route.maxParcelSize];
-        })
-        .filter(({ parcel }) => {
-          if (!route.maxWeight || !parcel.weight) return true;
-          return parcel.weight <= route.maxWeight;
-        })
-        .map(({ parcel, sender }) => {
-          let score = 100;
-
-          if (route.originLat && route.originLng && parcel.originLat && parcel.originLng) {
-            const originDistance = calculateDistance(
-              route.originLat, route.originLng,
-              parcel.originLat, parcel.originLng
-            );
-            score -= originDistance;
-          }
-
-          return {
-            ...parcel,
-            senderName: sender.name,
-            senderRating: sender.rating,
-            matchScore: Math.max(0, Math.round(score)),
-          };
-        })
-        .sort((a, b) => b.matchScore - a.matchScore);
-
-      res.json(matchingParcels);
-    } catch (error) {
-      console.error("Failed to find matching parcels:", error);
-      res.status(500).json({ error: "Failed to find matching parcels" });
-    }
-  });
-
-  app.get("/api/parcels/:parcelId/matching-routes", async (req, res) => {
-    try {
-      const parcel = await storage.getParcel(req.params.parcelId);
-      if (!parcel) {
-        return res.status(404).json({ error: "Parcel not found" });
-      }
-
-      const activeRoutes = await db
-        .select({ route: routes, carrier: users })
-        .from(routes)
-        .innerJoin(users, eq(routes.carrierId, users.id))
-        .where(and(
-          eq(routes.status, "Active"),
-          ne(routes.carrierId, parcel.senderId)
-        ));
-
-      const maxDistanceKm = 50;
-      const matchingRoutes = activeRoutes
-        .filter(({ route }) => {
-          if (!route.originLat || !route.originLng || !route.destinationLat || !route.destinationLng) {
-            return parcel.origin.toLowerCase().includes(route.origin.toLowerCase()) ||
-              route.origin.toLowerCase().includes(parcel.origin.toLowerCase());
-          }
-          if (!parcel.originLat || !parcel.originLng || !parcel.destinationLat || !parcel.destinationLng) {
-            return parcel.origin.toLowerCase().includes(route.origin.toLowerCase()) ||
-              route.origin.toLowerCase().includes(parcel.origin.toLowerCase());
-          }
-
-          const originDistance = calculateDistance(
-            route.originLat, route.originLng,
-            parcel.originLat, parcel.originLng
-          );
-          const destDistance = calculateDistance(
-            route.destinationLat, route.destinationLng,
-            parcel.destinationLat, parcel.destinationLng
-          );
-
-          return originDistance <= maxDistanceKm && destDistance <= maxDistanceKm;
-        })
-        .filter(({ route }) => {
-          const routeDate = new Date(route.departureDate);
-          const parcelDate = new Date(parcel.pickupDate);
-          const daysDiff = Math.abs((routeDate.getTime() - parcelDate.getTime()) / (1000 * 60 * 60 * 24));
-
-          if (route.frequency === "one_time") {
-            return daysDiff <= 2;
-          } else if (route.frequency === "daily") {
-            return true;
-          } else if (route.frequency === "weekly") {
-            return daysDiff <= 7;
-          } else {
-            return daysDiff <= 30;
-          }
-        })
-        .filter(({ route }) => {
-          if (!route.maxParcelSize) return true;
-          return SIZE_ORDER[parcel.size] <= SIZE_ORDER[route.maxParcelSize];
-        })
-        .filter(({ route }) => {
-          if (!route.maxWeight || !parcel.weight) return true;
-          return parcel.weight <= route.maxWeight;
-        })
-        .map(({ route, carrier }) => {
-          let score = 100;
-
-          if (route.originLat && route.originLng && parcel.originLat && parcel.originLng) {
-            const originDistance = calculateDistance(
-              route.originLat, route.originLng,
-              parcel.originLat, parcel.originLng
-            );
-            score -= originDistance;
-          }
-
-          return {
-            ...route,
-            carrierName: carrier.name,
-            carrierRating: carrier.rating,
-            matchScore: Math.max(0, Math.round(score)),
-          };
-        })
-        .sort((a, b) => b.matchScore - a.matchScore);
-
-      res.json(matchingRoutes);
-    } catch (error) {
-      console.error("Failed to find matching routes:", error);
-      res.status(500).json({ error: "Failed to find matching routes" });
+      res.status(500).json({ error: "Failed to create review" });
     }
   });
 
@@ -1372,54 +763,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userReviews = await storage.getUserReviews(req.params.userId);
       res.json(userReviews);
     } catch (error) {
-      console.error("Failed to fetch reviews:", error);
-      res.status(500).json({ error: "Failed to fetch reviews" });
-    }
-  });
-
-  app.post("/api/reviews", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const parsed = insertReviewSchema.safeParse({
-        ...req.body,
-        reviewerId: req.user!.uid,
-      });
-      if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.errors });
-      }
-
-      const existing = await storage.getReviewByParcelAndReviewer(
-        parsed.data.parcelId,
-        req.user!.uid
-      );
-      if (existing) {
-        return res.status(409).json({ error: "You have already reviewed this delivery" });
-      }
-
-      const parcel = await storage.getParcel(parsed.data.parcelId);
-      if (!parcel) {
-        return res.status(404).json({ error: "Parcel not found" });
-      }
-      if (parcel.status !== "Delivered") {
-        return res.status(400).json({ error: "Can only review delivered parcels" });
-      }
-
-      const review = await storage.createReview(parsed.data);
-
-      const revieweeTokens = await storage.getUserPushTokens(parsed.data.revieweeId);
-      if (revieweeTokens.length > 0) {
-        const reviewer = await storage.getUser(req.user!.uid);
-        await notificationService.notifyNewReview(
-          parsed.data.revieweeId,
-          reviewer?.name || 'Someone',
-          parsed.data.rating,
-          parsed.data.parcelId
-        );
-      }
-
-      res.status(201).json(review);
-    } catch (error) {
-      console.error("Failed to create review:", error);
-      res.status(500).json({ error: "Failed to create review" });
+      res.status(500).json({ error: "Failed to fetch user reviews" });
     }
   });
 
@@ -1432,434 +776,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.errors });
       }
-
-      const pushToken = await storage.createOrUpdatePushToken(parsed.data);
-      res.status(201).json(pushToken);
+      const token = await storage.createPushToken(parsed.data);
+      res.status(201).json(token);
     } catch (error) {
-      console.error("Failed to save push token:", error);
       res.status(500).json({ error: "Failed to save push token" });
     }
   });
 
-  app.delete("/api/push-tokens/:token", requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post("/api/payments/create-intent", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const deleted = await storage.deletePushToken(req.params.token);
-      if (!deleted) {
-        return res.status(404).json({ error: "Push token not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      console.error("Failed to delete push token:", error);
-      res.status(500).json({ error: "Failed to delete push token" });
-    }
-  });
-
-  // Subscription Management Routes
-  app.get("/api/subscriptions/plans", async (req, res) => {
-    try {
-      res.json({ plans: Object.values(SUBSCRIPTION_PLANS) });
-    } catch (error) {
-      console.error("Failed to fetch subscription plans:", error);
-      res.status(500).json({ error: "Failed to fetch subscription plans" });
-    }
-  });
-
-  app.get("/api/subscriptions/me", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const user = await storage.getUser(req.user!.uid);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
+      const { parcelId, amount } = req.body;
+      if (!parcelId || !amount) {
+        return res.status(400).json({ error: "parcelId and amount are required" });
       }
 
-      const subscription = await storage.getUserSubscription(req.user!.uid);
-      const status = getSubscriptionStatus(user);
-      const plan = getSubscriptionPlan(user.subscriptionTier || "free");
-
-      res.json({
-        subscription,
-        user: {
-          subscriptionTier: user.subscriptionTier,
-          subscriptionStatus: user.subscriptionStatus,
-          monthlyParcelCount: user.monthlyParcelCount,
-          subscriptionEndDate: user.subscriptionEndDate,
-        },
-        status,
-        plan,
+      // For now, we simulate payment intent creation
+      const payment = await storage.createPayment({
+        parcelId,
+        payerId: req.user!.uid,
+        amount,
+        currency: "USD",
+        status: "Pending",
+        stripePaymentIntentId: `pi_${crypto.randomBytes(12).toString('hex')}`,
       });
+
+      res.json(payment);
     } catch (error) {
-      console.error("Failed to fetch subscription:", error);
-      res.status(500).json({ error: "Failed to fetch subscription" });
+      console.error("Failed to create payment intent:", error);
+      res.status(500).json({ error: "Failed to create payment intent" });
     }
+  });
+
+  app.get("/api/subscriptions/plans", (req, res) => {
+    res.json(Object.values(SUBSCRIPTION_PLANS));
   });
 
   app.post("/api/subscriptions/subscribe", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { tier } = req.body;
-
-      if (!tier || !["premium", "business"].includes(tier)) {
-        return res.status(400).json({ error: "Invalid subscription tier" });
+      const { planId } = req.body;
+      const plan = getSubscriptionPlan(planId);
+      
+      if (!plan) {
+        return res.status(400).json({ error: "Invalid subscription plan" });
       }
 
-      const user = await storage.getUser(req.user!.uid);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const plan = getSubscriptionPlan(tier);
-
-      // Initialize Paystack subscription
-      const response = await fetch("https://api.paystack.co/transaction/initialize", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: plan.priceInKobo,
-          email: user.email,
-          plan: plan.paystackPlanCode,
-          metadata: {
-            userId: user.id,
-            subscriptionTier: tier,
-          },
-        }),
-      });
-
-      const data = await response.json();
-      if (!data.status) {
-        throw new Error(data.message || "Failed to initialize subscription");
-      }
-
-      // Create subscription record
+      // In a real app, we would process payment here
       const startDate = new Date();
-      const endDate = new Date(startDate);
+      const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + 1);
 
       const subscription = await storage.createSubscription({
-        userId: user.id,
-        tier,
-        status: "active",
-        amount: plan.price,
-        currency: "NGN",
-        paystackPlanCode: plan.paystackPlanCode,
+        userId: req.user!.uid,
+        planId,
+        status: "Active",
         startDate,
         endDate,
-        nextBillingDate: endDate,
       });
 
-      res.json({
-        ...data.data,
-        subscriptionId: subscription.id,
-      });
-    } catch (error: any) {
-      console.error("Subscription error:", error);
-      res.status(500).json({ error: error.message || "Failed to create subscription" });
-    }
-  });
-
-  app.post("/api/subscriptions/verify/:reference", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const { reference } = req.params;
-
-      const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-        },
+      // Update user subscription info
+      await storage.updateUser(req.user!.uid, {
+        subscriptionStatus: "Active",
+        subscriptionPlan: planId,
+        monthlyParcelLimit: plan.parcelLimit,
       });
 
-      const data = await response.json();
-
-      if (data.status && data.data.status === "success") {
-        const metadata = data.data.metadata;
-        const userId = metadata.userId;
-        const tier = metadata.subscriptionTier;
-
-        // Update user subscription
-        const startDate = new Date();
-        const endDate = new Date(startDate);
-        endDate.setMonth(endDate.getMonth() + 1);
-
-        await storage.updateUser(userId, {
-          subscriptionTier: tier,
-          subscriptionStatus: "active",
-          subscriptionStartDate: startDate,
-          subscriptionEndDate: endDate,
-          paystackCustomerCode: data.data.customer?.customer_code,
-        });
-
-        res.json({
-          success: true,
-          message: "Subscription activated successfully",
-        });
-      } else {
-        res.json({
-          success: false,
-          message: data.message || "Subscription verification failed",
-        });
-      }
-    } catch (error: any) {
-      console.error("Subscription verification error:", error);
-      res.status(500).json({ error: error.message || "Failed to verify subscription" });
-    }
-  });
-
-  app.post("/api/subscriptions/cancel", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const { reason } = req.body;
-
-      const user = await storage.getUser(req.user!.uid);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const subscription = await storage.getUserSubscription(req.user!.uid);
-      if (!subscription) {
-        return res.status(404).json({ error: "No active subscription found" });
-      }
-
-      // Cancel Paystack subscription if exists
-      if (user.paystackSubscriptionCode) {
-        try {
-          const response = await fetch(
-            `https://api.paystack.co/subscription/disable`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                code: user.paystackSubscriptionCode,
-                token: subscription.paystackSubscriptionCode,
-              }),
-            }
-          );
-          const data = await response.json();
-          console.log("Paystack cancellation response:", data);
-        } catch (paystackError) {
-          console.error("Paystack cancellation error:", paystackError);
-        }
-      }
-
-      // Update subscription
-      await storage.updateSubscription(subscription.id, {
-        status: "cancelled",
-        cancelledAt: new Date(),
-        cancellationReason: reason || "User requested cancellation",
-      });
-
-      // Update user - keep subscription tier until end date but mark as cancelled
-      await storage.updateUser(user.id, {
-        subscriptionStatus: "cancelled",
-      });
-
-      res.json({
-        success: true,
-        message: "Subscription cancelled. You can continue using premium features until the end of your billing period.",
-      });
-    } catch (error: any) {
-      console.error("Subscription cancellation error:", error);
-      res.status(500).json({ error: error.message || "Failed to cancel subscription" });
-    }
-  });
-
-  app.post("/api/subscriptions/webhook", async (req, res) => {
-    try {
-      // Verify Paystack webhook signature
-      const secret = process.env.PAYSTACK_SECRET_KEY;
-      if (!secret) {
-        logger.error('PAYSTACK_SECRET_KEY not configured');
-        return res.status(500).json({ error: 'Server configuration error' });
-      }
-
-      const hash = crypto
-        .createHmac("sha512", secret)
-        .update(JSON.stringify(req.body))
-        .digest("hex");
-
-      const signature = req.headers["x-paystack-signature"];
-      
-      if (hash !== signature) {
-        logger.error('Invalid webhook signature', {
-          received: signature,
-          expected: hash.substring(0, 10) + '...',
-        });
-        return res.status(401).json({ error: "Invalid signature" });
-      }
-
-      const event = req.body;
-
-      switch (event.event) {
-        case "subscription.create":
-        case "charge.success":
-          // Handle successful subscription payment
-          if (event.data.metadata?.subscriptionTier) {
-            const userId = event.data.metadata.userId;
-            const tier = event.data.metadata.subscriptionTier;
-
-            const startDate = new Date();
-            const endDate = new Date(startDate);
-            endDate.setMonth(endDate.getMonth() + 1);
-
-            await storage.updateUser(userId, {
-              subscriptionTier: tier,
-              subscriptionStatus: "active",
-              subscriptionStartDate: startDate,
-              subscriptionEndDate: endDate,
-            });
-          }
-          break;
-
-        case "subscription.disable":
-          // Handle subscription cancellation
-          const subscription = await storage.getSubscriptionByPaystackCode(
-            event.data.subscription_code
-          );
-          if (subscription) {
-            await storage.updateSubscription(subscription.id, {
-              status: "cancelled",
-              cancelledAt: new Date(),
-            });
-            await storage.updateUser(subscription.userId, {
-              subscriptionStatus: "cancelled",
-            });
-          }
-          break;
-
-        case "invoice.payment_failed":
-          // Handle failed payment
-          if (event.data.subscription?.subscription_code) {
-            const subscription = await storage.getSubscriptionByPaystackCode(
-              event.data.subscription.subscription_code
-            );
-            if (subscription) {
-              await storage.updateUser(subscription.userId, {
-                subscriptionStatus: "past_due",
-              });
-            }
-          }
-          break;
-      }
-
-      res.sendStatus(200);
+      res.status(201).json(subscription);
     } catch (error) {
-      console.error("Webhook error:", error);
-      res.sendStatus(500);
+      console.error("Failed to create subscription:", error);
+      res.status(500).json({ error: "Failed to create subscription" });
     }
   });
-
-
-  async function checkAndExpireItems() {
-    const now = new Date();
-    
-    try {
-      const capacityFullRoutes = await db
-        .update(routes)
-        .set({ status: "Expired", updatedAt: now })
-        .where(and(
-          eq(routes.status, "Active"),
-          sql`${routes.availableCapacity} IS NOT NULL AND ${routes.capacityUsed} >= ${routes.availableCapacity}`
-        ))
-        .returning();
-      
-      if (capacityFullRoutes.length > 0) {
-        console.log(`Expired ${capacityFullRoutes.length} routes due to full capacity`);
-      }
-      
-      const routesToExpire = await db
-        .select()
-        .from(routes)
-        .where(and(
-          eq(routes.status, "Active"),
-          lte(routes.departureDate, now)
-        ));
-      
-      const expiredRoutes = await db
-        .update(routes)
-        .set({ status: "Expired", updatedAt: now })
-        .where(and(
-          eq(routes.status, "Active"),
-          lte(routes.departureDate, now)
-        ))
-        .returning();
-      
-      for (const expiredRoute of expiredRoutes) {
-        if (expiredRoute.frequency && expiredRoute.frequency !== "one_time") {
-          const shouldCreateNext = !expiredRoute.recurrenceEndDate || 
-            new Date(expiredRoute.recurrenceEndDate) > now;
-          
-          if (shouldCreateNext) {
-            const nextDate = new Date(expiredRoute.departureDate);
-            switch (expiredRoute.frequency) {
-              case "daily":
-                nextDate.setDate(nextDate.getDate() + 1);
-                break;
-              case "weekly":
-                nextDate.setDate(nextDate.getDate() + 7);
-                break;
-              case "monthly":
-                nextDate.setMonth(nextDate.getMonth() + 1);
-                break;
-            }
-            
-            if (!expiredRoute.recurrenceEndDate || nextDate <= new Date(expiredRoute.recurrenceEndDate)) {
-              await db.insert(routes).values({
-                carrierId: expiredRoute.carrierId,
-                origin: expiredRoute.origin,
-                destination: expiredRoute.destination,
-                originLat: expiredRoute.originLat,
-                originLng: expiredRoute.originLng,
-                destinationLat: expiredRoute.destinationLat,
-                destinationLng: expiredRoute.destinationLng,
-                intermediateStops: expiredRoute.intermediateStops,
-                departureDate: nextDate,
-                departureTime: expiredRoute.departureTime,
-                frequency: expiredRoute.frequency,
-                recurrenceEndDate: expiredRoute.recurrenceEndDate,
-                maxParcelSize: expiredRoute.maxParcelSize,
-                maxWeight: expiredRoute.maxWeight,
-                availableCapacity: expiredRoute.availableCapacity,
-                capacityUsed: 0,
-                pricePerKg: expiredRoute.pricePerKg,
-                notes: expiredRoute.notes,
-                parentRouteId: expiredRoute.parentRouteId || expiredRoute.id,
-              });
-              console.log(`Created next occurrence for recurring route ${expiredRoute.id}`);
-            }
-          }
-        }
-      }
-      
-      const expiredParcels = await db
-        .update(parcels)
-        .set({ status: "Expired" })
-        .where(and(
-          eq(parcels.status, "Pending"),
-          lte(parcels.expiresAt, now)
-        ))
-        .returning();
-      
-      if (expiredRoutes.length > 0 || expiredParcels.length > 0) {
-        console.log(`Expiry check: ${expiredRoutes.length} routes, ${expiredParcels.length} parcels expired`);
-      }
-    } catch (error) {
-      console.error("Expiry check failed:", error);
-    }
-  }
-
-  app.post("/api/admin/check-expiry", async (req, res) => {
-    try {
-      await checkAndExpireItems();
-      res.json({ success: true, message: "Expiry check completed" });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to run expiry check" });
-    }
-  });
-
-  checkAndExpireItems();
-  setInterval(checkAndExpireItems, 60 * 60 * 1000);
 
   const httpServer = createServer(app);
+  
+  // Initialize WebSocket
+  wsManager.init(httpServer);
 
   return httpServer;
 }

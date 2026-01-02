@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+<<<<<<< HEAD
 import { getApiUrl } from "@/lib/query-client";
+=======
+import { apiRequest } from "@/lib/query-client";
+import { useWebSocket } from "./useWebSocket";
+>>>>>>> origin/payments
 
 export interface Message {
   id: string;
@@ -29,7 +34,11 @@ export function useConversations() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+<<<<<<< HEAD
   const API_URL = getApiUrl();
+=======
+  const { subscribe } = useWebSocket();
+>>>>>>> origin/payments
 
   const loadConversations = useCallback(async () => {
     if (!user) {
@@ -39,6 +48,7 @@ export function useConversations() {
     }
 
     try {
+<<<<<<< HEAD
       setIsLoading(true);
       const token = await getIdToken();
       
@@ -97,11 +107,74 @@ export function useConversations() {
 
     return () => clearInterval(interval);
   }, [loadConversations]);
+=======
+      const response = await apiRequest('GET', `/api/users/${user.uid}/conversations`);
+      const data = await response.json();
+      
+      setConversations(data);
+      setIsLoading(false);
+    } catch (err) {
+      console.error("Error fetching conversations:", err);
+      setError(err as Error);
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  // Subscribe to new messages via WebSocket
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribe = subscribe('new_message', (payload) => {
+      const message = payload;
+      
+      // Update conversations with new message
+      setConversations(prev => {
+        const convIndex = prev.findIndex(c => c.id === message.conversationId);
+        if (convIndex === -1) {
+          // New conversation, reload
+          loadConversations();
+          return prev;
+        }
+
+        const updated = [...prev];
+        const conv = { ...updated[convIndex] };
+        
+        // Add message to conversation
+        conv.messages = [...(conv.messages || []), {
+          id: message.id,
+          text: message.text,
+          isMe: message.senderId === user.uid,
+          timestamp: new Date(message.createdAt || Date.now()),
+          senderId: message.senderId,
+          conversationId: message.conversationId,
+        }];
+        
+        // Update last message info
+        conv.lastMessage = message.text;
+        conv.lastMessageTime = new Date(message.createdAt || Date.now());
+        
+        updated[convIndex] = conv;
+        
+        // Sort by last message time
+        updated.sort((a, b) => b.lastMessageTime.getTime() - a.lastMessageTime.getTime());
+        
+        return updated;
+      });
+    });
+
+    return () => unsubscribe();
+  }, [user, subscribe, loadConversations]);
+>>>>>>> origin/payments
 
   const addMessage = async (conversationId: string, message: Message) => {
     if (!user) return;
 
     try {
+<<<<<<< HEAD
       const token = await getIdToken();
       
       const response = await fetch(`${API_URL}/api/conversations/${conversationId}/messages`, {
@@ -114,6 +187,39 @@ export function useConversations() {
           text: message.text,
           senderId: user.uid,
         }),
+=======
+      const response = await apiRequest('POST', `/api/conversations/${conversationId}/messages`, {
+        text: message.text,
+        senderId: user.uid,
+      });
+      
+      const newMessage = await response.json();
+      
+      // Optimistically update local state
+      setConversations(prev => {
+        const convIndex = prev.findIndex(c => c.id === conversationId);
+        if (convIndex === -1) return prev;
+
+        const updated = [...prev];
+        const conv = { ...updated[convIndex] };
+        
+        conv.messages = [...(conv.messages || []), {
+          id: newMessage.id,
+          text: newMessage.text,
+          isMe: true,
+          timestamp: new Date(newMessage.createdAt || Date.now()),
+          senderId: user.uid,
+          conversationId,
+        }];
+        
+        conv.lastMessage = newMessage.text;
+        conv.lastMessageTime = new Date(newMessage.createdAt || Date.now());
+        
+        updated[convIndex] = conv;
+        updated.sort((a, b) => b.lastMessageTime.getTime() - a.lastMessageTime.getTime());
+        
+        return updated;
+>>>>>>> origin/payments
       });
 
       if (!response.ok) {
@@ -132,6 +238,7 @@ export function useConversations() {
     if (!user) return null;
 
     try {
+<<<<<<< HEAD
       const token = await getIdToken();
       
       const response = await fetch(`${API_URL}/api/conversations`, {
@@ -154,6 +261,17 @@ export function useConversations() {
       const conversation = await response.json();
       
       // Refresh conversations
+=======
+      const response = await apiRequest('POST', '/api/conversations', {
+        participant1Id: user.uid,
+        participant2Id: otherUserId,
+        parcelId: parcelId || null,
+      });
+      
+      const conversation = await response.json();
+      
+      // Reload conversations to get the new one
+>>>>>>> origin/payments
       await loadConversations();
       
       return conversation.id;
@@ -164,7 +282,11 @@ export function useConversations() {
   };
 
   const markAsRead = (conversationId: string) => {
+<<<<<<< HEAD
     // Future implementation for marking messages as read
+=======
+    // TODO: Implement mark as read functionality
+>>>>>>> origin/payments
   };
 
   return {

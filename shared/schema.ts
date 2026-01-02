@@ -39,6 +39,7 @@ export const parcels = pgTable("parcels", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
+  trackingCode: varchar("tracking_code").unique(),
   origin: text("origin").notNull(),
   destination: text("destination").notNull(),
   originLat: real("origin_lat"),

@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import compression from "compression";
 import logger from "./logger";
+import { wsManager } from "./websocket";
 
 const app = express();
 const log = logger.info.bind(logger);
@@ -304,6 +305,9 @@ function setupErrorHandler(app: express.Application) {
   configureExpoAndLanding(app);
 
   const server = await registerRoutes(app);
+  
+  // Initialize WebSocket server
+  wsManager.initialize(server);
 
   setupErrorHandler(app);
 

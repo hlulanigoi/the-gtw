@@ -5,12 +5,14 @@ import CreateParcelScreen from "@/screens/CreateParcelScreen";
 import RouteFilterScreen from "@/screens/RouteFilterScreen";
 import PaymentScreen from "@/screens/PaymentScreen";
 import PaymentHistoryScreen from "@/screens/PaymentHistoryScreen";
+import ScanScreen from "@/screens/ScanScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type RootStackParamList = {
   Main: undefined;
   CreateParcel: undefined;
   RouteFilter: undefined;
+  Scan: undefined;
   Payment: {
     authorizationUrl: string;
     reference: string;
@@ -45,6 +47,14 @@ export default function RootStackNavigator() {
         options={{
           presentation: "modal",
           headerTitle: "Filter Routes",
+        }}
+      />
+      <Stack.Screen
+        name="Scan"
+        component={ScanScreen}
+        options={{
+          presentation: "fullScreenModal",
+          headerShown: false,
         }}
       />
       <Stack.Screen

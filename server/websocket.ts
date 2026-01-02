@@ -1,9 +1,9 @@
-import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocketServer, WebSocket as WSWebSocket } from 'ws';
 import type { Server } from 'http';
 import { IncomingMessage } from 'http';
 import logger from './logger';
 
-interface AuthenticatedWebSocket extends WebSocket {
+interface AuthenticatedWebSocket extends WSWebSocket {
   userId?: string;
   isAlive?: boolean;
 }

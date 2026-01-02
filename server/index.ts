@@ -307,7 +307,7 @@ function setupErrorHandler(app: express.Application) {
   const server = await registerRoutes(app);
   
   // Initialize WebSocket server
-  wsManager.initialize(server);
+  wsManager.init(server);
 
   setupErrorHandler(app);
 

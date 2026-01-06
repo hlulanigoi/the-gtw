@@ -12,8 +12,9 @@ export const paymentStatusEnum = pgEnum("payment_status", ["pending", "success",
 export const userRoleEnum = pgEnum("user_role", ["user", "admin"]);
 export const subscriptionTierEnum = pgEnum("subscription_tier", ["free", "premium", "business"]);
 export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "cancelled", "expired", "past_due"]);
-export const transactionTypeEnum = pgEnum("transaction_type", ["credit", "debit"]);
-export const transactionStatusEnum = pgEnum("transaction_status", ["pending", "completed", "failed"]);
+export const insuranceTierEnum = pgEnum("insurance_tier", ["none", "basic", "standard", "premium"]);
+export const disputeStatusEnum = pgEnum("dispute_status", ["open", "in_review", "resolved", "closed"]);
+export const walletTransactionTypeEnum = pgEnum("wallet_transaction_type", ["credit", "debit", "refund", "topup"]);
 
 export const users = pgTable("users", {
   id: varchar("id")
@@ -34,6 +35,7 @@ export const users = pgTable("users", {
   paystackSubscriptionCode: text("paystack_subscription_code"),
   monthlyParcelCount: integer("monthly_parcel_count").default(0),
   lastParcelResetDate: timestamp("last_parcel_reset_date").defaultNow(),
+  walletBalance: integer("wallet_balance").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -61,6 +63,9 @@ export const parcels = pgTable("parcels", {
   expiresAt: timestamp("expires_at"),
   declaredValue: integer("declared_value"),
   insuranceNeeded: boolean("insurance_needed").default(false),
+  insuranceTier: insuranceTierEnum("insurance_tier").default("none"),
+  insuranceFee: integer("insurance_fee").default(0),
+  insuranceCoverage: integer("insurance_coverage").default(0),
   contactPhone: text("contact_phone"),
   status: parcelStatusEnum("status").default("Pending"),
   senderId: varchar("sender_id").notNull().references(() => users.id),
@@ -72,6 +77,13 @@ export const parcels = pgTable("parcels", {
   receiverLat: real("receiver_lat"),
   receiverLng: real("receiver_lng"),
   receiverLocationUpdatedAt: timestamp("receiver_location_updated_at"),
+  pickupPhotoUrl: text("pickup_photo_url"),
+  deliveryPhotoUrl: text("delivery_photo_url"),
+  pickupPhotoTimestamp: timestamp("pickup_photo_timestamp"),
+  deliveryPhotoTimestamp: timestamp("delivery_photo_timestamp"),
+  currentLat: real("current_lat"),
+  currentLng: real("current_lng"),
+  lastLocationUpdate: timestamp("last_location_update"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -276,32 +288,80 @@ export const subscriptions = pgTable("subscriptions", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const wallets = pgTable("wallets", {
+export const locationHistory = pgTable("location_history", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id).unique(),
-  balance: integer("balance").default(0).notNull(),
-  currency: text("currency").default("NGN").notNull(),
+  parcelId: varchar("parcel_id").notNull().references(() => parcels.id),
+  transporterId: varchar("transporter_id").notNull().references(() => users.id),
+  latitude: real("latitude").notNull(),
+  longitude: real("longitude").notNull(),
+  accuracy: real("accuracy"),
+  speed: real("speed"),
+  heading: real("heading"),
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const walletTransactions = pgTable("wallet_transactions", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  walletId: varchar("wallet_id").notNull().references(() => wallets.id),
   userId: varchar("user_id").notNull().references(() => users.id),
-  type: transactionTypeEnum("type").notNull(),
   amount: integer("amount").notNull(),
+  type: walletTransactionTypeEnum("type").notNull(),
+  balanceBefore: integer("balance_before").notNull(),
   balanceAfter: integer("balance_after").notNull(),
-  status: transactionStatusEnum("status").default("completed").notNull(),
-  description: text("description").notNull(),
+  description: text("description"),
   reference: text("reference"),
   parcelId: varchar("parcel_id").references(() => parcels.id),
   paystackReference: text("paystack_reference"),
   metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const disputes = pgTable("disputes", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  parcelId: varchar("parcel_id").notNull().references(() => parcels.id),
+  complainantId: varchar("complainant_id").notNull().references(() => users.id),
+  respondentId: varchar("respondent_id").notNull().references(() => users.id),
+  subject: text("subject").notNull(),
+  description: text("description").notNull(),
+  status: disputeStatusEnum("status").default("open"),
+  resolution: text("resolution"),
+  refundAmount: integer("refund_amount"),
+  refundedToWallet: boolean("refunded_to_wallet").default(false),
+  adminId: varchar("admin_id").references(() => users.id),
+  resolvedAt: timestamp("resolved_at"),
+  autoCloseAt: timestamp("auto_close_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const disputeMessages = pgTable("dispute_messages", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  disputeId: varchar("dispute_id").notNull().references(() => disputes.id),
+  senderId: varchar("sender_id").notNull().references(() => users.id),
+  message: text("message").notNull(),
+  attachmentUrl: text("attachment_url"),
+  isAdminMessage: boolean("is_admin_message").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const parcelPhotos = pgTable("parcel_photos", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  parcelId: varchar("parcel_id").notNull().references(() => parcels.id),
+  uploadedBy: varchar("uploaded_by").notNull().references(() => users.id),
+  photoUrl: text("photo_url").notNull(),
+  photoType: text("photo_type").notNull(), // "parcel", "pickup", "delivery"
+  caption: text("caption"),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -354,19 +414,18 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
   }),
 }));
 
-export const walletsRelations = relations(wallets, ({ one, many }) => ({
-  user: one(users, {
-    fields: [wallets.userId],
+export const locationHistoryRelations = relations(locationHistory, ({ one }) => ({
+  parcel: one(parcels, {
+    fields: [locationHistory.parcelId],
+    references: [parcels.id],
+  }),
+  transporter: one(users, {
+    fields: [locationHistory.transporterId],
     references: [users.id],
   }),
-  transactions: many(walletTransactions),
 }));
 
 export const walletTransactionsRelations = relations(walletTransactions, ({ one }) => ({
-  wallet: one(wallets, {
-    fields: [walletTransactions.walletId],
-    references: [wallets.id],
-  }),
   user: one(users, {
     fields: [walletTransactions.userId],
     references: [users.id],
@@ -374,6 +433,51 @@ export const walletTransactionsRelations = relations(walletTransactions, ({ one 
   parcel: one(parcels, {
     fields: [walletTransactions.parcelId],
     references: [parcels.id],
+  }),
+}));
+
+export const disputesRelations = relations(disputes, ({ one, many }) => ({
+  parcel: one(parcels, {
+    fields: [disputes.parcelId],
+    references: [parcels.id],
+  }),
+  complainant: one(users, {
+    fields: [disputes.complainantId],
+    references: [users.id],
+    relationName: "disputesAsComplainant",
+  }),
+  respondent: one(users, {
+    fields: [disputes.respondentId],
+    references: [users.id],
+    relationName: "disputesAsRespondent",
+  }),
+  admin: one(users, {
+    fields: [disputes.adminId],
+    references: [users.id],
+    relationName: "disputesAsAdmin",
+  }),
+  messages: many(disputeMessages),
+}));
+
+export const disputeMessagesRelations = relations(disputeMessages, ({ one }) => ({
+  dispute: one(disputes, {
+    fields: [disputeMessages.disputeId],
+    references: [disputes.id],
+  }),
+  sender: one(users, {
+    fields: [disputeMessages.senderId],
+    references: [users.id],
+  }),
+}));
+
+export const parcelPhotosRelations = relations(parcelPhotos, ({ one }) => ({
+  parcel: one(parcels, {
+    fields: [parcelPhotos.parcelId],
+    references: [parcels.id],
+  }),
+  uploader: one(users, {
+    fields: [parcelPhotos.uploadedBy],
+    references: [users.id],
   }),
 }));
 
@@ -428,10 +532,20 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
   updatedAt: true,
 });
 
-export const insertWalletSchema = createInsertSchema(wallets).omit({
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type Payment = typeof payments.$inferSelect;
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type Subscription = typeof subscriptions.$inferSelect;
+
+export const insertPushTokenSchema = createInsertSchema(pushTokens).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertLocationHistorySchema = createInsertSchema(locationHistory).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const insertWalletTransactionSchema = createInsertSchema(walletTransactions).omit({
@@ -439,19 +553,21 @@ export const insertWalletTransactionSchema = createInsertSchema(walletTransactio
   createdAt: true,
 });
 
-export type InsertPayment = z.infer<typeof insertPaymentSchema>;
-export type Payment = typeof payments.$inferSelect;
-export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
-export type Subscription = typeof subscriptions.$inferSelect;
-export type InsertWallet = z.infer<typeof insertWalletSchema>;
-export type Wallet = typeof wallets.$inferSelect;
-export type InsertWalletTransaction = z.infer<typeof insertWalletTransactionSchema>;
-export type WalletTransaction = typeof walletTransactions.$inferSelect;
-
-export const insertPushTokenSchema = createInsertSchema(pushTokens).omit({
+export const insertDisputeSchema = createInsertSchema(disputes).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  status: true,
+});
+
+export const insertDisputeMessageSchema = createInsertSchema(disputeMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertParcelPhotoSchema = createInsertSchema(parcelPhotos).omit({
+  id: true,
+  createdAt: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -470,3 +586,13 @@ export type InsertReview = z.infer<typeof insertReviewSchema>;
 export type Review = typeof reviews.$inferSelect;
 export type InsertPushToken = z.infer<typeof insertPushTokenSchema>;
 export type PushToken = typeof pushTokens.$inferSelect;
+export type InsertLocationHistory = z.infer<typeof insertLocationHistorySchema>;
+export type LocationHistory = typeof locationHistory.$inferSelect;
+export type InsertWalletTransaction = z.infer<typeof insertWalletTransactionSchema>;
+export type WalletTransaction = typeof walletTransactions.$inferSelect;
+export type InsertDispute = z.infer<typeof insertDisputeSchema>;
+export type Dispute = typeof disputes.$inferSelect;
+export type InsertDisputeMessage = z.infer<typeof insertDisputeMessageSchema>;
+export type DisputeMessage = typeof disputeMessages.$inferSelect;
+export type InsertParcelPhoto = z.infer<typeof insertParcelPhotoSchema>;
+export type ParcelPhoto = typeof parcelPhotos.$inferSelect;

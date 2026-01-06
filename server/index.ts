@@ -7,8 +7,6 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import compression from "compression";
 import logger from "./logger";
-import { initializeSentry, Sentry } from "./sentry";
-import { getMetrics, getReadiness, getLiveness } from "./metrics";
 
 const app = express();
 const log = logger.info.bind(logger);
@@ -264,20 +262,11 @@ function setupErrorHandler(app: express.Application) {
 }
 
 (async () => {
-  // Initialize Sentry (optional, only if DSN provided)
-  initializeSentry();
-
   // Security headers
   app.use(helmet({
     contentSecurityPolicy: false, // Allow Expo and admin dashboard
     crossOriginEmbedderPolicy: false,
   }));
-
-  // Sentry request handler (must be first)
-  if (process.env.SENTRY_DSN) {
-    app.use(Sentry.Handlers.requestHandler());
-    app.use(Sentry.Handlers.tracingHandler());
-  }
 
   // Compression
   app.use(compression());
@@ -312,19 +301,9 @@ function setupErrorHandler(app: express.Application) {
   
   setupRequestLogging(app);
 
-  // Monitoring endpoints (before auth)
-  app.get('/metrics', getMetrics);
-  app.get('/readiness', getReadiness);
-  app.get('/liveness', getLiveness);
-
   configureExpoAndLanding(app);
 
   const server = await registerRoutes(app);
-
-  // Sentry error handler (must be before other error handlers)
-  if (process.env.SENTRY_DSN) {
-    app.use(Sentry.Handlers.errorHandler());
-  }
 
   setupErrorHandler(app);
 

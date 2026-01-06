@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { storage, db } from "./storage";
-import { users, parcels, conversations, messages, connections, routes, reviews, pushTokens, payments, subscriptions, wallets, walletTransactions, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema, insertReviewSchema, insertPushTokenSchema } from "@shared/schema";
+import { users, parcels, conversations, messages, connections, routes, reviews, pushTokens, payments, subscriptions, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema, insertReviewSchema, insertPushTokenSchema } from "@shared/schema";
 import { eq, desc, and, gte, lte, ne, sql } from "drizzle-orm";
 import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./firebase-admin";
 import { registerAdminRoutes } from "./admin-routes";
@@ -37,133 +37,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       status: isHealthy ? 'healthy' : 'unhealthy',
       checks,
     });
-  });
-
-  // Run wallet migration on first request
-  app.post("/api/admin/run-wallet-migration", async (req, res) => {
-    try {
-      await storage.runWalletMigration();
-      res.json({ success: true, message: "Wallet migration completed" });
-    } catch (error: any) {
-      console.error("Migration error:", error);
-      res.status(500).json({ error: error.message || "Migration failed" });
-    }
-  });
-
-  // Wallet Routes
-  app.get("/api/wallet", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const wallet = await storage.getOrCreateWallet(req.user!.uid);
-      res.json(wallet);
-    } catch (error) {
-      console.error("Failed to fetch wallet:", error);
-      res.status(500).json({ error: "Failed to fetch wallet" });
-    }
-  });
-
-  app.get("/api/wallet/transactions", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
-      const transactions = await storage.getWalletTransactions(req.user!.uid, limit);
-      res.json(transactions);
-    } catch (error) {
-      console.error("Failed to fetch transactions:", error);
-      res.status(500).json({ error: "Failed to fetch transactions" });
-    }
-  });
-
-  app.post("/api/wallet/add-funds/initialize", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const { amount } = req.body;
-
-      if (!amount || amount <= 0) {
-        return res.status(400).json({ error: "Invalid amount" });
-      }
-
-      const user = await storage.getUser(req.user!.uid);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const response = await fetch("https://api.paystack.co/transaction/initialize", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: Math.round(amount * 100), // Convert to kobo
-          email: user.email,
-          metadata: {
-            userId: req.user!.uid,
-            purpose: 'wallet_funding',
-            amount,
-          },
-        }),
-      });
-
-      const data = await response.json();
-      if (!data.status) {
-        throw new Error(data.message || "Failed to initialize payment");
-      }
-
-      res.json({
-        ...data.data,
-        amount,
-      });
-    } catch (error: any) {
-      console.error("Wallet funding initialization error:", error);
-      res.status(500).json({ error: error.message || "Failed to initialize payment" });
-    }
-  });
-
-  app.post("/api/wallet/add-funds/verify", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const { reference } = req.body;
-
-      if (!reference) {
-        return res.status(400).json({ error: "Reference is required" });
-      }
-
-      const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (data.status && data.data.status === "success") {
-        const metadata = data.data.metadata;
-        const amount = Math.floor(data.data.amount / 100); // Convert from kobo to naira
-
-        const result = await storage.creditWallet(
-          req.user!.uid,
-          amount,
-          'Wallet funding via Paystack',
-          reference
-        );
-
-        if (result.success) {
-          res.json({
-            success: true,
-            wallet: result.wallet,
-            transaction: result.transaction,
-            message: "Wallet funded successfully",
-          });
-        } else {
-          res.status(500).json({ error: result.error || "Failed to credit wallet" });
-        }
-      } else {
-        res.json({
-          success: false,
-          message: data.message || "Payment verification failed",
-        });
-      }
-    } catch (error: any) {
-      console.error("Wallet funding verification error:", error);
-      res.status(500).json({ error: error.message || "Failed to verify payment" });
-    }
   });
 
   // Register admin routes
@@ -305,63 +178,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (geoError) {
         console.warn("Geocoding failed, continuing without coordinates:", geoError);
       }
-
-      // Check payment method
-      const { paymentMethod } = req.body;
-      const compensation = parcelData.compensation || 0;
-
-      if (paymentMethod === 'wallet') {
-        // Try to pay from wallet
-        const wallet = await storage.getOrCreateWallet(req.user!.uid);
-        
-        if (wallet.balance < compensation) {
-          return res.status(402).json({ 
-            error: "Insufficient wallet balance",
-            required: compensation,
-            available: wallet.balance,
-            paymentRequired: true
-          });
-        }
-
-        // Create parcel first
-        const parcel = await storage.createParcel(parcelData);
-        
-        // Deduct from wallet
-        const debitResult = await storage.debitWallet(
-          req.user!.uid,
-          compensation,
-          `Payment for parcel ${parcel.id}`,
-          parcel.id
-        );
-
-        if (!debitResult.success) {
-          // Rollback - delete parcel
-          await storage.deleteParcel(parcel.id);
-          return res.status(500).json({ error: debitResult.error || "Payment failed" });
-        }
-
-        // Increment parcel count
-        await storage.incrementParcelCount(user.id);
-
-        return res.status(201).json({
-          ...parcel,
-          paidFromWallet: true,
-          walletBalance: debitResult.wallet?.balance,
-        });
-      } else {
-        // Payment via Paystack or no payment method specified
-        // Just create the parcel without payment
-        const parcel = await storage.createParcel(parcelData);
-        
-        // Increment parcel count for the user
-        await storage.incrementParcelCount(user.id);
-        
-        return res.status(201).json({
-          ...parcel,
-          paymentRequired: true,
-          amount: compensation,
-        });
-      }
+      
+      const parcel = await storage.createParcel(parcelData);
+      
+      // Increment parcel count for the user
+      await storage.incrementParcelCount(user.id);
+      
+      res.status(201).json(parcel);
     } catch (error) {
       console.error("Failed to create parcel:", error);
       res.status(500).json({ error: "Failed to create parcel" });
@@ -1657,6 +1480,468 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Expiry check failed:", error);
     }
   }
+
+  // ============ PHOTO VERIFICATION ROUTES ============
+  app.post("/api/parcels/:id/photos/upload", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const { photoData, photoType, caption, latitude, longitude } = req.body;
+
+      if (!photoData || !photoType) {
+        return res.status(400).json({ error: "Photo data and type are required" });
+      }
+
+      const parcel = await storage.getParcel(id);
+      if (!parcel) {
+        return res.status(404).json({ error: "Parcel not found" });
+      }
+
+      // Verify user is authorized
+      if (
+        parcel.senderId !== req.user!.uid &&
+        parcel.transporterId !== req.user!.uid
+      ) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      // Upload photo to Firebase Storage
+      const { uploadPhoto } = await import("./firebase-storage");
+      const uploadResult = await uploadPhoto(photoData, `parcels/${id}/${photoType}`);
+
+      // Save photo record
+      const photo = await storage.createParcelPhoto({
+        parcelId: id,
+        uploadedBy: req.user!.uid,
+        photoUrl: uploadResult.url,
+        photoType,
+        caption: caption || null,
+        latitude: latitude || null,
+        longitude: longitude || null,
+      });
+
+      // Update parcel with photo URL if it's pickup or delivery photo
+      if (photoType === "pickup") {
+        await storage.updateParcel(id, {
+          pickupPhotoUrl: uploadResult.url,
+          pickupPhotoTimestamp: new Date(),
+        });
+      } else if (photoType === "delivery") {
+        await storage.updateParcel(id, {
+          deliveryPhotoUrl: uploadResult.url,
+          deliveryPhotoTimestamp: new Date(),
+          status: "Delivered",
+        });
+      }
+
+      res.json(photo);
+    } catch (error) {
+      console.error("Photo upload error:", error);
+      res.status(500).json({ error: "Failed to upload photo" });
+    }
+  });
+
+  app.get("/api/parcels/:id/photos", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { type } = req.query;
+
+      let photos;
+      if (type) {
+        photos = await storage.getParcelPhotosByType(id, type as string);
+      } else {
+        photos = await storage.getParcelPhotos(id);
+      }
+
+      res.json(photos);
+    } catch (error) {
+      console.error("Failed to fetch photos:", error);
+      res.status(500).json({ error: "Failed to fetch photos" });
+    }
+  });
+
+  // ============ REAL-TIME TRACKING ROUTES ============
+  app.post("/api/parcels/:id/location", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const { latitude, longitude, accuracy, speed, heading } = req.body;
+
+      if (!latitude || !longitude) {
+        return res.status(400).json({ error: "Latitude and longitude are required" });
+      }
+
+      const parcel = await storage.getParcel(id);
+      if (!parcel) {
+        return res.status(404).json({ error: "Parcel not found" });
+      }
+
+      // Only transporter can update location
+      if (parcel.transporterId !== req.user!.uid) {
+        return res.status(403).json({ error: "Only the transporter can update location" });
+      }
+
+      // Verify parcel is in transit
+      if (parcel.status !== "In Transit") {
+        return res.status(400).json({ error: "Parcel must be in transit to update location" });
+      }
+
+      // Save location history
+      const locationRecord = await storage.createLocationHistory({
+        parcelId: id,
+        transporterId: req.user!.uid,
+        latitude,
+        longitude,
+        accuracy: accuracy || null,
+        speed: speed || null,
+        heading: heading || null,
+      });
+
+      // Update parcel's current location
+      await storage.updateParcel(id, {
+        currentLat: latitude,
+        currentLng: longitude,
+        lastLocationUpdate: new Date(),
+      });
+
+      res.json(locationRecord);
+    } catch (error) {
+      console.error("Location update error:", error);
+      res.status(500).json({ error: "Failed to update location" });
+    }
+  });
+
+  app.get("/api/parcels/:id/location/history", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const limit = parseInt(req.query.limit as string) || 50;
+
+      const history = await storage.getParcelLocationHistory(id, limit);
+      res.json(history);
+    } catch (error) {
+      console.error("Failed to fetch location history:", error);
+      res.status(500).json({ error: "Failed to fetch location history" });
+    }
+  });
+
+  app.get("/api/parcels/:id/location/current", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const location = await storage.getLatestLocation(id);
+      
+      if (!location) {
+        return res.status(404).json({ error: "No location data available" });
+      }
+
+      res.json(location);
+    } catch (error) {
+      console.error("Failed to fetch current location:", error);
+      res.status(500).json({ error: "Failed to fetch current location" });
+    }
+  });
+
+  // ============ WALLET ROUTES ============
+  app.get("/api/wallet/balance", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const user = await storage.getUser(req.user!.uid);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({ balance: user.walletBalance || 0 });
+    } catch (error) {
+      console.error("Failed to fetch wallet balance:", error);
+      res.status(500).json({ error: "Failed to fetch wallet balance" });
+    }
+  });
+
+  app.get("/api/wallet/transactions", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const transactions = await storage.getUserWalletTransactions(req.user!.uid, limit);
+      res.json(transactions);
+    } catch (error) {
+      console.error("Failed to fetch transactions:", error);
+      res.status(500).json({ error: "Failed to fetch transactions" });
+    }
+  });
+
+  app.post("/api/wallet/topup", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { amount } = req.body;
+
+      if (!amount || amount < 50000) { // Minimum ₦500
+        return res.status(400).json({ error: "Minimum top-up amount is ₦500" });
+      }
+
+      const user = await storage.getUser(req.user!.uid);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Initialize Paystack payment
+      const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+      if (!paystackSecretKey) {
+        return res.status(500).json({ error: "Payment service not configured" });
+      }
+
+      const reference = `wallet_topup_${Date.now()}_${req.user!.uid}`;
+
+      const response = await fetch("https://api.paystack.co/transaction/initialize", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${paystackSecretKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: user.email,
+          amount: amount,
+          reference: reference,
+          metadata: {
+            userId: user.id,
+            type: "wallet_topup",
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.status) {
+        return res.status(400).json({ error: data.message || "Payment initialization failed" });
+      }
+
+      res.json({
+        authorizationUrl: data.data.authorization_url,
+        accessCode: data.data.access_code,
+        reference: data.data.reference,
+      });
+    } catch (error) {
+      console.error("Wallet top-up error:", error);
+      res.status(500).json({ error: "Failed to initialize top-up" });
+    }
+  });
+
+  app.post("/api/wallet/topup/verify/:reference", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { reference } = req.params;
+
+      // Check if already processed
+      const existing = await storage.getWalletTransactionByPaystackReference(reference);
+      if (existing) {
+        return res.json({ message: "Top-up already processed", transaction: existing });
+      }
+
+      // Verify with Paystack
+      const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+      const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+        headers: {
+          Authorization: `Bearer ${paystackSecretKey}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!data.status || data.data.status !== "success") {
+        return res.status(400).json({ error: "Payment verification failed" });
+      }
+
+      const user = await storage.getUser(req.user!.uid);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const amount = data.data.amount;
+      const currentBalance = user.walletBalance || 0;
+      const newBalance = currentBalance + amount;
+
+      // Create wallet transaction
+      const transaction = await storage.createWalletTransaction({
+        userId: user.id,
+        amount: amount,
+        type: "topup",
+        balanceBefore: currentBalance,
+        balanceAfter: newBalance,
+        description: "Wallet top-up",
+        reference: reference,
+        paystackReference: reference,
+      });
+
+      res.json({ message: "Top-up successful", transaction, balance: newBalance });
+    } catch (error) {
+      console.error("Top-up verification error:", error);
+      res.status(500).json({ error: "Failed to verify top-up" });
+    }
+  });
+
+  // ============ INSURANCE ROUTES ============
+  app.get("/api/insurance/tiers", async (req, res) => {
+    try {
+      const { INSURANCE_TIERS } = await import("./insurance-utils");
+      res.json(INSURANCE_TIERS);
+    } catch (error) {
+      console.error("Failed to fetch insurance tiers:", error);
+      res.status(500).json({ error: "Failed to fetch insurance tiers" });
+    }
+  });
+
+  app.post("/api/insurance/calculate", async (req, res) => {
+    try {
+      const { declaredValue } = req.body;
+
+      if (!declaredValue || declaredValue <= 0) {
+        return res.status(400).json({ error: "Valid declared value is required" });
+      }
+
+      const { calculateInsurance } = await import("./insurance-utils");
+      const result = calculateInsurance(declaredValue);
+
+      res.json(result);
+    } catch (error) {
+      console.error("Insurance calculation error:", error);
+      res.status(500).json({ error: "Failed to calculate insurance" });
+    }
+  });
+
+  // ============ DISPUTE ROUTES ============
+  app.post("/api/disputes", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { parcelId, respondentId, subject, description } = req.body;
+
+      if (!parcelId || !respondentId || !subject || !description) {
+        return res.status(400).json({ error: "All fields are required" });
+      }
+
+      const parcel = await storage.getParcel(parcelId);
+      if (!parcel) {
+        return res.status(404).json({ error: "Parcel not found" });
+      }
+
+      // Verify user is involved in the parcel
+      if (
+        parcel.senderId !== req.user!.uid &&
+        parcel.transporterId !== req.user!.uid
+      ) {
+        return res.status(403).json({ error: "You must be involved in this parcel to create a dispute" });
+      }
+
+      const dispute = await storage.createDispute({
+        parcelId,
+        complainantId: req.user!.uid,
+        respondentId,
+        subject,
+        description,
+      });
+
+      res.json(dispute);
+    } catch (error) {
+      console.error("Dispute creation error:", error);
+      res.status(500).json({ error: "Failed to create dispute" });
+    }
+  });
+
+  app.get("/api/disputes/me", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const disputes = await storage.getUserDisputes(req.user!.uid);
+      res.json(disputes);
+    } catch (error) {
+      console.error("Failed to fetch disputes:", error);
+      res.status(500).json({ error: "Failed to fetch disputes" });
+    }
+  });
+
+  app.get("/api/disputes/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const dispute = await storage.getDispute(id);
+
+      if (!dispute) {
+        return res.status(404).json({ error: "Dispute not found" });
+      }
+
+      // Verify user is involved
+      if (
+        dispute.complainantId !== req.user!.uid &&
+        dispute.respondentId !== req.user!.uid
+      ) {
+        const user = await storage.getUser(req.user!.uid);
+        if (user?.role !== "admin") {
+          return res.status(403).json({ error: "Not authorized" });
+        }
+      }
+
+      res.json(dispute);
+    } catch (error) {
+      console.error("Failed to fetch dispute:", error);
+      res.status(500).json({ error: "Failed to fetch dispute" });
+    }
+  });
+
+  app.get("/api/disputes/:id/messages", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const dispute = await storage.getDispute(id);
+
+      if (!dispute) {
+        return res.status(404).json({ error: "Dispute not found" });
+      }
+
+      // Verify user is involved
+      if (
+        dispute.complainantId !== req.user!.uid &&
+        dispute.respondentId !== req.user!.uid
+      ) {
+        const user = await storage.getUser(req.user!.uid);
+        if (user?.role !== "admin") {
+          return res.status(403).json({ error: "Not authorized" });
+        }
+      }
+
+      const messages = await storage.getDisputeMessages(id);
+      res.json(messages);
+    } catch (error) {
+      console.error("Failed to fetch dispute messages:", error);
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  app.post("/api/disputes/:id/messages", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const { message, attachmentUrl } = req.body;
+
+      if (!message) {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      const dispute = await storage.getDispute(id);
+      if (!dispute) {
+        return res.status(404).json({ error: "Dispute not found" });
+      }
+
+      // Verify user is involved
+      const user = await storage.getUser(req.user!.uid);
+      const isAdmin = user?.role === "admin";
+      
+      if (
+        !isAdmin &&
+        dispute.complainantId !== req.user!.uid &&
+        dispute.respondentId !== req.user!.uid
+      ) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const disputeMessage = await storage.createDisputeMessage({
+        disputeId: id,
+        senderId: req.user!.uid,
+        message,
+        attachmentUrl: attachmentUrl || null,
+        isAdminMessage: isAdmin,
+      });
+
+      res.json(disputeMessage);
+    } catch (error) {
+      console.error("Failed to send dispute message:", error);
+      res.status(500).json({ error: "Failed to send message" });
+    }
+  });
 
   app.post("/api/admin/check-expiry", async (req, res) => {
     try {

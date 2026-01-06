@@ -1,4 +1,4 @@
-import { eq, or, and, desc, avg, sql } from "drizzle-orm";
+import { eq, or, and, desc, avg, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import {
@@ -12,8 +12,11 @@ import {
   type PushToken, type InsertPushToken, pushTokens,
   type Payment, type InsertPayment, payments,
   type Subscription, type InsertSubscription, subscriptions,
-  type Wallet, type InsertWallet, wallets,
+  type LocationHistory, type InsertLocationHistory, locationHistory,
   type WalletTransaction, type InsertWalletTransaction, walletTransactions,
+  type Dispute, type InsertDispute, disputes,
+  type DisputeMessage, type InsertDisputeMessage, disputeMessages,
+  type ParcelPhoto, type InsertParcelPhoto, parcelPhotos,
 } from "@shared/schema";
 
 // Database connection pool with production-ready configuration
@@ -424,40 +427,56 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  // Wallet Operations
-  async getWallet(userId: string): Promise<Wallet | undefined> {
-    const result = await db.select().from(wallets).where(eq(wallets.userId, userId));
+  // Location History Methods
+  async createLocationHistory(insertLocationHistory: InsertLocationHistory): Promise<LocationHistory> {
+    const result = await db.insert(locationHistory).values(insertLocationHistory).returning();
     return result[0];
   }
 
-  async createWallet(insertWallet: InsertWallet): Promise<Wallet> {
-    const result = await db.insert(wallets).values(insertWallet).returning();
-    return result[0];
+  async getParcelLocationHistory(parcelId: string, limit: number = 50): Promise<LocationHistory[]> {
+    return await db
+      .select()
+      .from(locationHistory)
+      .where(eq(locationHistory.parcelId, parcelId))
+      .orderBy(desc(locationHistory.createdAt))
+      .limit(limit);
   }
 
-  async getOrCreateWallet(userId: string): Promise<Wallet> {
-    let wallet = await this.getWallet(userId);
-    if (!wallet) {
-      wallet = await this.createWallet({ userId, balance: 0, currency: 'NGN' });
-    }
-    return wallet;
-  }
-
-  async updateWalletBalance(walletId: string, newBalance: number): Promise<Wallet | undefined> {
+  async getLatestLocation(parcelId: string): Promise<LocationHistory | undefined> {
     const result = await db
-      .update(wallets)
-      .set({ balance: newBalance, updatedAt: new Date() })
-      .where(eq(wallets.id, walletId))
+      .select()
+      .from(locationHistory)
+      .where(eq(locationHistory.parcelId, parcelId))
+      .orderBy(desc(locationHistory.createdAt))
+      .limit(1);
+    return result[0];
+  }
+
+  async deleteOldLocationHistory(daysOld: number = 7): Promise<number> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+    
+    const result = await db
+      .delete(locationHistory)
+      .where(gte(locationHistory.createdAt, cutoffDate))
       .returning();
+    return result.length;
+  }
+
+  // Wallet Transaction Methods
+  async createWalletTransaction(insertTransaction: InsertWalletTransaction): Promise<WalletTransaction> {
+    const result = await db.insert(walletTransactions).values(insertTransaction).returning();
+    
+    // Update user's wallet balance
+    await db
+      .update(users)
+      .set({ walletBalance: insertTransaction.balanceAfter })
+      .where(eq(users.id, insertTransaction.userId));
+    
     return result[0];
   }
 
-  async createWalletTransaction(transaction: InsertWalletTransaction): Promise<WalletTransaction> {
-    const result = await db.insert(walletTransactions).values(transaction).returning();
-    return result[0];
-  }
-
-  async getWalletTransactions(userId: string, limit: number = 50): Promise<WalletTransaction[]> {
+  async getUserWalletTransactions(userId: string, limit: number = 50): Promise<WalletTransaction[]> {
     return await db
       .select()
       .from(walletTransactions)
@@ -466,143 +485,118 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async debitWallet(userId: string, amount: number, description: string, parcelId?: string): Promise<{ success: boolean; wallet?: Wallet; transaction?: WalletTransaction; error?: string }> {
-    try {
-      const wallet = await this.getOrCreateWallet(userId);
-      
-      if (wallet.balance < amount) {
-        return { success: false, error: 'Insufficient balance' };
-      }
-
-      const newBalance = wallet.balance - amount;
-      const updatedWallet = await this.updateWalletBalance(wallet.id, newBalance);
-
-      if (!updatedWallet) {
-        return { success: false, error: 'Failed to update wallet' };
-      }
-
-      const transaction = await this.createWalletTransaction({
-        walletId: wallet.id,
-        userId,
-        type: 'debit',
-        amount,
-        balanceAfter: newBalance,
-        status: 'completed',
-        description,
-        parcelId: parcelId || null,
-      });
-
-      return { success: true, wallet: updatedWallet, transaction };
-    } catch (error) {
-      console.error('Debit wallet error:', error);
-      return { success: false, error: 'Transaction failed' };
-    }
+  async getWalletTransactionByReference(reference: string): Promise<WalletTransaction | undefined> {
+    const result = await db
+      .select()
+      .from(walletTransactions)
+      .where(eq(walletTransactions.reference, reference));
+    return result[0];
   }
 
-  async creditWallet(userId: string, amount: number, description: string, paystackReference?: string): Promise<{ success: boolean; wallet?: Wallet; transaction?: WalletTransaction; error?: string }> {
-    try {
-      const wallet = await this.getOrCreateWallet(userId);
-      const newBalance = wallet.balance + amount;
-      const updatedWallet = await this.updateWalletBalance(wallet.id, newBalance);
-
-      if (!updatedWallet) {
-        return { success: false, error: 'Failed to update wallet' };
-      }
-
-      const transaction = await this.createWalletTransaction({
-        walletId: wallet.id,
-        userId,
-        type: 'credit',
-        amount,
-        balanceAfter: newBalance,
-        status: 'completed',
-        description,
-        paystackReference: paystackReference || null,
-      });
-
-      return { success: true, wallet: updatedWallet, transaction };
-    } catch (error) {
-      console.error('Credit wallet error:', error);
-      return { success: false, error: 'Transaction failed' };
-    }
+  async getWalletTransactionByPaystackReference(paystackReference: string): Promise<WalletTransaction | undefined> {
+    const result = await db
+      .select()
+      .from(walletTransactions)
+      .where(eq(walletTransactions.paystackReference, paystackReference));
+    return result[0];
   }
 
-  async runWalletMigration(): Promise<void> {
-    try {
-      // Create transaction type enum
-      await db.execute(sql`
-        DO $$ BEGIN
-          CREATE TYPE transaction_type AS ENUM ('credit', 'debit');
-        EXCEPTION
-          WHEN duplicate_object THEN null;
-        END $$;
-      `);
+  // Dispute Methods
+  async createDispute(insertDispute: InsertDispute): Promise<Dispute> {
+    // Set auto-close date (7 days from now)
+    const autoCloseAt = new Date();
+    autoCloseAt.setDate(autoCloseAt.getDate() + 7);
+    
+    const result = await db.insert(disputes).values({
+      ...insertDispute,
+      autoCloseAt,
+    }).returning();
+    return result[0];
+  }
 
-      // Create transaction status enum
-      await db.execute(sql`
-        DO $$ BEGIN
-          CREATE TYPE transaction_status AS ENUM ('pending', 'completed', 'failed');
-        EXCEPTION
-          WHEN duplicate_object THEN null;
-        END $$;
-      `);
+  async getDispute(id: string): Promise<Dispute | undefined> {
+    const result = await db.select().from(disputes).where(eq(disputes.id, id));
+    return result[0];
+  }
 
-      // Create wallets table
-      await db.execute(sql`
-        CREATE TABLE IF NOT EXISTS wallets (
-          id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-          user_id VARCHAR NOT NULL REFERENCES users(id) UNIQUE,
-          balance INTEGER DEFAULT 0 NOT NULL,
-          currency TEXT DEFAULT 'NGN' NOT NULL,
-          created_at TIMESTAMP DEFAULT NOW(),
-          updated_at TIMESTAMP DEFAULT NOW()
-        );
-      `);
+  async getUserDisputes(userId: string): Promise<Dispute[]> {
+    return await db
+      .select()
+      .from(disputes)
+      .where(or(eq(disputes.complainantId, userId), eq(disputes.respondentId, userId)))
+      .orderBy(desc(disputes.createdAt));
+  }
 
-      // Create wallet_transactions table
-      await db.execute(sql`
-        CREATE TABLE IF NOT EXISTS wallet_transactions (
-          id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-          wallet_id VARCHAR NOT NULL REFERENCES wallets(id),
-          user_id VARCHAR NOT NULL REFERENCES users(id),
-          type transaction_type NOT NULL,
-          amount INTEGER NOT NULL,
-          balance_after INTEGER NOT NULL,
-          status transaction_status DEFAULT 'completed' NOT NULL,
-          description TEXT NOT NULL,
-          reference TEXT,
-          parcel_id VARCHAR REFERENCES parcels(id),
-          paystack_reference TEXT,
-          metadata TEXT,
-          created_at TIMESTAMP DEFAULT NOW()
-        );
-      `);
+  async getParcelDisputes(parcelId: string): Promise<Dispute[]> {
+    return await db
+      .select()
+      .from(disputes)
+      .where(eq(disputes.parcelId, parcelId))
+      .orderBy(desc(disputes.createdAt));
+  }
 
-      // Create indexes
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_wallets_user_id ON wallets(user_id);`);
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_wallet_transactions_wallet_id ON wallet_transactions(wallet_id);`);
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_wallet_transactions_user_id ON wallet_transactions(user_id);`);
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_wallet_transactions_created_at ON wallet_transactions(created_at DESC);`);
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_wallet_transactions_parcel_id ON wallet_transactions(parcel_id);`);
+  async getOpenDisputes(): Promise<Dispute[]> {
+    return await db
+      .select()
+      .from(disputes)
+      .where(or(eq(disputes.status, "open"), eq(disputes.status, "in_review")))
+      .orderBy(desc(disputes.createdAt));
+  }
 
-      // Create wallets for existing users
-      await db.execute(sql`
-        INSERT INTO wallets (user_id, balance, currency)
-        SELECT id, 0, 'NGN'
-        FROM users
-        WHERE id NOT IN (SELECT user_id FROM wallets)
-        ON CONFLICT (user_id) DO NOTHING;
-      `);
+  async updateDispute(id: string, updates: Partial<Dispute>): Promise<Dispute | undefined> {
+    const result = await db
+      .update(disputes)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(disputes.id, id))
+      .returning();
+    return result[0];
+  }
 
-      console.log('✅ Wallet migration completed successfully!');
-    } catch (error: any) {
-      if (error.message && (error.message.includes('already exists') || error.message.includes('duplicate'))) {
-        console.log('⊘ Wallet tables already exist, skipping migration');
-      } else {
-        console.error('❌ Wallet migration failed:', error);
-        throw error;
-      }
-    }
+  async createDisputeMessage(insertMessage: InsertDisputeMessage): Promise<DisputeMessage> {
+    const result = await db.insert(disputeMessages).values(insertMessage).returning();
+    
+    // Update dispute timestamp
+    await db
+      .update(disputes)
+      .set({ updatedAt: new Date() })
+      .where(eq(disputes.id, insertMessage.disputeId));
+    
+    return result[0];
+  }
+
+  async getDisputeMessages(disputeId: string): Promise<DisputeMessage[]> {
+    return await db
+      .select()
+      .from(disputeMessages)
+      .where(eq(disputeMessages.disputeId, disputeId))
+      .orderBy(disputeMessages.createdAt);
+  }
+
+  // Parcel Photo Methods
+  async createParcelPhoto(insertPhoto: InsertParcelPhoto): Promise<ParcelPhoto> {
+    const result = await db.insert(parcelPhotos).values(insertPhoto).returning();
+    return result[0];
+  }
+
+  async getParcelPhotos(parcelId: string): Promise<ParcelPhoto[]> {
+    return await db
+      .select()
+      .from(parcelPhotos)
+      .where(eq(parcelPhotos.parcelId, parcelId))
+      .orderBy(desc(parcelPhotos.createdAt));
+  }
+
+  async getParcelPhotosByType(parcelId: string, photoType: string): Promise<ParcelPhoto[]> {
+    return await db
+      .select()
+      .from(parcelPhotos)
+      .where(and(eq(parcelPhotos.parcelId, parcelId), eq(parcelPhotos.photoType, photoType)))
+      .orderBy(desc(parcelPhotos.createdAt));
+  }
+
+  async deleteParcelPhoto(id: string): Promise<boolean> {
+    const result = await db.delete(parcelPhotos).where(eq(parcelPhotos.id, id)).returning();
+    return result.length > 0;
   }
 }
 

@@ -10,7 +10,8 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.thegtw.app"
+      "bundleIdentifier": "com.thegtw.app",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +22,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.thegtw.app"
+      "package": "com.thegtw.app",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "single",

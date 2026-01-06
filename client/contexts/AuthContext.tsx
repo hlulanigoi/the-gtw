@@ -69,11 +69,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   } | null>(null);
 
   // Google Auth Request for Mobile
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-  });
+  let request: any = null;
+  let response: any = null;
+  let promptAsync: any = async () => {};
+
+  try {
+    const authResult = Google.useAuthRequest({
+      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+      androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    });
+    request = authResult[0];
+    response = authResult[1];
+    promptAsync = authResult[2];
+  } catch (e) {
+    console.warn("Google.useAuthRequest failed:", e);
+  }
 
   // Handle Mobile Google Auth Response
   useEffect(() => {

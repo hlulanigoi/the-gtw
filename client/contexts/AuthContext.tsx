@@ -76,36 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
   });
 
-  useEffect(() => {
-    if (response?.type === "success") {
-      const { id_token } = response.params;
-      const credential = GoogleAuthProvider.credential(id_token);
-      
-      setGoogleLoading(true);
-      signInWithCredential(auth, credential)
-        .then(async (result) => {
-          const firebaseUser = result.user;
-          const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-          if (!profileDoc.exists()) {
-            await setDoc(doc(db, "users", firebaseUser.uid), {
-              name: firebaseUser.displayName || "",
-              email: firebaseUser.email || "",
-              rating: 5.0,
-              verified: false,
-              emailVerified: true,
-              createdAt: serverTimestamp(),
-            });
-          }
-        })
-        .catch((error) => {
-          console.error("Google credential sign-in error:", error);
-        })
-        .finally(() => {
-          setGoogleLoading(false);
-        });
-    }
-  }, [response]);
-
   const signInWithGoogle = async () => {
     if (Platform.OS === "web") {
       const provider = new GoogleAuthProvider();
@@ -143,6 +113,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
   };
+
+  useEffect(() => {
+    if (response?.type === "success") {
+      const { id_token } = response.params;
+      const credential = GoogleAuthProvider.credential(id_token);
+      
+      setGoogleLoading(true);
+      signInWithCredential(auth, credential)
+        .then(async (result) => {
+          const firebaseUser = result.user;
+          const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+          if (!profileDoc.exists()) {
+            await setDoc(doc(db, "users", firebaseUser.uid), {
+              name: firebaseUser.displayName || "",
+              email: firebaseUser.email || "",
+              rating: 5.0,
+              verified: false,
+              emailVerified: true,
+              createdAt: serverTimestamp(),
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Google credential sign-in error:", error);
+        })
+        .finally(() => {
+          setGoogleLoading(false);
+        });
+    }
+  }, [response]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {

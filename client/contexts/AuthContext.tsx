@@ -8,10 +8,16 @@ import {
   updateProfile,
   sendPasswordResetEmail,
   GoogleAuthProvider,
+  signInWithCredential,
 } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { Platform } from "react-native";
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
+import * as AuthSession from "expo-auth-session";
+
+WebBrowser.maybeCompleteAuthSession();
 
 interface UserProfile {
   id: string;
@@ -63,6 +69,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string;
   } | null>(null);
 
+  // Google Auth Request
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  });
+
+  useEffect(() => {
+    if (response?.type === "success") {
+      const { id_token } = response.params;
+      const credential = GoogleAuthProvider.credential(id_token);
+      
+      setGoogleLoading(true);
+      signInWithCredential(auth, credential)
+        .then(async (result) => {
+          const firebaseUser = result.user;
+          const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+          if (!profileDoc.exists()) {
+            await setDoc(doc(db, "users", firebaseUser.uid), {
+              name: firebaseUser.displayName || "",
+              email: firebaseUser.email || "",
+              rating: 5.0,
+              verified: false,
+              emailVerified: true,
+              createdAt: serverTimestamp(),
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Google credential sign-in error:", error);
+        })
+        .finally(() => {
+          setGoogleLoading(false);
+        });
+    }
+  }, [response]);
+
   const signInWithGoogle = async () => {
     if (Platform.OS === "web") {
       const provider = new GoogleAuthProvider();
@@ -93,7 +136,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setGoogleLoading(false);
       }
     } else {
-      throw new Error("Google Sign-In is only available on web. Please use email sign-in on mobile.");
+      if (request) {
+        await promptAsync();
+      } else {
+        throw new Error("Google Sign-In is not initialized. Check your Client IDs.");
+      }
     }
   };
 

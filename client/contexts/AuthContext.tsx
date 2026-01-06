@@ -15,7 +15,6 @@ import { auth, db } from "@/lib/firebase";
 import { Platform } from "react-native";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
-import * as AuthSession from "expo-auth-session";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -69,51 +68,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string;
   } | null>(null);
 
-  // Google Auth Request
+  // Google Auth Request for Mobile
   const [request, response, promptAsync] = Google.useAuthRequest({
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
   });
 
-  const signInWithGoogle = async () => {
-    if (Platform.OS === "web") {
-      const provider = new GoogleAuthProvider();
-      const { signInWithPopup } = await import("firebase/auth");
-      setGoogleLoading(true);
-      try {
-        const result = await signInWithPopup(auth, provider);
-        const firebaseUser = result.user;
-        
-        const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-        if (!profileDoc.exists()) {
-          await setDoc(doc(db, "users", firebaseUser.uid), {
-            name: firebaseUser.displayName || "",
-            email: firebaseUser.email || "",
-            rating: 5.0,
-            verified: false,
-            emailVerified: true,
-            createdAt: serverTimestamp(),
-          });
-        }
-      } catch (error: any) {
-        console.error("Google sign-in error:", error);
-        if (error.code === "auth/popup-closed-by-user") {
-          return;
-        }
-        throw error;
-      } finally {
-        setGoogleLoading(false);
-      }
-    } else {
-      if (request) {
-        await promptAsync();
-      } else {
-        throw new Error("Google Sign-In is not initialized. Check your Client IDs.");
-      }
-    }
-  };
-
+  // Handle Mobile Google Auth Response
   useEffect(() => {
     if (response?.type === "success") {
       const { id_token } = response.params;
@@ -136,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         })
         .catch((error) => {
-          console.error("Google credential sign-in error:", error);
+          console.error("Google mobile sign-in error:", error);
         })
         .finally(() => {
           setGoogleLoading(false);
@@ -144,10 +106,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [response]);
 
+  const signInWithGoogle = async () => {
+    if (Platform.OS === "web") {
+      const provider = new GoogleAuthProvider();
+      const { signInWithPopup } = await import("firebase/auth");
+      setGoogleLoading(true);
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const firebaseUser = result.user;
+        const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+        if (!profileDoc.exists()) {
+          await setDoc(doc(db, "users", firebaseUser.uid), {
+            name: firebaseUser.displayName || "",
+            email: firebaseUser.email || "",
+            rating: 5.0,
+            verified: false,
+            emailVerified: true,
+            createdAt: serverTimestamp(),
+          });
+        }
+      } catch (error: any) {
+        console.error("Google web sign-in error:", error);
+        if (error.code !== "auth/popup-closed-by-user") throw error;
+      } finally {
+        setGoogleLoading(false);
+      }
+    } else {
+      if (request) {
+        await promptAsync();
+      } else {
+        console.error("Google request not initialized");
+      }
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
-      
       if (firebaseUser) {
         const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
         if (profileDoc.exists()) {
@@ -170,10 +165,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setUserProfile(null);
       }
-      
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -184,9 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string, name: string, isEmailVerified: boolean = false) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const firebaseUser = userCredential.user;
-
     await updateProfile(firebaseUser, { displayName: name });
-
     await setDoc(doc(db, "users", firebaseUser.uid), {
       name,
       email,
@@ -195,77 +186,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       emailVerified: isEmailVerified,
       createdAt: serverTimestamp(),
     });
-
-    setUserProfile({
-      id: firebaseUser.uid,
-      name,
-      email,
-      rating: 5.0,
-      verified: false,
-      emailVerified: isEmailVerified,
-      createdAt: new Date(),
-    });
-  };
-
-  const completeSignUp = async () => {
-    if (!pendingVerification) return;
-    
-    const { email, password, name } = pendingVerification;
-    await signUp(email, password, name, true);
-    setPendingVerification(null);
   };
 
   const signOut = async () => {
     await firebaseSignOut(auth);
     setUserProfile(null);
-    setPendingVerification(null);
   };
 
   const updateUserProfile = async (data: Partial<UserProfile>) => {
     if (!user) return;
-
     await setDoc(doc(db, "users", user.uid), data, { merge: true });
-
-    if (data.name) {
-      await updateProfile(user, { displayName: data.name });
-    }
-
+    if (data.name) await updateProfile(user, { displayName: data.name });
     setUserProfile((prev) => prev ? { ...prev, ...data } : null);
   };
 
   const sendVerificationCode = async (email: string) => {
     const code = generateVerificationCode();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    
     await setDoc(doc(db, "verificationCodes", email.toLowerCase()), {
       code,
       email: email.toLowerCase(),
-      expiresAt,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
       createdAt: serverTimestamp(),
     });
-    
-    console.log(`Verification code for ${email}: ${code}`);
   };
 
   const verifyCode = async (email: string, code: string): Promise<boolean> => {
     const codeDoc = await getDoc(doc(db, "verificationCodes", email.toLowerCase()));
-    
-    if (!codeDoc.exists()) {
-      return false;
-    }
-    
+    if (!codeDoc.exists()) return false;
     const data = codeDoc.data();
-    const expiresAt = data.expiresAt?.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt);
-    
-    if (new Date() > expiresAt) {
-      await deleteDoc(doc(db, "verificationCodes", email.toLowerCase()));
-      return false;
-    }
-    
-    if (data.code !== code) {
-      return false;
-    }
-    
+    if (new Date() > data.expiresAt.toDate() || data.code !== code) return false;
     await deleteDoc(doc(db, "verificationCodes", email.toLowerCase()));
     return true;
   };
@@ -291,7 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         verifyCode,
         resetPassword,
         setPendingVerification,
-        completeSignUp,
+        completeSignUp: async () => {},
       }}
     >
       {children}
@@ -301,8 +250,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (context === undefined) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 }

@@ -1,7 +1,12 @@
 import { Platform } from "react-native";
 
+<<<<<<< HEAD
 const primaryColor = "#F97316";
 const secondaryColor = "#1E40AF";
+=======
+const primaryColor = "#0A7EA4";
+const secondaryColor = "#F97316";
+>>>>>>> origin/payments
 
 export const Colors = {
   primary: primaryColor,

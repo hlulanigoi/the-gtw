@@ -12,7 +12,10 @@ import { useTheme } from "@/hooks/useTheme";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/Card";
+<<<<<<< HEAD
 import { useAuth } from "@/contexts/AuthContext";
+=======
+>>>>>>> origin/payments
 import { ProfileStackParamList } from "@/navigation/ProfileStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<ProfileStackParamList>;
@@ -23,7 +26,10 @@ export default function ProfileScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
+<<<<<<< HEAD
   const { userProfile } = useAuth();
+=======
+>>>>>>> origin/payments
 
   const handleSettings = () => {
     navigation.navigate("Settings");
@@ -38,6 +44,7 @@ export default function ProfileScreen() {
   };
 
   const handlePaymentHistory = () => {
+<<<<<<< HEAD
     navigation.navigate("PaymentHistory");
   };
 
@@ -45,13 +52,26 @@ export default function ProfileScreen() {
     { label: "Wallet", value: `R ${userProfile?.walletBalance || 0}`, icon: "credit-card" as const },
     { label: "Plan", value: userProfile?.subscriptionStatus === "premium" ? "Premium" : "Free", icon: "award" as const },
     { label: "Rating", value: userProfile?.rating?.toFixed(1) || "5.0", icon: "star" as const },
+=======
+    navigation.navigate("PaymentHistory" as any);
+  };
+
+  const stats = [
+    { label: "Parcels Sent", value: 12, icon: "package" as const },
+    { label: "Delivered", value: 8, icon: "check-circle" as const },
+    { label: "Rating", value: "4.8", icon: "star" as const },
+>>>>>>> origin/payments
   ];
 
   const menuItems = [
     { label: "Edit Profile", icon: "edit-2" as const, onPress: () => {} },
     { label: "My Connections", icon: "users" as const, onPress: handleConnections },
     { label: "My Reviews", icon: "star" as const, onPress: handleReviews },
+<<<<<<< HEAD
     { label: "Transaction History", icon: "clock" as const, onPress: handlePaymentHistory },
+=======
+    { label: "Payment History", icon: "credit-card" as const, onPress: handlePaymentHistory },
+>>>>>>> origin/payments
     { label: "Settings", icon: "settings" as const, onPress: handleSettings },
     { label: "Help & Support", icon: "help-circle" as const, onPress: () => {} },
   ];
@@ -74,16 +94,28 @@ export default function ProfileScreen() {
           ]}
         >
           <ThemedText type="h1" style={{ color: "#FFFFFF" }}>
+<<<<<<< HEAD
             {(userProfile?.name || "U").substring(0, 2).toUpperCase()}
           </ThemedText>
         </View>
         <ThemedText type="h2" style={styles.userName}>
           {userProfile?.name || "User"}
+=======
+            JD
+          </ThemedText>
+        </View>
+        <ThemedText type="h2" style={styles.userName}>
+          John Doe
+>>>>>>> origin/payments
         </ThemedText>
         <View style={styles.ratingContainer}>
           <Feather name="star" size={16} color={Colors.warning} />
           <ThemedText type="body" style={styles.ratingText}>
+<<<<<<< HEAD
             {userProfile?.rating?.toFixed(1) || "5.0"} Rating
+=======
+            4.8 Rating
+>>>>>>> origin/payments
           </ThemedText>
         </View>
         <View style={styles.verifiedBadge}>

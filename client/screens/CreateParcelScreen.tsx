@@ -1,12 +1,19 @@
 import React, { useState, useMemo, useEffect } from "react";
+<<<<<<< HEAD
 import { View, StyleSheet, TextInput, Pressable, Alert, Switch, Platform, ActivityIndicator, Image } from "react-native";
+=======
+import { View, StyleSheet, TextInput, Pressable, Alert, Switch, Platform, ActivityIndicator } from "react-native";
+>>>>>>> origin/payments
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
+<<<<<<< HEAD
 import * as ImagePicker from "expo-image-picker";
+=======
+>>>>>>> origin/payments
 import { WebView } from "react-native-webview";
 import Animated, {
   useAnimatedStyle,
@@ -25,7 +32,10 @@ import { useParcels } from "@/hooks/useParcels";
 import { LocationPickerModal } from "@/components/LocationPickerModal";
 import { ReceiverSearchModal } from "@/components/ReceiverSearchModal";
 import { SearchableUser } from "@/hooks/useUserSearch";
+<<<<<<< HEAD
 import { formatCurrency } from "@/lib/currency";
+=======
+>>>>>>> origin/payments
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -170,6 +180,7 @@ export default function CreateParcelScreen() {
   const [receiverName, setReceiverName] = useState("");
   const [receiverPhone, setReceiverPhone] = useState("");
   const [receiverEmail, setReceiverEmail] = useState("");
+<<<<<<< HEAD
   const [photo, setPhoto] = useState<string | null>(null);
 
   const handlePickImage = async () => {
@@ -193,12 +204,57 @@ export default function CreateParcelScreen() {
       }
     }
   };
+=======
+>>>>>>> origin/payments
 
   const handleSelectReceiver = (receiver: SearchableUser) => {
     setSelectedReceiver(receiver);
     setReceiverName(receiver.name);
     setReceiverEmail(receiver.email);
     setReceiverPhone(receiver.phone || "");
+<<<<<<< HEAD
+=======
+
+    if (receiver.savedLocationLat && receiver.savedLocationLng && receiver.savedLocationName) {
+      if (!destinationLocation) {
+        setDestinationLocation({
+          name: receiver.savedLocationName,
+          fullAddress: receiver.savedLocationAddress || receiver.savedLocationName,
+          lat: receiver.savedLocationLat,
+          lng: receiver.savedLocationLng,
+        });
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        Alert.alert(
+          "Destination Set",
+          `Using ${receiver.name}'s saved location as the delivery destination.\n\n${receiver.savedLocationName}\n\nYou can change this by tapping the destination field.`
+        );
+      } else {
+        Alert.alert(
+          "Use Receiver's Location?",
+          `${receiver.name} has a saved delivery location:\n\n${receiver.savedLocationName}\n\nWould you like to use it as the destination?`,
+          [
+            { text: "Keep Current", style: "cancel" },
+            {
+              text: "Use Their Location",
+              onPress: () => {
+                setDestinationLocation({
+                  name: receiver.savedLocationName!,
+                  fullAddress: receiver.savedLocationAddress || receiver.savedLocationName!,
+                  lat: receiver.savedLocationLat!,
+                  lng: receiver.savedLocationLng!,
+                });
+                if (Platform.OS !== "web") {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                }
+              },
+            },
+          ]
+        );
+      }
+    }
+>>>>>>> origin/payments
   };
 
   useEffect(() => {
@@ -290,6 +346,7 @@ export default function CreateParcelScreen() {
       receiverPhone: receiverPhone.trim() || null,
       receiverEmail: receiverEmail.trim() || null,
       receiverId: selectedReceiver?.id || null,
+<<<<<<< HEAD
       photoUrl: photo,
     }).then(() => {
         Alert.alert("Success", "Your parcel has been created!", [
@@ -301,6 +358,16 @@ export default function CreateParcelScreen() {
     }).catch((error: any) => {
         Alert.alert("Creation Failed", error.message || "An unexpected error occurred. Please check your balance.");
     });
+=======
+    });
+
+    Alert.alert("Success", "Your parcel has been created!", [
+      {
+        text: "OK",
+        onPress: () => navigation.goBack(),
+      },
+    ]);
+>>>>>>> origin/payments
   };
 
   const sizeOptions: { key: SizeType; label: string; icon: string; desc: string }[] = [
@@ -488,6 +555,7 @@ export default function CreateParcelScreen() {
 
         <View style={styles.formGroup}>
           <ThemedText type="h3" style={styles.sectionTitle}>
+<<<<<<< HEAD
             Parcel Info
           </ThemedText>
           
@@ -523,6 +591,10 @@ export default function CreateParcelScreen() {
             </Pressable>
           </View>
 
+=======
+            Parcel Size
+          </ThemedText>
+>>>>>>> origin/payments
           <View style={styles.sizeContainer}>
             {sizeOptions.map((option) => (
               <Pressable
@@ -654,6 +726,7 @@ export default function CreateParcelScreen() {
           <ThemedText type="body" style={styles.label}>
             Weight (kg)
           </ThemedText>
+<<<<<<< HEAD
           <View style={styles.weightButtonsContainer}>
             {[1, 2, 5, 10, 20].map((w) => (
               <Pressable
@@ -681,20 +754,29 @@ export default function CreateParcelScreen() {
               </Pressable>
             ))}
           </View>
+=======
+>>>>>>> origin/payments
           <View
             style={[
               styles.inputContainer,
               {
                 backgroundColor: theme.backgroundDefault,
                 borderColor: theme.border,
+<<<<<<< HEAD
                 marginTop: Spacing.sm,
+=======
+>>>>>>> origin/payments
               },
             ]}
           >
             <Feather name="package" size={18} color={theme.textSecondary} />
             <TextInput
               style={[styles.input, { color: theme.text }]}
+<<<<<<< HEAD
               placeholder="Custom weight..."
+=======
+              placeholder="e.g., 2.5"
+>>>>>>> origin/payments
               placeholderTextColor={theme.textSecondary}
               value={weight}
               onChangeText={setWeight}
@@ -1189,6 +1271,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "transparent",
   },
+<<<<<<< HEAD
   photoContainer: {
     marginBottom: Spacing.lg,
   },
@@ -1223,6 +1306,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+=======
+>>>>>>> origin/payments
   formGroup: {
     marginBottom: Spacing.xl,
   },
@@ -1266,6 +1351,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     borderWidth: 1,
   },
+<<<<<<< HEAD
   weightButtonsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1280,6 +1366,8 @@ const styles = StyleSheet.create({
     minWidth: 60,
     alignItems: "center",
   },
+=======
+>>>>>>> origin/payments
   switchRow: {
     flexDirection: "row",
     alignItems: "center",

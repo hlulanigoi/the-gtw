@@ -3,9 +3,19 @@ import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import * as fs from "fs";
 import * as path from "path";
+<<<<<<< HEAD
 
 const app = express();
 const log = console.log;
+=======
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import compression from "compression";
+import logger from "./logger";
+
+const app = express();
+const log = logger.info.bind(logger);
+>>>>>>> origin/payments
 
 declare module "http" {
   interface IncomingMessage {
@@ -14,6 +24,7 @@ declare module "http" {
 }
 
 function setupCors(app: express.Application) {
+<<<<<<< HEAD
   app.use((req, res, next) => {
     const origins = new Set<string>();
 
@@ -30,15 +41,42 @@ function setupCors(app: express.Application) {
     const origin = req.header("origin");
 
     if (origin && origins.has(origin)) {
+=======
+  // Production-ready CORS configuration
+  const allowedOrigins = process.env.NODE_ENV === 'production'
+    ? (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean)
+    : [
+        'http://localhost:3000',
+        'http://localhost:5000',
+        'http://localhost:3001',
+        ...(process.env.REPLIT_DEV_DOMAIN ? [`https://${process.env.REPLIT_DEV_DOMAIN}`] : [])
+      ];
+
+  // Add Replit domains if available
+  if (process.env.REPLIT_DOMAINS) {
+    process.env.REPLIT_DOMAINS.split(",").forEach((d: string) => {
+      allowedOrigins.push(`https://${d.trim()}`);
+    });
+  }
+
+  app.use((req, res, next) => {
+    const origin = req.header("origin");
+
+    if (origin && allowedOrigins.some(allowed => origin === allowed || origin.startsWith(allowed))) {
+>>>>>>> origin/payments
       res.header("Access-Control-Allow-Origin", origin);
       res.header(
         "Access-Control-Allow-Methods",
         "GET, POST, PUT, PATCH, DELETE, OPTIONS",
       );
+<<<<<<< HEAD
       res.header(
         "Access-Control-Allow-Headers",
         "Content-Type, Authorization",
       );
+=======
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+>>>>>>> origin/payments
       res.header("Access-Control-Allow-Credentials", "true");
     }
 
@@ -53,13 +91,24 @@ function setupCors(app: express.Application) {
 function setupBodyParsing(app: express.Application) {
   app.use(
     express.json({
+<<<<<<< HEAD
+=======
+      limit: '10mb', // Prevent large payload attacks
+>>>>>>> origin/payments
       verify: (req, _res, buf) => {
         req.rawBody = buf;
       },
     }),
   );
 
+<<<<<<< HEAD
   app.use(express.urlencoded({ extended: false }));
+=======
+  app.use(express.urlencoded({ 
+    extended: false, 
+    limit: '10mb' 
+  }));
+>>>>>>> origin/payments
 }
 
 function setupRequestLogging(app: express.Application) {
@@ -88,7 +137,27 @@ function setupRequestLogging(app: express.Application) {
         logLine = logLine.slice(0, 79) + "…";
       }
 
+<<<<<<< HEAD
       log(logLine);
+=======
+      // Use structured logging
+      if (res.statusCode >= 400) {
+        logger.error(logLine, {
+          method: req.method,
+          path,
+          statusCode: res.statusCode,
+          duration,
+          ip: req.ip,
+        });
+      } else {
+        logger.info(logLine, {
+          method: req.method,
+          path,
+          statusCode: res.statusCode,
+          duration,
+        });
+      }
+>>>>>>> origin/payments
     });
 
     next();
@@ -203,11 +272,16 @@ function configureExpoAndLanding(app: express.Application) {
 }
 
 function setupErrorHandler(app: express.Application) {
+<<<<<<< HEAD
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+=======
+  app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+>>>>>>> origin/payments
     const error = err as {
       status?: number;
       statusCode?: number;
       message?: string;
+<<<<<<< HEAD
     };
 
     const status = error.status || error.statusCode || 500;
@@ -216,12 +290,78 @@ function setupErrorHandler(app: express.Application) {
     res.status(status).json({ message });
 
     throw err;
+=======
+      stack?: string;
+    };
+
+    const status = error.status || error.statusCode || 500;
+    
+    // Log full error details
+    logger.error('Request error', {
+      error: error.message,
+      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
+      path: req.path,
+      method: req.method,
+      ip: req.ip,
+      userId: (req as any).user?.uid,
+    });
+
+    // Send sanitized error to client
+    const message = process.env.NODE_ENV === 'production' 
+      ? (status === 500 ? 'Internal server error' : error.message)
+      : error.message;
+
+    res.status(status).json({ 
+      error: message,
+      ...(process.env.NODE_ENV !== 'production' && { stack: error.stack })
+    });
+>>>>>>> origin/payments
   });
 }
 
 (async () => {
+<<<<<<< HEAD
   setupCors(app);
   setupBodyParsing(app);
+=======
+  // Security headers
+  app.use(helmet({
+    contentSecurityPolicy: false, // Allow Expo and admin dashboard
+    crossOriginEmbedderPolicy: false,
+  }));
+
+  // Compression
+  app.use(compression());
+
+  setupCors(app);
+  setupBodyParsing(app);
+  
+  // Rate limiting
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => {
+      // Skip rate limiting for health checks
+      return req.path === '/health';
+    }
+  });
+
+  // Apply to API routes only
+  app.use('/api/', limiter);
+
+  // Stricter limits for auth routes
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: 'Too many authentication attempts, please try again later.',
+  });
+
+  app.use('/api/auth/', authLimiter);
+  
+>>>>>>> origin/payments
   setupRequestLogging(app);
 
   configureExpoAndLanding(app);

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { eq, or, and, desc, avg } from "drizzle-orm";
+=======
+import { eq, or, and, desc, avg, gte } from "drizzle-orm";
+>>>>>>> origin/payments
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import {
@@ -11,14 +15,48 @@ import {
   type Review, type InsertReview, reviews,
   type PushToken, type InsertPushToken, pushTokens,
   type Payment, type InsertPayment, payments,
+<<<<<<< HEAD
 } from "@shared/schema";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+=======
+  type Subscription, type InsertSubscription, subscriptions,
+  type LocationHistory, type InsertLocationHistory, locationHistory,
+  type WalletTransaction, type InsertWalletTransaction, walletTransactions,
+  type Dispute, type InsertDispute, disputes,
+  type DisputeMessage, type InsertDisputeMessage, disputeMessages,
+  type ParcelPhoto, type InsertParcelPhoto, parcelPhotos,
+} from "@shared/schema";
+
+// Database connection pool with production-ready configuration
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 20, // Maximum pool size
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+  ssl: process.env.NODE_ENV === 'production' ? {
+    rejectUnauthorized: false
+  } : undefined
+>>>>>>> origin/payments
 });
 
 export const db = drizzle(pool);
 
+<<<<<<< HEAD
+=======
+// Graceful shutdown
+const gracefulShutdown = () => {
+  pool.end(() => {
+    console.log('Database pool closed');
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
+
+>>>>>>> origin/payments
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
@@ -73,6 +111,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createParcel(insertParcel: InsertParcel): Promise<Parcel> {
+<<<<<<< HEAD
     const user = await this.getUser(insertParcel.senderId);
     if (!user) throw new Error("User not found");
 
@@ -88,6 +127,8 @@ export class DatabaseStorage implements IStorage {
         .where(eq(users.id, user.id));
     }
 
+=======
+>>>>>>> origin/payments
     const result = await db.insert(parcels).values(insertParcel).returning();
     return result[0];
   }
@@ -296,11 +337,45 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
+<<<<<<< HEAD
+=======
+  async getPayment(id: string): Promise<Payment | undefined> {
+    const result = await db.select().from(payments).where(eq(payments.id, id));
+    return result[0];
+  }
+
+  async getPaymentByReference(reference: string): Promise<Payment | undefined> {
+    const result = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.paystackReference, reference));
+    return result[0];
+  }
+
+  async getUserPayments(userId: string): Promise<Payment[]> {
+    return await db
+      .select()
+      .from(payments)
+      .where(or(eq(payments.senderId, userId), eq(payments.carrierId, userId)))
+      .orderBy(desc(payments.createdAt));
+  }
+
+  async getParcelPayment(parcelId: string): Promise<Payment | undefined> {
+    const result = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.parcelId, parcelId))
+      .orderBy(desc(payments.createdAt));
+    return result[0];
+  }
+
+>>>>>>> origin/payments
   async createPayment(insertPayment: InsertPayment): Promise<Payment> {
     const result = await db.insert(payments).values(insertPayment).returning();
     return result[0];
   }
 
+<<<<<<< HEAD
   async getPaymentByReference(reference: string): Promise<Payment | undefined> {
     const result = await db.select().from(payments).where(eq(payments.reference, reference));
     return result[0];
@@ -313,6 +388,265 @@ export class DatabaseStorage implements IStorage {
 
   async getPaymentsByUserId(userId: string): Promise<Payment[]> {
     return await db.select().from(payments).where(eq(payments.userId, userId)).orderBy(desc(payments.createdAt));
+=======
+  async updatePayment(id: string, updates: Partial<Payment>): Promise<Payment | undefined> {
+    const result = await db
+      .update(payments)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(payments.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async updatePaymentByReference(
+    reference: string,
+    updates: Partial<Payment>
+  ): Promise<Payment | undefined> {
+    const result = await db
+      .update(payments)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(payments.paystackReference, reference))
+      .returning();
+    return result[0];
+  }
+
+  async getUserSubscription(userId: string): Promise<Subscription | undefined> {
+    const result = await db
+      .select()
+      .from(subscriptions)
+      .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, "active")))
+      .orderBy(desc(subscriptions.createdAt));
+    return result[0];
+  }
+
+  async getSubscription(id: string): Promise<Subscription | undefined> {
+    const result = await db.select().from(subscriptions).where(eq(subscriptions.id, id));
+    return result[0];
+  }
+
+  async getSubscriptionByPaystackCode(code: string): Promise<Subscription | undefined> {
+    const result = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.paystackSubscriptionCode, code));
+    return result[0];
+  }
+
+  async createSubscription(insertSubscription: InsertSubscription): Promise<Subscription> {
+    const result = await db.insert(subscriptions).values(insertSubscription).returning();
+    return result[0];
+  }
+
+  async updateSubscription(id: string, updates: Partial<Subscription>): Promise<Subscription | undefined> {
+    const result = await db
+      .update(subscriptions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(subscriptions.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    const result = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async resetMonthlyParcelCount(userId: string): Promise<User | undefined> {
+    const result = await db
+      .update(users)
+      .set({ monthlyParcelCount: 0, lastParcelResetDate: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return result[0];
+  }
+
+  async incrementParcelCount(userId: string): Promise<User | undefined> {
+    const user = await this.getUser(userId);
+    if (!user) return undefined;
+    
+    const result = await db
+      .update(users)
+      .set({ monthlyParcelCount: (user.monthlyParcelCount || 0) + 1 })
+      .where(eq(users.id, userId))
+      .returning();
+    return result[0];
+  }
+
+  // Location History Methods
+  async createLocationHistory(insertLocationHistory: InsertLocationHistory): Promise<LocationHistory> {
+    const result = await db.insert(locationHistory).values(insertLocationHistory).returning();
+    return result[0];
+  }
+
+  async getParcelLocationHistory(parcelId: string, limit: number = 50): Promise<LocationHistory[]> {
+    return await db
+      .select()
+      .from(locationHistory)
+      .where(eq(locationHistory.parcelId, parcelId))
+      .orderBy(desc(locationHistory.createdAt))
+      .limit(limit);
+  }
+
+  async getLatestLocation(parcelId: string): Promise<LocationHistory | undefined> {
+    const result = await db
+      .select()
+      .from(locationHistory)
+      .where(eq(locationHistory.parcelId, parcelId))
+      .orderBy(desc(locationHistory.createdAt))
+      .limit(1);
+    return result[0];
+  }
+
+  async deleteOldLocationHistory(daysOld: number = 7): Promise<number> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+    
+    const result = await db
+      .delete(locationHistory)
+      .where(gte(locationHistory.createdAt, cutoffDate))
+      .returning();
+    return result.length;
+  }
+
+  // Wallet Transaction Methods
+  async createWalletTransaction(insertTransaction: InsertWalletTransaction): Promise<WalletTransaction> {
+    const result = await db.insert(walletTransactions).values(insertTransaction).returning();
+    
+    // Update user's wallet balance
+    await db
+      .update(users)
+      .set({ walletBalance: insertTransaction.balanceAfter })
+      .where(eq(users.id, insertTransaction.userId));
+    
+    return result[0];
+  }
+
+  async getUserWalletTransactions(userId: string, limit: number = 50): Promise<WalletTransaction[]> {
+    return await db
+      .select()
+      .from(walletTransactions)
+      .where(eq(walletTransactions.userId, userId))
+      .orderBy(desc(walletTransactions.createdAt))
+      .limit(limit);
+  }
+
+  async getWalletTransactionByReference(reference: string): Promise<WalletTransaction | undefined> {
+    const result = await db
+      .select()
+      .from(walletTransactions)
+      .where(eq(walletTransactions.reference, reference));
+    return result[0];
+  }
+
+  async getWalletTransactionByPaystackReference(paystackReference: string): Promise<WalletTransaction | undefined> {
+    const result = await db
+      .select()
+      .from(walletTransactions)
+      .where(eq(walletTransactions.paystackReference, paystackReference));
+    return result[0];
+  }
+
+  // Dispute Methods
+  async createDispute(insertDispute: InsertDispute): Promise<Dispute> {
+    // Set auto-close date (7 days from now)
+    const autoCloseAt = new Date();
+    autoCloseAt.setDate(autoCloseAt.getDate() + 7);
+    
+    const result = await db.insert(disputes).values({
+      ...insertDispute,
+      autoCloseAt,
+    }).returning();
+    return result[0];
+  }
+
+  async getDispute(id: string): Promise<Dispute | undefined> {
+    const result = await db.select().from(disputes).where(eq(disputes.id, id));
+    return result[0];
+  }
+
+  async getUserDisputes(userId: string): Promise<Dispute[]> {
+    return await db
+      .select()
+      .from(disputes)
+      .where(or(eq(disputes.complainantId, userId), eq(disputes.respondentId, userId)))
+      .orderBy(desc(disputes.createdAt));
+  }
+
+  async getParcelDisputes(parcelId: string): Promise<Dispute[]> {
+    return await db
+      .select()
+      .from(disputes)
+      .where(eq(disputes.parcelId, parcelId))
+      .orderBy(desc(disputes.createdAt));
+  }
+
+  async getOpenDisputes(): Promise<Dispute[]> {
+    return await db
+      .select()
+      .from(disputes)
+      .where(or(eq(disputes.status, "open"), eq(disputes.status, "in_review")))
+      .orderBy(desc(disputes.createdAt));
+  }
+
+  async updateDispute(id: string, updates: Partial<Dispute>): Promise<Dispute | undefined> {
+    const result = await db
+      .update(disputes)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(disputes.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async createDisputeMessage(insertMessage: InsertDisputeMessage): Promise<DisputeMessage> {
+    const result = await db.insert(disputeMessages).values(insertMessage).returning();
+    
+    // Update dispute timestamp
+    await db
+      .update(disputes)
+      .set({ updatedAt: new Date() })
+      .where(eq(disputes.id, insertMessage.disputeId));
+    
+    return result[0];
+  }
+
+  async getDisputeMessages(disputeId: string): Promise<DisputeMessage[]> {
+    return await db
+      .select()
+      .from(disputeMessages)
+      .where(eq(disputeMessages.disputeId, disputeId))
+      .orderBy(disputeMessages.createdAt);
+  }
+
+  // Parcel Photo Methods
+  async createParcelPhoto(insertPhoto: InsertParcelPhoto): Promise<ParcelPhoto> {
+    const result = await db.insert(parcelPhotos).values(insertPhoto).returning();
+    return result[0];
+  }
+
+  async getParcelPhotos(parcelId: string): Promise<ParcelPhoto[]> {
+    return await db
+      .select()
+      .from(parcelPhotos)
+      .where(eq(parcelPhotos.parcelId, parcelId))
+      .orderBy(desc(parcelPhotos.createdAt));
+  }
+
+  async getParcelPhotosByType(parcelId: string, photoType: string): Promise<ParcelPhoto[]> {
+    return await db
+      .select()
+      .from(parcelPhotos)
+      .where(and(eq(parcelPhotos.parcelId, parcelId), eq(parcelPhotos.photoType, photoType)))
+      .orderBy(desc(parcelPhotos.createdAt));
+  }
+
+  async deleteParcelPhoto(id: string): Promise<boolean> {
+    const result = await db.delete(parcelPhotos).where(eq(parcelPhotos.id, id)).returning();
+    return result.length > 0;
+>>>>>>> origin/payments
   }
 }
 

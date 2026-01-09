@@ -10,11 +10,21 @@ import {
   GoogleAuthProvider,
   signInWithCredential,
 } from "firebase/auth";
+<<<<<<< HEAD
 import { auth } from "@/lib/firebase";
 import { Platform } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import { apiRequest } from "@/lib/query-client";
+=======
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { Platform } from "react-native";
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
+
+WebBrowser.maybeCompleteAuthSession();
+>>>>>>> origin/payments
 
 interface UserProfile {
   id: string;
@@ -29,8 +39,11 @@ interface UserProfile {
   savedLocationAddress?: string;
   savedLocationLat?: number;
   savedLocationLng?: number;
+<<<<<<< HEAD
   walletBalance: number;
   subscriptionStatus: "free" | "premium";
+=======
+>>>>>>> origin/payments
 }
 
 interface AuthContextType {
@@ -68,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string;
   } | null>(null);
 
+<<<<<<< HEAD
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID?.includes(":") 
       ? undefined
@@ -92,11 +106,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           try {
             await apiRequest("POST", "/api/users", {
               id: firebaseUser.uid,
+=======
+  // Google Auth Request for Mobile
+  let request: any = null;
+  let response: any = null;
+  let promptAsync: any = async () => {};
+
+  try {
+    const authResult = Google.useAuthRequest({
+      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+      androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    });
+    request = authResult[0];
+    response = authResult[1];
+    promptAsync = authResult[2];
+  } catch (e) {
+    console.warn("Google.useAuthRequest failed:", e);
+  }
+
+  // Handle Mobile Google Auth Response
+  useEffect(() => {
+    if (response?.type === "success") {
+      const { id_token } = response.params;
+      const credential = GoogleAuthProvider.credential(id_token);
+      
+      setGoogleLoading(true);
+      signInWithCredential(auth, credential)
+        .then(async (result) => {
+          const firebaseUser = result.user;
+          const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+          if (!profileDoc.exists()) {
+            await setDoc(doc(db, "users", firebaseUser.uid), {
+>>>>>>> origin/payments
               name: firebaseUser.displayName || "",
               email: firebaseUser.email || "",
               rating: 5.0,
               verified: false,
               emailVerified: true,
+<<<<<<< HEAD
               walletBalance: 0,
               subscriptionStatus: "free",
             });
@@ -112,6 +160,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setGoogleLoading(false);
         }
       })();
+=======
+              createdAt: serverTimestamp(),
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Google mobile sign-in error:", error);
+        })
+        .finally(() => {
+          setGoogleLoading(false);
+        });
+>>>>>>> origin/payments
     }
   }, [response]);
 
@@ -123,16 +183,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const result = await signInWithPopup(auth, provider);
         const firebaseUser = result.user;
+<<<<<<< HEAD
         
         // Sync user to PostgreSQL
         try {
           await apiRequest("POST", "/api/users", {
             id: firebaseUser.uid,
+=======
+        const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+        if (!profileDoc.exists()) {
+          await setDoc(doc(db, "users", firebaseUser.uid), {
+>>>>>>> origin/payments
             name: firebaseUser.displayName || "",
             email: firebaseUser.email || "",
             rating: 5.0,
             verified: false,
             emailVerified: true,
+<<<<<<< HEAD
             walletBalance: 0,
             subscriptionStatus: "free",
           });
@@ -148,10 +215,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         throw error;
+=======
+            createdAt: serverTimestamp(),
+          });
+        }
+      } catch (error: any) {
+        console.error("Google web sign-in error:", error);
+        if (error.code !== "auth/popup-closed-by-user") throw error;
+>>>>>>> origin/payments
       } finally {
         setGoogleLoading(false);
       }
     } else {
+<<<<<<< HEAD
       setGoogleLoading(true);
       try {
         await WebBrowser.warmUpAsync();
@@ -163,6 +239,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Native Google sign-in error:", error);
         setGoogleLoading(false);
         throw new Error("Google Sign-In failed. Please use email/password or try again.");
+=======
+      if (request) {
+        await promptAsync();
+      } else {
+        console.error("Google request not initialized");
+>>>>>>> origin/payments
       }
     }
   };
@@ -170,11 +252,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
+<<<<<<< HEAD
       
       if (firebaseUser) {
         try {
           const response = await apiRequest("GET", `/api/users/${firebaseUser.uid}`);
           const data = response as any;
+=======
+      if (firebaseUser) {
+        const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+        if (profileDoc.exists()) {
+          const data = profileDoc.data();
+>>>>>>> origin/payments
           setUserProfile({
             id: firebaseUser.uid,
             name: data.name || firebaseUser.displayName || "",
@@ -183,11 +272,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             rating: data.rating || 5.0,
             verified: data.verified || false,
             emailVerified: data.emailVerified || false,
+<<<<<<< HEAD
             createdAt: new Date(data.createdAt),
+=======
+            createdAt: data.createdAt?.toDate() || new Date(),
+>>>>>>> origin/payments
             savedLocationName: data.savedLocationName,
             savedLocationAddress: data.savedLocationAddress,
             savedLocationLat: data.savedLocationLat,
             savedLocationLng: data.savedLocationLng,
+<<<<<<< HEAD
             walletBalance: data.walletBalance || 0,
             subscriptionStatus: data.subscriptionStatus || "free",
           });
@@ -232,14 +326,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.error("Error fetching user profile:", error);
             setUserProfile(null);
           }
+=======
+          });
+>>>>>>> origin/payments
         }
       } else {
         setUserProfile(null);
       }
+<<<<<<< HEAD
       
       setLoading(false);
     });
 
+=======
+      setLoading(false);
+    });
+>>>>>>> origin/payments
     return () => unsubscribe();
   }, []);
 
@@ -250,17 +352,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string, name: string, isEmailVerified: boolean = false) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const firebaseUser = userCredential.user;
+<<<<<<< HEAD
 
     await updateProfile(firebaseUser, { displayName: name });
 
     // Sync user to PostgreSQL
     const newUser = {
       id: firebaseUser.uid,
+=======
+    await updateProfile(firebaseUser, { displayName: name });
+    await setDoc(doc(db, "users", firebaseUser.uid), {
+>>>>>>> origin/payments
       name,
       email,
       rating: 5.0,
       verified: false,
       emailVerified: isEmailVerified,
+<<<<<<< HEAD
       walletBalance: 0,
       subscriptionStatus: "free" as const,
     };
@@ -284,10 +392,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await firebaseSignOut(auth);
     setUserProfile(null);
     setPendingVerification(null);
+=======
+      createdAt: serverTimestamp(),
+    });
+  };
+
+  const signOut = async () => {
+    await firebaseSignOut(auth);
+    setUserProfile(null);
+>>>>>>> origin/payments
   };
 
   const updateUserProfile = async (data: Partial<UserProfile>) => {
     if (!user) return;
+<<<<<<< HEAD
 
     // Update in PostgreSQL
     await apiRequest("PATCH", `/api/users/${user.uid}`, data);
@@ -296,11 +414,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await updateProfile(user, { displayName: data.name });
     }
 
+=======
+    await setDoc(doc(db, "users", user.uid), data, { merge: true });
+    if (data.name) await updateProfile(user, { displayName: data.name });
+>>>>>>> origin/payments
     setUserProfile((prev) => prev ? { ...prev, ...data } : null);
   };
 
   const sendVerificationCode = async (email: string) => {
     const code = generateVerificationCode();
+<<<<<<< HEAD
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     
     // Store in memory (in-app only for demo purposes)
@@ -349,6 +472,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (typeof localStorage !== "undefined") {
       localStorage.removeItem(storageKey);
     }
+=======
+    await setDoc(doc(db, "verificationCodes", email.toLowerCase()), {
+      code,
+      email: email.toLowerCase(),
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      createdAt: serverTimestamp(),
+    });
+  };
+
+  const verifyCode = async (email: string, code: string): Promise<boolean> => {
+    const codeDoc = await getDoc(doc(db, "verificationCodes", email.toLowerCase()));
+    if (!codeDoc.exists()) return false;
+    const data = codeDoc.data();
+    if (new Date() > data.expiresAt.toDate() || data.code !== code) return false;
+    await deleteDoc(doc(db, "verificationCodes", email.toLowerCase()));
+>>>>>>> origin/payments
     return true;
   };
 
@@ -373,7 +512,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         verifyCode,
         resetPassword,
         setPendingVerification,
+<<<<<<< HEAD
         completeSignUp,
+=======
+        completeSignUp: async () => {},
+>>>>>>> origin/payments
       }}
     >
       {children}
@@ -383,8 +526,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
+<<<<<<< HEAD
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
+=======
+  if (context === undefined) throw new Error("useAuth must be used within an AuthProvider");
+>>>>>>> origin/payments
   return context;
 }

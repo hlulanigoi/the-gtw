@@ -13,7 +13,10 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { MyRoutesStackParamList } from "@/navigation/MyRoutesStackNavigator";
 import { useRoutes, useMatchingParcels, MatchingParcel } from "@/hooks/useRoutes";
+<<<<<<< HEAD
 import { formatCurrency } from "@/lib/currency";
+=======
+>>>>>>> origin/payments
 
 type RouteDetailRouteProp = RouteProp<MyRoutesStackParamList, "RouteDetail">;
 type NavigationProp = NativeStackNavigationProp<MyRoutesStackParamList>;
@@ -253,7 +256,11 @@ export default function RouteDetailScreen() {
               Price per kg
             </ThemedText>
             <ThemedText type="body" style={{ color: Colors.primary }}>
+<<<<<<< HEAD
               {formatCurrency(route.pricePerKg)}
+=======
+              R{route.pricePerKg}
+>>>>>>> origin/payments
             </ThemedText>
           </View>
         ) : null}
@@ -371,7 +378,11 @@ export default function RouteDetailScreen() {
                       </ThemedText>
                     </View>
                     <ThemedText type="body" style={{ color: Colors.primary }}>
+<<<<<<< HEAD
                       {formatCurrency(parcel.compensation)}
+=======
+                      R{parcel.compensation}
+>>>>>>> origin/payments
                     </ThemedText>
                   </View>
                   <View style={styles.matchingParcelFooter}>

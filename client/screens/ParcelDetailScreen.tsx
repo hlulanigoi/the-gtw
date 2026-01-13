@@ -933,6 +933,13 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     alignItems: "center",
   },
+  buttonRow: {
+    flexDirection: 'row',
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   receiverLocationCard: {
     marginBottom: Spacing.lg,
   },

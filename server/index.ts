@@ -262,10 +262,6 @@ function setupErrorHandler(app: express.Application) {
 }
 
 (async () => {
-<<<<<<< HEAD
-  setupCors(app);
-  setupBodyParsing(app);
-=======
   // Security headers
   app.use(helmet({
     contentSecurityPolicy: false, // Allow Expo and admin dashboard
@@ -303,7 +299,6 @@ function setupErrorHandler(app: express.Application) {
 
   app.use('/api/auth/', authLimiter);
   
->>>>>>> origin/payments
   setupRequestLogging(app);
 
   configureExpoAndLanding(app);

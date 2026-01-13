@@ -3,26 +3,20 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MainTabNavigator from "@/navigation/MainTabNavigator";
 import CreateParcelScreen from "@/screens/CreateParcelScreen";
 import RouteFilterScreen from "@/screens/RouteFilterScreen";
-<<<<<<< HEAD
-=======
 import PaymentScreen from "@/screens/PaymentScreen";
 import PaymentHistoryScreen from "@/screens/PaymentHistoryScreen";
->>>>>>> origin/payments
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type RootStackParamList = {
   Main: undefined;
   CreateParcel: undefined;
   RouteFilter: undefined;
-<<<<<<< HEAD
-=======
   Payment: {
     authorizationUrl: string;
     reference: string;
     parcelId: string;
   };
   PaymentHistory: undefined;
->>>>>>> origin/payments
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -53,8 +47,6 @@ export default function RootStackNavigator() {
           headerTitle: "Filter Routes",
         }}
       />
-<<<<<<< HEAD
-=======
       <Stack.Screen
         name="Payment"
         component={PaymentScreen}
@@ -70,7 +62,6 @@ export default function RootStackNavigator() {
           headerShown: false,
         }}
       />
->>>>>>> origin/payments
     </Stack.Navigator>
   );
 }

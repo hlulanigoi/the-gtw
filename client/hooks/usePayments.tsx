@@ -1,26 +1,10 @@
-<<<<<<< HEAD
-import { useQuery } from "@tanstack/react-query";
-import { getQueryFn } from "@/lib/query-client";
-import { useAuth } from "@/contexts/AuthContext";
-=======
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiUrl } from "@/lib/query-client";
->>>>>>> origin/payments
 
 export interface Payment {
   id: string;
   parcelId: string;
-<<<<<<< HEAD
-  userId: string;
-  reference: string;
-  amount: number;
-  platformFee: number;
-  totalAmount: number;
-  status: "pending" | "success" | "failed" | "cancelled";
-  paymentMethod: string;
-  paystackData?: string;
-=======
   senderId: string;
   carrierId: string;
   amount: number;
@@ -31,29 +15,10 @@ export interface Payment {
   paystackAuthorizationUrl?: string;
   paidAt?: Date;
   metadata?: string;
->>>>>>> origin/payments
   createdAt: Date;
   updatedAt: Date;
 }
 
-<<<<<<< HEAD
-export function usePayments() {
-  const { user } = useAuth();
-
-  const { data: payments = [], isLoading, error } = useQuery<Payment[]>({
-    queryKey: ["/api/payments/history"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
-    enabled: !!user?.uid,
-  });
-
-  const mappedPayments = (payments || []).map((p: any) => ({
-    ...p,
-    createdAt: new Date(p.createdAt),
-    updatedAt: new Date(p.updatedAt),
-  }));
-
-  return { payments: mappedPayments, isLoading, error };
-=======
 export interface PaymentInitResponse {
   reference: string;
   access_code: string;
@@ -200,5 +165,4 @@ export function usePayments() {
     isLoading,
     error,
   };
->>>>>>> origin/payments
 }

@@ -2,11 +2,7 @@ import * as WebBrowser from "expo-web-browser";
 import React, { useState, useMemo } from "react";
 import { View, StyleSheet, Pressable, ScrollView, Alert, Modal, TextInput, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-<<<<<<< HEAD
-import { useRoute, RouteProp, useNavigation, NativeStackNavigationProp } from "@react-navigation/native";
-=======
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
->>>>>>> origin/payments
 import { Feather } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
 
@@ -22,11 +18,7 @@ import { useReviews } from "@/hooks/useReviews";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCarrierLocation } from "@/hooks/useCarrierLocation";
 import { useReceiverLocation } from "@/hooks/useReceiverLocation";
-<<<<<<< HEAD
-import { formatCurrency } from "@/lib/currency";
-=======
 import { usePayments } from "@/hooks/usePayments";
->>>>>>> origin/payments
 
 type RouteType = RouteProp<BrowseStackParamList, "ParcelDetail">;
 
@@ -52,11 +44,7 @@ export default function ParcelDetailScreen() {
   const insets = useSafeAreaInsets();
   const { theme, isDark } = useTheme();
   const route = useRoute<RouteType>();
-<<<<<<< HEAD
-  const navigation = useNavigation<NativeStackNavigationProp<BrowseStackParamList>>();
-=======
   const navigation = useNavigation<any>();
->>>>>>> origin/payments
   const { parcelId } = route.params;
   const { parcels, acceptParcel } = useParcels();
   const { addConnection, isConnected, isAdding } = useConnections();
@@ -64,10 +52,7 @@ export default function ParcelDetailScreen() {
   const { user } = useAuth();
   const { startTracking, isTracking } = useCarrierLocation(parcelId);
   const { receiverLocation } = useReceiverLocation(parcelId);
-<<<<<<< HEAD
-=======
   const { initializePayment } = usePayments();
->>>>>>> origin/payments
   const [savedCarrier, setSavedCarrier] = useState(false);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
@@ -92,11 +77,6 @@ export default function ParcelDetailScreen() {
     startTracking(parcelId);
   };
 
-<<<<<<< HEAD
-  const handlePayment = () => {
-    // Navigate to checkout screen
-    navigation.navigate("Checkout", { parcelId });
-=======
   const handlePayment = async () => {
     if (!parcel.transporterId) {
       Alert.alert("Error", "No carrier assigned to this parcel yet.");
@@ -130,7 +110,6 @@ export default function ParcelDetailScreen() {
         },
       ]
     );
->>>>>>> origin/payments
   };
 
   const handleSaveCarrier = async () => {
@@ -355,11 +334,7 @@ export default function ParcelDetailScreen() {
             Compensation
           </ThemedText>
           <ThemedText type="h1" style={{ color: Colors.primary }}>
-<<<<<<< HEAD
-            {formatCurrency(parcel.compensation)}
-=======
             R{parcel.compensation}
->>>>>>> origin/payments
           </ThemedText>
         </View>
 

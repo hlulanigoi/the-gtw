@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/query-client";
-=======
 import { useState, useEffect, useCallback } from "react";
 import {
   collection,
@@ -17,7 +13,6 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
->>>>>>> origin/payments
 import { useAuth } from "@/contexts/AuthContext";
 
 export interface Message {
@@ -44,56 +39,6 @@ export interface Conversation {
 
 export function useConversations() {
   const { user } = useAuth();
-<<<<<<< HEAD
-  const queryClient = useQueryClient();
-
-  const { data: conversations = [], isLoading, error } = useQuery<Conversation[]>({
-    queryKey: ["/api/conversations"],
-    queryFn: async () => {
-      if (!user) return [];
-      return ((await apiRequest("GET", "/api/conversations")) as unknown) as Conversation[];
-    },
-    enabled: !!user,
-  });
-
-  const addMessageMutation = useMutation({
-    mutationFn: async ({ conversationId, message }: { conversationId: string; message: Message }) => {
-      return apiRequest("POST", `/api/conversations/${conversationId}/messages`, {
-        text: message.text,
-        senderId: user?.uid,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
-    },
-  });
-
-  const createConversationMutation = useMutation({
-    mutationFn: async ({ otherUserId, parcelId }: { otherUserId: string; parcelId?: string }) => {
-      const response = (await apiRequest("POST", "/api/conversations", {
-        participant1Id: user?.uid,
-        participant2Id: otherUserId,
-        parcelId: parcelId || null,
-      })) as any;
-      return response.id;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
-    },
-  });
-
-  const addMessage = async (conversationId: string, message: Message) => {
-    return addMessageMutation.mutateAsync({ conversationId, message });
-  };
-
-  const createConversation = async (otherUserId: string, parcelId?: string) => {
-    return createConversationMutation.mutateAsync({ otherUserId, parcelId });
-  };
-
-  const markAsRead = (conversationId: string) => {
-    // Optional: Implement if needed
-  };
-=======
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -238,7 +183,6 @@ export function useConversations() {
   };
 
   const markAsRead = (conversationId: string) => {};
->>>>>>> origin/payments
 
   return {
     conversations,

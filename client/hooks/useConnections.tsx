@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/query-client";
-=======
 import { useState, useEffect } from "react";
 import {
   collection,
@@ -16,7 +12,6 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
->>>>>>> origin/payments
 import { useAuth } from "@/contexts/AuthContext";
 
 type ConnectionType = "trusted_carrier" | "saved_contact";
@@ -40,42 +35,6 @@ type Connection = {
 
 export function useConnections() {
   const { user } = useAuth();
-<<<<<<< HEAD
-  const queryClient = useQueryClient();
-
-  const { data: connections = [], isLoading, error } = useQuery<Connection[]>({
-    queryKey: ["/api/users", user?.uid, "connections"],
-    queryFn: async () => {
-      if (!user) return [];
-      return ((await apiRequest("GET", `/api/users/${user.uid}/connections`)) as unknown) as Connection[];
-    },
-    enabled: !!user,
-  });
-
-  const addConnectionMutation = useMutation({
-    mutationFn: async ({ connectedUserId, connectionType, note }: { connectedUserId: string; connectionType: ConnectionType; note?: string }) => {
-      if (!user) throw new Error("User not authenticated");
-      return apiRequest("POST", `/api/users/${user.uid}/connections`, {
-        connectedUserId,
-        connectionType,
-        note: note || null,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users", user?.uid, "connections"] });
-    },
-  });
-
-  const removeConnectionMutation = useMutation({
-    mutationFn: async (connectedUserId: string) => {
-      if (!user) throw new Error("User not authenticated");
-      return apiRequest("DELETE", `/api/users/${user.uid}/connections/${connectedUserId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users", user?.uid, "connections"] });
-    },
-  });
-=======
   const [connections, setConnections] = useState<Connection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -151,20 +110,12 @@ export function useConnections() {
 
     return () => unsubscribe();
   }, [user?.uid]);
->>>>>>> origin/payments
 
   const addConnection = async (
     connectedUserId: string,
     connectionType: ConnectionType,
     note?: string
   ) => {
-<<<<<<< HEAD
-    return addConnectionMutation.mutateAsync({ connectedUserId, connectionType, note });
-  };
-
-  const removeConnection = async (connectionId: string) => {
-    return removeConnectionMutation.mutateAsync(connectionId);
-=======
     if (!user) return;
     setIsAdding(true);
 
@@ -194,7 +145,6 @@ export function useConnections() {
     } finally {
       setIsRemoving(false);
     }
->>>>>>> origin/payments
   };
 
   const isConnected = (userId: string) => {
@@ -217,12 +167,7 @@ export function useConnections() {
     isConnected,
     isLoading,
     error,
-<<<<<<< HEAD
-    isAdding: addConnectionMutation.isPending,
-    isRemoving: removeConnectionMutation.isPending,
-=======
     isAdding,
     isRemoving,
->>>>>>> origin/payments
   };
 }

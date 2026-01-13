@@ -10,13 +10,6 @@ import {
   GoogleAuthProvider,
   signInWithCredential,
 } from "firebase/auth";
-<<<<<<< HEAD
-import { auth } from "@/lib/firebase";
-import { Platform } from "react-native";
-import * as WebBrowser from "expo-web-browser";
-import * as Google from "expo-auth-session/providers/google";
-import { apiRequest } from "@/lib/query-client";
-=======
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { Platform } from "react-native";
@@ -24,7 +17,6 @@ import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 
 WebBrowser.maybeCompleteAuthSession();
->>>>>>> origin/payments
 
 interface UserProfile {
   id: string;
@@ -39,11 +31,6 @@ interface UserProfile {
   savedLocationAddress?: string;
   savedLocationLat?: number;
   savedLocationLng?: number;
-<<<<<<< HEAD
-  walletBalance: number;
-  subscriptionStatus: "free" | "premium";
-=======
->>>>>>> origin/payments
 }
 
 interface AuthContextType {
@@ -81,32 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string;
   } | null>(null);
 
-<<<<<<< HEAD
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID?.includes(":") 
-      ? undefined
-      : "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
-    webClientId: "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
-    iosClientId: "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
-    androidClientId: "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
-    scopes: ["profile", "email"],
-  });
-
-  useEffect(() => {
-    if (response?.type === "success") {
-      const { id_token, access_token } = response.params;
-      
-      (async () => {
-        try {
-          const credential = GoogleAuthProvider.credential(id_token, access_token);
-          const result = await signInWithCredential(auth, credential);
-          const firebaseUser = result.user;
-          
-          // Sync user to PostgreSQL
-          try {
-            await apiRequest("POST", "/api/users", {
-              id: firebaseUser.uid,
-=======
   // Google Auth Request for Mobile
   let request: any = null;
   let response: any = null;
@@ -138,29 +99,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
           if (!profileDoc.exists()) {
             await setDoc(doc(db, "users", firebaseUser.uid), {
->>>>>>> origin/payments
               name: firebaseUser.displayName || "",
               email: firebaseUser.email || "",
               rating: 5.0,
               verified: false,
               emailVerified: true,
-<<<<<<< HEAD
-              walletBalance: 0,
-              subscriptionStatus: "free",
-            });
-          } catch (dbError: any) {
-            // User may already exist, that's okay
-            if (!dbError?.message?.includes("already exists")) {
-              console.error("Error syncing user to DB:", dbError);
-            }
-          }
-          setGoogleLoading(false);
-        } catch (error: any) {
-          console.error("Error signing in with Google:", error);
-          setGoogleLoading(false);
-        }
-      })();
-=======
               createdAt: serverTimestamp(),
             });
           }
@@ -171,7 +114,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .finally(() => {
           setGoogleLoading(false);
         });
->>>>>>> origin/payments
     }
   }, [response]);
 
@@ -183,68 +125,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const result = await signInWithPopup(auth, provider);
         const firebaseUser = result.user;
-<<<<<<< HEAD
-        
-        // Sync user to PostgreSQL
-        try {
-          await apiRequest("POST", "/api/users", {
-            id: firebaseUser.uid,
-=======
         const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
         if (!profileDoc.exists()) {
           await setDoc(doc(db, "users", firebaseUser.uid), {
->>>>>>> origin/payments
             name: firebaseUser.displayName || "",
             email: firebaseUser.email || "",
             rating: 5.0,
             verified: false,
             emailVerified: true,
-<<<<<<< HEAD
-            walletBalance: 0,
-            subscriptionStatus: "free",
-          });
-        } catch (dbError: any) {
-          // User may already exist, that's okay
-          if (!dbError?.message?.includes("already exists")) {
-            console.error("Error syncing user to DB:", dbError);
-          }
-        }
-      } catch (error: any) {
-        console.error("Google sign-in error:", error);
-        if (error.code === "auth/popup-closed-by-user") {
-          return;
-        }
-        throw error;
-=======
             createdAt: serverTimestamp(),
           });
         }
       } catch (error: any) {
         console.error("Google web sign-in error:", error);
         if (error.code !== "auth/popup-closed-by-user") throw error;
->>>>>>> origin/payments
       } finally {
         setGoogleLoading(false);
       }
     } else {
-<<<<<<< HEAD
-      setGoogleLoading(true);
-      try {
-        await WebBrowser.warmUpAsync();
-        const result = await promptAsync();
-        if (result?.type !== "success") {
-          throw new Error("Google sign-in was cancelled. Please try again or use email sign-in.");
-        }
-      } catch (error: any) {
-        console.error("Native Google sign-in error:", error);
-        setGoogleLoading(false);
-        throw new Error("Google Sign-In failed. Please use email/password or try again.");
-=======
       if (request) {
         await promptAsync();
       } else {
         console.error("Google request not initialized");
->>>>>>> origin/payments
       }
     }
   };
@@ -252,18 +154,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
-<<<<<<< HEAD
-      
-      if (firebaseUser) {
-        try {
-          const response = await apiRequest("GET", `/api/users/${firebaseUser.uid}`);
-          const data = response as any;
-=======
       if (firebaseUser) {
         const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
         if (profileDoc.exists()) {
           const data = profileDoc.data();
->>>>>>> origin/payments
           setUserProfile({
             id: firebaseUser.uid,
             name: data.name || firebaseUser.displayName || "",
@@ -272,76 +166,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             rating: data.rating || 5.0,
             verified: data.verified || false,
             emailVerified: data.emailVerified || false,
-<<<<<<< HEAD
-            createdAt: new Date(data.createdAt),
-=======
             createdAt: data.createdAt?.toDate() || new Date(),
->>>>>>> origin/payments
             savedLocationName: data.savedLocationName,
             savedLocationAddress: data.savedLocationAddress,
             savedLocationLat: data.savedLocationLat,
             savedLocationLng: data.savedLocationLng,
-<<<<<<< HEAD
-            walletBalance: data.walletBalance || 0,
-            subscriptionStatus: data.subscriptionStatus || "free",
           });
-        } catch (error: any) {
-          // If user doesn't exist in DB, create them
-          if (error?.message?.includes("404")) {
-            try {
-              await apiRequest("POST", "/api/users", {
-                id: firebaseUser.uid,
-                name: firebaseUser.displayName || "",
-                email: firebaseUser.email || "",
-                rating: 5.0,
-                verified: false,
-                emailVerified: firebaseUser.emailVerified || false,
-                walletBalance: 0,
-                subscriptionStatus: "free",
-              });
-              // Fetch again after creating
-              const response = await apiRequest("GET", `/api/users/${firebaseUser.uid}`);
-              const data = response as any;
-              setUserProfile({
-                id: firebaseUser.uid,
-                name: data.name || firebaseUser.displayName || "",
-                email: data.email || firebaseUser.email || "",
-                phone: data.phone,
-                rating: data.rating || 5.0,
-                verified: data.verified || false,
-                emailVerified: data.emailVerified || false,
-                createdAt: new Date(data.createdAt),
-                savedLocationName: data.savedLocationName,
-                savedLocationAddress: data.savedLocationAddress,
-                savedLocationLat: data.savedLocationLat,
-                savedLocationLng: data.savedLocationLng,
-                walletBalance: data.walletBalance || 0,
-                subscriptionStatus: data.subscriptionStatus || "free",
-              });
-            } catch (createError) {
-              console.error("Error creating user:", createError);
-              setUserProfile(null);
-            }
-          } else {
-            console.error("Error fetching user profile:", error);
-            setUserProfile(null);
-          }
-=======
-          });
->>>>>>> origin/payments
         }
       } else {
         setUserProfile(null);
       }
-<<<<<<< HEAD
-      
       setLoading(false);
     });
-
-=======
-      setLoading(false);
-    });
->>>>>>> origin/payments
     return () => unsubscribe();
   }, []);
 
@@ -352,47 +188,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string, name: string, isEmailVerified: boolean = false) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const firebaseUser = userCredential.user;
-<<<<<<< HEAD
-
-    await updateProfile(firebaseUser, { displayName: name });
-
-    // Sync user to PostgreSQL
-    const newUser = {
-      id: firebaseUser.uid,
-=======
     await updateProfile(firebaseUser, { displayName: name });
     await setDoc(doc(db, "users", firebaseUser.uid), {
->>>>>>> origin/payments
       name,
       email,
       rating: 5.0,
       verified: false,
       emailVerified: isEmailVerified,
-<<<<<<< HEAD
-      walletBalance: 0,
-      subscriptionStatus: "free" as const,
-    };
-    await apiRequest("POST", "/api/users", newUser);
-
-    setUserProfile({
-      ...newUser,
-      createdAt: new Date(),
-    });
-  };
-
-  const completeSignUp = async () => {
-    if (!pendingVerification) return;
-    
-    const { email, password, name } = pendingVerification;
-    await signUp(email, password, name, true);
-    setPendingVerification(null);
-  };
-
-  const signOut = async () => {
-    await firebaseSignOut(auth);
-    setUserProfile(null);
-    setPendingVerification(null);
-=======
       createdAt: serverTimestamp(),
     });
   };
@@ -400,79 +202,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await firebaseSignOut(auth);
     setUserProfile(null);
->>>>>>> origin/payments
   };
 
   const updateUserProfile = async (data: Partial<UserProfile>) => {
     if (!user) return;
-<<<<<<< HEAD
-
-    // Update in PostgreSQL
-    await apiRequest("PATCH", `/api/users/${user.uid}`, data);
-
-    if (data.name) {
-      await updateProfile(user, { displayName: data.name });
-    }
-
-=======
     await setDoc(doc(db, "users", user.uid), data, { merge: true });
     if (data.name) await updateProfile(user, { displayName: data.name });
->>>>>>> origin/payments
     setUserProfile((prev) => prev ? { ...prev, ...data } : null);
   };
 
   const sendVerificationCode = async (email: string) => {
     const code = generateVerificationCode();
-<<<<<<< HEAD
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    
-    // Store in memory (in-app only for demo purposes)
-    // For production, use /api/verification-codes endpoint
-    const storageKey = `code_${email.toLowerCase()}`;
-    const codeData = { code, expiresAt: expiresAt.toISOString() };
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(storageKey, JSON.stringify(codeData));
-    }
-    
-    console.log(`Verification code for ${email}: ${code}`);
-  };
-
-  const verifyCode = async (email: string, code: string): Promise<boolean> => {
-    const storageKey = `code_${email.toLowerCase()}`;
-    let codeData = null;
-    
-    if (typeof localStorage !== "undefined") {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        try {
-          codeData = JSON.parse(stored);
-        } catch (e) {
-          return false;
-        }
-      }
-    }
-    
-    if (!codeData) {
-      return false;
-    }
-    
-    const expiresAt = new Date(codeData.expiresAt);
-    
-    if (new Date() > expiresAt) {
-      if (typeof localStorage !== "undefined") {
-        localStorage.removeItem(storageKey);
-      }
-      return false;
-    }
-    
-    if (codeData.code !== code) {
-      return false;
-    }
-    
-    if (typeof localStorage !== "undefined") {
-      localStorage.removeItem(storageKey);
-    }
-=======
     await setDoc(doc(db, "verificationCodes", email.toLowerCase()), {
       code,
       email: email.toLowerCase(),
@@ -487,7 +227,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = codeDoc.data();
     if (new Date() > data.expiresAt.toDate() || data.code !== code) return false;
     await deleteDoc(doc(db, "verificationCodes", email.toLowerCase()));
->>>>>>> origin/payments
     return true;
   };
 
@@ -512,11 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         verifyCode,
         resetPassword,
         setPendingVerification,
-<<<<<<< HEAD
-        completeSignUp,
-=======
         completeSignUp: async () => {},
->>>>>>> origin/payments
       }}
     >
       {children}
@@ -526,12 +261,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-<<<<<<< HEAD
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-=======
   if (context === undefined) throw new Error("useAuth must be used within an AuthProvider");
->>>>>>> origin/payments
   return context;
 }

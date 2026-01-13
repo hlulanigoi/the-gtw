@@ -1,7 +1,4 @@
 import { useState, useCallback } from "react";
-<<<<<<< HEAD
-import { apiRequest } from "@/lib/query-client";
-=======
 import {
   collection,
   query,
@@ -12,7 +9,6 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
->>>>>>> origin/payments
 
 export interface SearchableUser {
   id: string;
@@ -21,11 +17,6 @@ export interface SearchableUser {
   phone?: string;
   rating: number;
   verified: boolean;
-<<<<<<< HEAD
-}
-
-export function useUserSearch() {
-=======
   savedLocationName?: string;
   savedLocationAddress?: string;
   savedLocationLat?: number;
@@ -34,7 +25,6 @@ export function useUserSearch() {
 
 export function useUserSearch() {
   const { user } = useAuth();
->>>>>>> origin/payments
   const [searchResults, setSearchResults] = useState<SearchableUser[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -49,14 +39,6 @@ export function useUserSearch() {
     setSearchError(null);
 
     try {
-<<<<<<< HEAD
-      const response = await apiRequest(
-        "GET",
-        `/api/users/search?q=${encodeURIComponent(searchTerm)}`
-      );
-      const results = await response.json();
-      setSearchResults(results);
-=======
       const usersRef = collection(db, "users");
       const searchLower = searchTerm.toLowerCase().trim();
       
@@ -95,7 +77,6 @@ export function useUserSearch() {
       }).slice(0, 10);
 
       setSearchResults(sortedUsers);
->>>>>>> origin/payments
     } catch (err) {
       console.error("Error searching users:", err);
       setSearchError("Failed to search users. Please try again.");
@@ -103,11 +84,7 @@ export function useUserSearch() {
     } finally {
       setIsSearching(false);
     }
-<<<<<<< HEAD
-  }, []);
-=======
   }, [user?.uid]);
->>>>>>> origin/payments
 
   const clearSearch = useCallback(() => {
     setSearchResults([]);

@@ -1,10 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-<<<<<<< HEAD
-import * as Location from "expo-location";
-import { Platform, Alert, Linking } from "react-native";
-import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-=======
 import {
   collection,
   query,
@@ -20,7 +14,6 @@ import * as Location from "expo-location";
 import { Platform, Alert, Linking } from "react-native";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
->>>>>>> origin/payments
 import { apiRequest } from "@/lib/query-client";
 
 export interface ReceiverLocation {
@@ -30,35 +23,16 @@ export interface ReceiverLocation {
   lat: number;
   lng: number;
   accuracy?: number | null;
-<<<<<<< HEAD
-  timestamp: Date | string;
-=======
   timestamp: Date;
->>>>>>> origin/payments
 }
 
 export function useReceiverLocation(parcelId?: string) {
   const { user } = useAuth();
-<<<<<<< HEAD
-=======
   const [receiverLocation, setReceiverLocation] = useState<ReceiverLocation | null>(null);
->>>>>>> origin/payments
   const [isSharing, setIsSharing] = useState(false);
   const [locationSubscription, setLocationSubscription] = useState<Location.LocationSubscription | null>(null);
   const [permissionStatus, setPermissionStatus] = useState<Location.PermissionStatus | null>(null);
 
-<<<<<<< HEAD
-  const { data: receiverLocation } = useQuery<ReceiverLocation | null>({
-    queryKey: ["/api/parcels", parcelId, "receiver-location"],
-    queryFn: async () => {
-      if (!parcelId) return null;
-      const response = (await apiRequest("GET", `/api/parcels/${parcelId}/receiver-location`)) as any;
-      return response ? { ...response, timestamp: new Date(response.timestamp) } : null;
-    },
-    enabled: !!parcelId,
-    refetchInterval: 10000,
-  });
-=======
   useEffect(() => {
     if (!parcelId) return;
 
@@ -98,7 +72,6 @@ export function useReceiverLocation(parcelId?: string) {
 
     return () => unsubscribe();
   }, [parcelId]);
->>>>>>> origin/payments
 
   const checkPermission = useCallback(async () => {
     const { status } = await Location.getForegroundPermissionsAsync();
@@ -121,12 +94,8 @@ export function useReceiverLocation(parcelId?: string) {
             onPress: async () => {
               try {
                 await Linking.openSettings();
-<<<<<<< HEAD
-              } catch {}
-=======
               } catch {
               }
->>>>>>> origin/payments
             }
           },
         ]
@@ -162,14 +131,6 @@ export function useReceiverLocation(parcelId?: string) {
 
       const { latitude, longitude, accuracy } = location.coords;
 
-<<<<<<< HEAD
-      await apiRequest("POST", `/api/parcels/${sharingParcelId}/receiver-location`, {
-        lat: latitude,
-        lng: longitude,
-        accuracy: accuracy ?? null,
-      });
-
-=======
       await addDoc(collection(db, "receiverLocations"), {
         parcelId: sharingParcelId,
         receiverId: user.uid,
@@ -188,7 +149,6 @@ export function useReceiverLocation(parcelId?: string) {
         console.warn("Failed to sync receiver location with server:", apiErr);
       }
 
->>>>>>> origin/payments
       setIsSharing(false);
       return { lat: latitude, lng: longitude };
     } catch (err) {
@@ -223,12 +183,6 @@ export function useReceiverLocation(parcelId?: string) {
           const { latitude, longitude, accuracy } = location.coords;
 
           try {
-<<<<<<< HEAD
-            await apiRequest("POST", `/api/parcels/${sharingParcelId}/receiver-location`, {
-              lat: latitude,
-              lng: longitude,
-              accuracy: accuracy ?? null,
-=======
             await addDoc(collection(db, "receiverLocations"), {
               parcelId: sharingParcelId,
               receiverId: user.uid,
@@ -241,7 +195,6 @@ export function useReceiverLocation(parcelId?: string) {
             apiRequest("PATCH", `/api/parcels/${sharingParcelId}/receiver-location`, {
               lat: latitude,
               lng: longitude,
->>>>>>> origin/payments
             }).catch(() => {});
           } catch (err) {
             console.error("Error updating receiver location:", err);
@@ -273,11 +226,7 @@ export function useReceiverLocation(parcelId?: string) {
   }, [locationSubscription]);
 
   return {
-<<<<<<< HEAD
-    receiverLocation: receiverLocation || null,
-=======
     receiverLocation,
->>>>>>> origin/payments
     isSharing,
     permissionStatus,
     checkPermission,

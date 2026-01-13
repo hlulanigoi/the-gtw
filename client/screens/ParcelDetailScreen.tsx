@@ -574,6 +574,7 @@ export default function ParcelDetailScreen() {
         ) : null}
       </ScrollView>
 
+      {/* Bottom Actions */}
       {!parcel.isOwner && !parcel.isTransporting ? (
         <View
           style={[
@@ -597,6 +598,90 @@ export default function ParcelDetailScreen() {
           ]}
         >
           <Button onPress={handlePayment}>Pay for Delivery</Button>
+        </View>
+      ) : parcel.isTransporting && parcel.status === "Pending" ? (
+        <View
+          style={[
+            styles.bottomAction,
+            {
+              backgroundColor: theme.backgroundRoot,
+              paddingBottom: insets.bottom + Spacing.lg,
+            },
+          ]}
+        >
+          <Button
+            onPress={() =>
+              navigation.navigate('PhotoVerification', {
+                parcelId: parcel.id,
+                photoType: 'pickup',
+                parcelOrigin: parcel.origin,
+              })
+            }
+          >
+            <View style={styles.buttonContent}>
+              <Feather name="camera" size={20} color="#FFFFFF" />
+              <ThemedText type="body" style={{ color: '#FFFFFF', marginLeft: Spacing.sm }}>
+                Verify Pickup
+              </ThemedText>
+            </View>
+          </Button>
+        </View>
+      ) : parcel.isTransporting && parcel.status === "In Transit" ? (
+        <View
+          style={[
+            styles.bottomAction,
+            {
+              backgroundColor: theme.backgroundRoot,
+              paddingBottom: insets.bottom + Spacing.lg,
+            },
+          ]}
+        >
+          <View style={styles.buttonRow}>
+            <Button
+              onPress={() => navigation.navigate('LiveTracking', { parcelId: parcel.id })}
+              variant="secondary"
+              style={{ flex: 1 }}
+            >
+              <Feather name="map" size={18} color={Colors.primary} />
+            </Button>
+            <View style={{ width: Spacing.sm }} />
+            <Button
+              onPress={() =>
+                navigation.navigate('PhotoVerification', {
+                  parcelId: parcel.id,
+                  photoType: 'delivery',
+                  parcelDestination: parcel.destination,
+                })
+              }
+              style={{ flex: 2 }}
+            >
+              <View style={styles.buttonContent}>
+                <Feather name="check-circle" size={18} color="#FFFFFF" />
+                <ThemedText type="body" style={{ color: '#FFFFFF', marginLeft: Spacing.sm, fontWeight: '600' }}>
+                  Verify Delivery
+                </ThemedText>
+              </View>
+            </Button>
+          </View>
+        </View>
+      ) : parcel.status === "In Transit" ? (
+        <View
+          style={[
+            styles.bottomAction,
+            {
+              backgroundColor: theme.backgroundRoot,
+              paddingBottom: insets.bottom + Spacing.lg,
+            },
+          ]}
+        >
+          <Button onPress={() => navigation.navigate('LiveTracking', { parcelId: parcel.id })}>
+            <View style={styles.buttonContent}>
+              <Feather name="navigation" size={20} color="#FFFFFF" />
+              <ThemedText type="body" style={{ color: '#FFFFFF', marginLeft: Spacing.sm }}>
+                Track Live
+              </ThemedText>
+            </View>
+          </Button>
         </View>
       ) : null}
 

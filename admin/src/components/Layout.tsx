@@ -7,6 +7,9 @@ import {
   Route, 
   CreditCard, 
   Star, 
+  AlertTriangle,
+  Sparkles,
+  Wallet,
   LogOut 
 } from 'lucide-react'
 
@@ -17,6 +20,9 @@ const navigation = [
   { name: 'Routes', href: '/routes', icon: Route },
   { name: 'Payments', href: '/payments', icon: CreditCard },
   { name: 'Reviews', href: '/reviews', icon: Star },
+  { name: 'Disputes', href: '/disputes', icon: AlertTriangle },
+  { name: 'Subscriptions', href: '/subscriptions', icon: Sparkles },
+  { name: 'Wallet', href: '/wallet', icon: Wallet },
 ]
 
 export default function Layout() {

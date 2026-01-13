@@ -78,11 +78,7 @@
     "@types/node": "24.10.0",
     "@types/react": "~19.1.0",
     "babel-plugin-module-resolver": "^5.0.2",
-<<<<<<< HEAD
-    "drizzle-kit": "^0.31.4",
-=======
     "drizzle-kit": "^0.31.8",
->>>>>>> origin/payments
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
     "eslint-config-prettier": "^10.1.8",

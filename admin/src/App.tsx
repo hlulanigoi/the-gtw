@@ -10,6 +10,9 @@ import Parcels from './pages/Parcels'
 import RoutesPage from './pages/Routes'
 import Payments from './pages/Payments'
 import Reviews from './pages/Reviews'
+import Disputes from './pages/Disputes'
+import Subscriptions from './pages/Subscriptions'
+import WalletTransactions from './pages/WalletTransactions'
 import Layout from './components/Layout'
 
 const queryClient = new QueryClient()

@@ -98,9 +98,6 @@ function setupRequestLogging(app: express.Application) {
         logLine = logLine.slice(0, 79) + "…";
       }
 
-<<<<<<< HEAD
-      log(logLine);
-=======
       // Use structured logging
       if (res.statusCode >= 400) {
         logger.error(logLine, {
@@ -118,7 +115,6 @@ function setupRequestLogging(app: express.Application) {
           duration,
         });
       }
->>>>>>> origin/payments
     });
 
     next();

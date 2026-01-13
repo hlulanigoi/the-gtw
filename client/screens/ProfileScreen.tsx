@@ -45,11 +45,21 @@ export default function ProfileScreen() {
     { label: "Rating", value: "4.8", icon: "star" as const },
   ];
 
+  const handleWallet = () => {
+    navigation.navigate("Wallet");
+  };
+
+  const handleDisputes = () => {
+    navigation.navigate("Disputes");
+  };
+
   const menuItems = [
     { label: "Edit Profile", icon: "edit-2" as const, onPress: () => {} },
+    { label: "My Wallet", icon: "wallet" as const, onPress: handleWallet },
     { label: "My Connections", icon: "users" as const, onPress: handleConnections },
     { label: "My Reviews", icon: "star" as const, onPress: handleReviews },
     { label: "Payment History", icon: "credit-card" as const, onPress: handlePaymentHistory },
+    { label: "My Disputes", icon: "alert-triangle" as const, onPress: handleDisputes },
     { label: "Settings", icon: "settings" as const, onPress: handleSettings },
     { label: "Help & Support", icon: "help-circle" as const, onPress: () => {} },
   ];

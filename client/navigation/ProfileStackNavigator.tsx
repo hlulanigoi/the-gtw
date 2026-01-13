@@ -9,6 +9,7 @@ import WalletScreen from '@/screens/WalletScreen';
 import WalletTopupScreen from '@/screens/WalletTopupScreen';
 import DisputesScreen from '@/screens/DisputesScreen';
 import CreateDisputeScreen from '@/screens/CreateDisputeScreen';
+import DisputeDetailScreen from '@/screens/DisputeDetailScreen';
 import { useScreenOptions } from '@/hooks/useScreenOptions';
 
 export type ProfileStackParamList = {

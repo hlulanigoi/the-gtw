@@ -1,14 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { storage, db } from "./storage";
-<<<<<<< HEAD
-import { users, parcels, conversations, messages, connections, routes, reviews, pushTokens, parcelMessages, carrierLocations, receiverLocations, payments, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema, insertReviewSchema, insertPushTokenSchema, insertParcelMessageSchema, insertCarrierLocationSchema, insertReceiverLocationSchema, insertPaymentSchema } from "@shared/schema";
-import { createHmac } from "crypto";
-import { eq, desc, and, gte, lte, ne, sql } from "drizzle-orm";
-import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./firebase-admin";
-
-export async function registerRoutes(app: Express): Promise<Server> {
-=======
 import { users, parcels, conversations, messages, connections, routes, reviews, pushTokens, payments, subscriptions, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema, insertReviewSchema, insertPushTokenSchema } from "@shared/schema";
 import { eq, desc, and, gte, lte, ne, sql } from "drizzle-orm";
 import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./firebase-admin";
@@ -49,7 +41,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register admin routes
   registerAdminRoutes(app);
->>>>>>> origin/payments
   app.post("/api/auth/sync", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const { uid, email } = req.user!;
@@ -73,18 +64,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-<<<<<<< HEAD
-  app.get("/api/auth/me", optionalAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      if (!req.user) {
-        return res.json(null);
-      }
-      const user = await storage.getUser(req.user.uid);
-=======
   app.get("/api/auth/me", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const user = await storage.getUser(req.user!.uid);
->>>>>>> origin/payments
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
@@ -148,17 +130,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/parcels", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-<<<<<<< HEAD
-      const data = { ...req.body };
-      if (typeof data.pickupDate === "string") data.pickupDate = new Date(data.pickupDate);
-      if (typeof data.pickupWindowEnd === "string" && data.pickupWindowEnd) data.pickupWindowEnd = new Date(data.pickupWindowEnd);
-      if (typeof data.deliveryWindowStart === "string" && data.deliveryWindowStart) data.deliveryWindowStart = new Date(data.deliveryWindowStart);
-      if (typeof data.deliveryWindowEnd === "string" && data.deliveryWindowEnd) data.deliveryWindowEnd = new Date(data.deliveryWindowEnd);
-      if (typeof data.expiresAt === "string" && data.expiresAt) data.expiresAt = new Date(data.expiresAt);
-
-      const parsed = insertParcelSchema.safeParse({
-        ...data,
-=======
       const user = await storage.getUser(req.user!.uid);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
@@ -178,7 +149,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const parsed = insertParcelSchema.safeParse({
         ...req.body,
->>>>>>> origin/payments
         senderId: req.user!.uid,
       });
       if (!parsed.success) {
@@ -210,221 +180,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const parcel = await storage.createParcel(parcelData);
-<<<<<<< HEAD
-=======
-      
-      // Increment parcel count for the user
-      await storage.incrementParcelCount(user.id);
-      
->>>>>>> origin/payments
-      res.status(201).json(parcel);
-    } catch (error) {
-      console.error("Failed to create parcel:", error);
-      res.status(500).json({ error: "Failed to create parcel" });
-    }
-  });
-
-  app.patch("/api/parcels/:id", async (req, res) => {
-    try {
-      const parcel = await storage.updateParcel(req.params.id, req.body);
-      if (!parcel) {
-        return res.status(404).json({ error: "Parcel not found" });
-      }
-      res.json(parcel);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update parcel" });
-    }
-  });
-
-  app.patch("/api/parcels/:id/accept", async (req, res) => {
-    try {
-      const { transporterId } = req.body;
-      if (!transporterId) {
-        return res.status(400).json({ error: "transporterId is required" });
-      }
-      const parcel = await storage.updateParcel(req.params.id, {
-        transporterId,
-        status: "In Transit",
-      });
-      if (!parcel) {
-        return res.status(404).json({ error: "Parcel not found" });
-      }
-      res.json(parcel);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to accept parcel" });
-    }
-  });
-
-  app.patch("/api/parcels/:id/receiver-location", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const { lat, lng } = req.body;
-      if (typeof lat !== "number" || typeof lng !== "number") {
-        return res.status(400).json({ error: "lat and lng are required numbers" });
-      }
-
-      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-        return res.status(400).json({ error: "Invalid coordinates" });
-      }
-
-      const parcel = await storage.getParcel(req.params.id);
-      if (!parcel) {
-        return res.status(404).json({ error: "Parcel not found" });
-      }
-
-      const isReceiver = parcel.receiverId === req.user!.uid;
-      const user = await storage.getUser(req.user!.uid);
-      const isReceiverByEmail = user?.email && parcel.receiverEmail === user.email;
-
-      if (!isReceiver && !isReceiverByEmail) {
-        return res.status(403).json({ error: "Only the receiver can update the receiver location" });
-      }
-
-      const updated = await storage.updateParcel(req.params.id, {
-        receiverLat: lat,
-        receiverLng: lng,
-        receiverLocationUpdatedAt: new Date(),
-      });
-
-      res.json(updated);
-    } catch (error) {
-      console.error("Failed to update receiver location:", error);
-      res.status(500).json({ error: "Failed to update receiver location" });
-    }
-  });
-
-  app.get("/api/users/:userId/conversations", async (req, res) => {
-    try {
-      const userConversations = await db
-        .select()
-        .from(conversations)
-        .where(eq(conversations.participant1Id, req.params.userId))
-        .orderBy(desc(conversations.createdAt));
-
-      const convos2 = await db
-        .select()
-        .from(conversations)
-        .where(eq(conversations.participant2Id, req.params.userId))
-        .orderBy(desc(conversations.createdAt));
-
-      const allConvos = [...userConversations, ...convos2];
-
-      const result = await Promise.all(
-        allConvos.map(async (conv) => {
-          const otherUserId = conv.participant1Id === req.params.userId
-            ? conv.participant2Id
-            : conv.participant1Id;
-          const otherUser = await storage.getUser(otherUserId);
-          const msgs = await storage.getConversationMessages(conv.id);
-          const lastMsg = msgs[msgs.length - 1];
-
-          return {
-            ...conv,
-            userName: otherUser?.name || "Unknown",
-            lastMessage: lastMsg?.text || "",
-            lastMessageTime: lastMsg?.createdAt || conv.createdAt,
-            messages: msgs.map(m => ({
-              ...m,
-              isMe: m.senderId === req.params.userId,
-              timestamp: m.createdAt,
-            })),
-          };
-        })
-      );
-
-      res.json(result);
-    } catch (error) {
-      console.error("Failed to fetch conversations:", error);
-      res.status(500).json({ error: "Failed to fetch conversations" });
-    }
-  });
-
-  app.get("/api/conversations/:id/messages", async (req, res) => {
-    try {
-      const msgs = await storage.getConversationMessages(req.params.id);
-      res.json(msgs);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch messages" });
-    }
-  });
-
-  app.post("/api/conversations/:id/messages", async (req, res) => {
-    try {
-      const parsed = insertMessageSchema.safeParse({
-        ...req.body,
-        conversationId: req.params.id,
-      });
-      if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.errors });
-      }
-      const message = await storage.createMessage(parsed.data);
-      res.status(201).json(message);
-    } catch (error) {
-      console.error("Failed to create message:", error);
-      res.status(500).json({ error: "Failed to create message" });
-    }
-  });
-
-  app.post("/api/conversations", async (req, res) => {
-    try {
-      const conversation = await storage.createConversation(req.body);
-      res.status(201).json(conversation);
-    } catch (error) {
-      console.error("Failed to create conversation:", error);
-      res.status(500).json({ error: "Failed to create conversation" });
-    }
-  });
-
-<<<<<<< HEAD
-  app.get("/api/users/search", optionalAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const searchTerm = req.query.q as string;
-      if (!searchTerm || searchTerm.trim().length < 2) {
-        return res.json([]);
-      }
-
-      const searchLower = searchTerm.toLowerCase().trim();
-      const currentUserId = req.user?.uid;
-
-      const allUsers = await db.select().from(users);
-      const results = allUsers
-        .filter((user) => {
-          const userName = (user.name || "").toLowerCase();
-          const userEmail = (user.email || "").toLowerCase();
-          return (
-            (currentUserId ? user.id !== currentUserId : true) &&
-            (userName.includes(searchLower) || userEmail.includes(searchLower))
-          );
-        })
-        .sort((a, b) => {
-          const aNameMatch = (a.name || "").toLowerCase().startsWith(searchLower);
-          const bNameMatch = (b.name || "").toLowerCase().startsWith(searchLower);
-          if (aNameMatch && !bNameMatch) return -1;
-          if (!aNameMatch && bNameMatch) return 1;
-          return (a.name || "").localeCompare(b.name || "");
-        })
-        .slice(0, 10);
-
-      res.json(results);
-    } catch (error) {
-      console.error("Failed to search users:", error);
-      res.status(500).json({ error: "Failed to search users" });
-    }
-  });
-
   app.post("/api/users", async (req, res) => {
     try {
-      if (!req.body.id) {
-        return res.status(400).json({ error: "User ID is required" });
-      }
-      // Check if user already exists
-      const existing = await storage.getUser(req.body.id);
-      if (existing) {
-        return res.json(existing);
-      }
-=======
-  app.post("/api/users", async (req, res) => {
-    try {
->>>>>>> origin/payments
       const user = await storage.createUser(req.body);
       res.status(201).json(user);
     } catch (error) {
@@ -433,27 +190,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-<<<<<<< HEAD
-  app.patch("/api/users/:id", async (req, res) => {
-    try {
-      const user = await storage.getUser(req.params.id);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      // Update user in database
-      const updated = await db
-        .update(users)
-        .set(req.body)
-        .where(eq(users.id, req.params.id))
-        .returning();
-      res.json(updated[0] || user);
-    } catch (error) {
-      console.error("Failed to update user:", error);
-      res.status(500).json({ error: "Failed to update user" });
-    }
-  });
-
-=======
 >>>>>>> origin/payments
   app.delete("/api/parcels/:id", async (req, res) => {
     try {
@@ -655,7 +391,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         platformFeePercentage,
       };
 
->>>>>>> origin/payments
       const response = await fetch("https://api.paystack.co/transaction/initialize", {
         method: "POST",
         headers: {
@@ -664,14 +399,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         body: JSON.stringify({
           amount: Math.round(amount * 100), // Convert to kobo/cents
-<<<<<<< HEAD
-          email,
-          metadata,
-          callback_url: `${process.env.EXPO_PUBLIC_DOMAIN}/api/payments/webhook`,
-=======
           email: user.email,
           metadata,
->>>>>>> origin/payments
         }),
       });
 
@@ -680,25 +409,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error(data.message || "Failed to initialize Paystack transaction");
       }
 
-<<<<<<< HEAD
-      // Store payment record
-      const platformFee = Math.round(amount * 0.03);
-      const totalAmount = amount + platformFee;
-      
-      await storage.createPayment({
-        parcelId: metadata.parcelId,
-        userId: req.user!.uid,
-        reference: data.data.reference,
-        amount: Math.round(amount),
-        platformFee,
-        totalAmount,
-        status: "pending",
-        paymentMethod: "paystack",
-        paystackData: JSON.stringify(data.data),
-      });
-
-      res.json(data.data);
-=======
       const payment = await storage.createPayment({
         parcelId,
         senderId: req.user!.uid,
@@ -721,7 +431,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         platformFee,
         carrierAmount,
       });
->>>>>>> origin/payments
     } catch (error: any) {
       console.error("Paystack initialization error:", error);
       res.status(500).json({ error: error.message || "Failed to initialize payment" });
@@ -731,32 +440,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/payments/verify/:reference", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const { reference } = req.params;
-<<<<<<< HEAD
-=======
-      
-      const payment = await storage.getPaymentByReference(reference);
-      if (!payment) {
-        return res.status(404).json({ error: "Payment not found" });
-      }
-
->>>>>>> origin/payments
-      const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-        },
-      });
-
-      const data = await response.json();
-<<<<<<< HEAD
-      if (data.status && data.data.status === "success") {
-        const { parcelId } = data.data.metadata;
-        if (parcelId) {
-          await storage.updateParcel(parcelId, { status: "Paid" });
-        }
-      }
-
-      res.json(data);
-=======
       
       if (data.status && data.data.status === "success") {
         await storage.updatePayment(payment.id, {
@@ -785,203 +468,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: data.message || "Payment not successful",
         });
       }
->>>>>>> origin/payments
     } catch (error: any) {
       console.error("Paystack verification error:", error);
       res.status(500).json({ error: error.message || "Failed to verify payment" });
     }
   });
 
-<<<<<<< HEAD
-  // Paystack webhook endpoint
-  app.post("/api/payments/webhook", async (req, res) => {
-    try {
-      const hash = createHmac("sha512", process.env.PAYSTACK_SECRET_KEY || "").update(JSON.stringify(req.body)).digest("hex");
-      
-      if (hash !== req.headers["x-paystack-signature"]) {
-        console.warn("Invalid Paystack webhook signature");
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-
-      const { event, data } = req.body;
-      
-      if (event === "charge.success") {
-        const { reference, status, metadata } = data;
-        
-        // Update payment record
-        const payment = await storage.getPaymentByReference(reference);
-        if (payment) {
-          await storage.updatePayment(payment.id, { status: "success" });
-          
-          // Update parcel status
-          if (metadata?.parcelId) {
-            await storage.updateParcel(metadata.parcelId, { status: "Paid" });
-          }
-        }
-      }
-      
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error("Webhook error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Get payment history for authenticated user
-  app.get("/api/payments/history", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const payments = await storage.getPaymentsByUserId(req.user!.uid);
-      res.json(payments);
-    } catch (error: any) {
-      console.error("Failed to fetch payment history:", error);
-      res.status(500).json({ error: error.message || "Failed to fetch payment history" });
-    }
-  });
-
-  // Generate receipt for payment
-  app.get("/api/payments/:paymentId/receipt", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const payment = await db.select().from(payments).where(eq(payments.id, req.params.paymentId));
-      if (!payment.length) {
-        return res.status(404).json({ error: "Payment not found" });
-      }
-
-      const paymentRecord = payment[0];
-      if (paymentRecord.userId !== req.user!.uid) {
-        return res.status(403).json({ error: "Not authorized to view this receipt" });
-      }
-
-      const parcelData = await storage.getParcel(paymentRecord.parcelId);
-      const userData = await storage.getUser(req.user!.uid);
-
-      const receiptHTML = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Receipt</title>
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
-            .receipt { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #007AFF; padding-bottom: 20px; }
-            .header h1 { margin: 0; font-size: 24px; color: #333; }
-            .header p { margin: 5px 0 0 0; color: #666; font-size: 14px; }
-            .section { margin-bottom: 20px; }
-            .section-title { font-weight: 600; color: #333; margin-bottom: 10px; font-size: 14px; text-transform: uppercase; color: #666; }
-            .row { display: flex; justify-content: space-between; margin: 8px 0; }
-            .label { color: #666; font-size: 14px; }
-            .value { color: #333; font-weight: 500; font-size: 14px; font-family: monospace; }
-            .divider { height: 1px; background: #eee; margin: 15px 0; }
-            .total-section { background: #f9f9f9; padding: 15px; border-radius: 6px; margin-top: 20px; }
-            .total-row { display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; color: #007AFF; }
-            .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
-            .footer p { margin: 5px 0; color: #999; font-size: 12px; }
-            .status-success { color: #34C759; }
-            .status-pending { color: #FF9500; }
-            .status-failed { color: #FF3B30; }
-          </style>
-        </head>
-        <body>
-          <div class="receipt">
-            <div class="header">
-              <h1>Payment Receipt</h1>
-              <p>ParcelPeer</p>
-            </div>
-
-            <div class="section">
-              <div class="section-title">Transaction Details</div>
-              <div class="row">
-                <span class="label">Reference:</span>
-                <span class="value">${paymentRecord.reference}</span>
-              </div>
-              <div class="row">
-                <span class="label">Status:</span>
-                <span class="value status-${paymentRecord.status || 'pending'}">${(paymentRecord.status || 'pending').toUpperCase()}</span>
-              </div>
-              <div class="row">
-                <span class="label">Date:</span>
-                <span class="value">${new Date(paymentRecord.createdAt || new Date()).toLocaleDateString()}</span>
-              </div>
-            </div>
-
-            <div class="divider"></div>
-
-            <div class="section">
-              <div class="section-title">Parcel Information</div>
-              <div class="row">
-                <span class="label">Parcel ID:</span>
-                <span class="value">${paymentRecord.parcelId}</span>
-              </div>
-              <div class="row">
-                <span class="label">From:</span>
-                <span class="value">${parcelData?.origin || 'N/A'}</span>
-              </div>
-              <div class="row">
-                <span class="label">To:</span>
-                <span class="value">${parcelData?.destination || 'N/A'}</span>
-              </div>
-            </div>
-
-            <div class="divider"></div>
-
-            <div class="section">
-              <div class="section-title">Amount Breakdown</div>
-              <div class="row">
-                <span class="label">Base Amount:</span>
-                <span class="value">₦${paymentRecord.amount.toLocaleString()}</span>
-              </div>
-              <div class="row">
-                <span class="label">Platform Fee (3%):</span>
-                <span class="value">₦${paymentRecord.platformFee.toLocaleString()}</span>
-              </div>
-            </div>
-
-            <div class="total-section">
-              <div class="total-row">
-                <span>Total Paid:</span>
-                <span>₦${paymentRecord.totalAmount.toLocaleString()}</span>
-              </div>
-            </div>
-
-            <div class="section">
-              <div class="section-title">Payment Method</div>
-              <div class="row">
-                <span class="label">Method:</span>
-                <span class="value">${paymentRecord.paymentMethod === "paystack" ? "Paystack Card" : "Cash"}</span>
-              </div>
-            </div>
-
-            <div class="footer">
-              <p>Payer: ${userData?.name || 'Unknown'}</p>
-              <p>Email: ${userData?.email || 'N/A'}</p>
-              <p style="margin-top: 15px; font-size: 11px;">Generated on ${new Date().toLocaleString()}</p>
-              <p style="margin-top: 10px;">Thank you for using ParcelPeer</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      res.send(receiptHTML);
-    } catch (error: any) {
-      console.error("Failed to generate receipt:", error);
-      res.status(500).json({ error: error.message || "Failed to generate receipt" });
-    }
-  });
-
-  // Web fallback for browser payment completion
-  app.get("/api/payments/verify-web", async (req, res) => {
-    const { reference } = req.query;
-    res.send(`
-      <html>
-        <body>
-          <h1>Payment Processing</h1>
-          <p>Your payment is being verified. You can close this window.</p>
-          <script>
-            setTimeout(() => window.close(), 3000);
-=======
   app.get("/api/payments/user/:userId", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       if (req.params.userId !== req.user!.uid) {
@@ -1075,7 +567,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 window.location.href = 'about:blank';
               }
             }, 3000);
->>>>>>> origin/payments
           </script>
         </body>
       </html>
@@ -1435,404 +926,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-<<<<<<< HEAD
-=======
-  // Subscription Management Routes
-  app.get("/api/subscriptions/plans", async (req, res) => {
-    try {
-      res.json({ plans: Object.values(SUBSCRIPTION_PLANS) });
-    } catch (error) {
-      console.error("Failed to fetch subscription plans:", error);
-      res.status(500).json({ error: "Failed to fetch subscription plans" });
-    }
-  });
-
-  app.get("/api/subscriptions/me", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const user = await storage.getUser(req.user!.uid);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const subscription = await storage.getUserSubscription(req.user!.uid);
-      const status = getSubscriptionStatus(user);
-      const plan = getSubscriptionPlan(user.subscriptionTier || "free");
-
-      res.json({
-        subscription,
-        user: {
-          subscriptionTier: user.subscriptionTier,
-          subscriptionStatus: user.subscriptionStatus,
-          monthlyParcelCount: user.monthlyParcelCount,
-          subscriptionEndDate: user.subscriptionEndDate,
-        },
-        status,
-        plan,
-      });
-    } catch (error) {
-      console.error("Failed to fetch subscription:", error);
-      res.status(500).json({ error: "Failed to fetch subscription" });
-    }
-  });
-
-  app.post("/api/subscriptions/subscribe", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const { tier } = req.body;
-
-      if (!tier || !["premium", "business"].includes(tier)) {
-        return res.status(400).json({ error: "Invalid subscription tier" });
-      }
-
-      const user = await storage.getUser(req.user!.uid);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const plan = getSubscriptionPlan(tier);
-
-      // Initialize Paystack subscription
-      const response = await fetch("https://api.paystack.co/transaction/initialize", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: plan.priceInKobo,
-          email: user.email,
-          plan: plan.paystackPlanCode,
-          metadata: {
-            userId: user.id,
-            subscriptionTier: tier,
-          },
-        }),
-      });
-
-      const data = await response.json();
-      if (!data.status) {
-        throw new Error(data.message || "Failed to initialize subscription");
-      }
-
-      // Create subscription record
-      const startDate = new Date();
-      const endDate = new Date(startDate);
-      endDate.setMonth(endDate.getMonth() + 1);
-
-      const subscription = await storage.createSubscription({
-        userId: user.id,
-        tier,
-        status: "active",
-        amount: plan.price,
-        currency: "NGN",
-        paystackPlanCode: plan.paystackPlanCode,
-        startDate,
-        endDate,
-        nextBillingDate: endDate,
-      });
-
-      res.json({
-        ...data.data,
-        subscriptionId: subscription.id,
-      });
-    } catch (error: any) {
-      console.error("Subscription error:", error);
-      res.status(500).json({ error: error.message || "Failed to create subscription" });
-    }
-  });
-
-  app.post("/api/subscriptions/verify/:reference", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const { reference } = req.params;
-
-      const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (data.status && data.data.status === "success") {
-        const metadata = data.data.metadata;
-        const userId = metadata.userId;
-        const tier = metadata.subscriptionTier;
-
-        // Update user subscription
-        const startDate = new Date();
-        const endDate = new Date(startDate);
-        endDate.setMonth(endDate.getMonth() + 1);
-
-        await storage.updateUser(userId, {
-          subscriptionTier: tier,
-          subscriptionStatus: "active",
-          subscriptionStartDate: startDate,
-          subscriptionEndDate: endDate,
-          paystackCustomerCode: data.data.customer?.customer_code,
-        });
-
-        res.json({
-          success: true,
-          message: "Subscription activated successfully",
-        });
-      } else {
-        res.json({
-          success: false,
-          message: data.message || "Subscription verification failed",
-        });
-      }
-    } catch (error: any) {
-      console.error("Subscription verification error:", error);
-      res.status(500).json({ error: error.message || "Failed to verify subscription" });
-    }
-  });
-
-  app.post("/api/subscriptions/cancel", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const { reason } = req.body;
-
-      const user = await storage.getUser(req.user!.uid);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const subscription = await storage.getUserSubscription(req.user!.uid);
-      if (!subscription) {
-        return res.status(404).json({ error: "No active subscription found" });
-      }
-
-      // Cancel Paystack subscription if exists
-      if (user.paystackSubscriptionCode) {
-        try {
-          const response = await fetch(
-            `https://api.paystack.co/subscription/disable`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                code: user.paystackSubscriptionCode,
-                token: subscription.paystackSubscriptionCode,
-              }),
-            }
-          );
-          const data = await response.json();
-          console.log("Paystack cancellation response:", data);
-        } catch (paystackError) {
-          console.error("Paystack cancellation error:", paystackError);
-        }
-      }
-
-      // Update subscription
-      await storage.updateSubscription(subscription.id, {
-        status: "cancelled",
-        cancelledAt: new Date(),
-        cancellationReason: reason || "User requested cancellation",
-      });
-
-      // Update user - keep subscription tier until end date but mark as cancelled
-      await storage.updateUser(user.id, {
-        subscriptionStatus: "cancelled",
-      });
-
-      res.json({
-        success: true,
-        message: "Subscription cancelled. You can continue using premium features until the end of your billing period.",
-      });
-    } catch (error: any) {
-      console.error("Subscription cancellation error:", error);
-      res.status(500).json({ error: error.message || "Failed to cancel subscription" });
-    }
-  });
-
-  app.post("/api/subscriptions/webhook", async (req, res) => {
-    try {
-      // Verify Paystack webhook signature
-      const secret = process.env.PAYSTACK_SECRET_KEY;
-      if (!secret) {
-        logger.error('PAYSTACK_SECRET_KEY not configured');
-        return res.status(500).json({ error: 'Server configuration error' });
-      }
-
-      const hash = crypto
-        .createHmac("sha512", secret)
-        .update(JSON.stringify(req.body))
-        .digest("hex");
-
-      const signature = req.headers["x-paystack-signature"];
-      
-      if (hash !== signature) {
-        logger.error('Invalid webhook signature', {
-          received: signature,
-          expected: hash.substring(0, 10) + '...',
-        });
-        return res.status(401).json({ error: "Invalid signature" });
-      }
-
-      const event = req.body;
-
-      switch (event.event) {
-        case "subscription.create":
-        case "charge.success":
-          // Handle successful subscription payment
-          if (event.data.metadata?.subscriptionTier) {
-            const userId = event.data.metadata.userId;
-            const tier = event.data.metadata.subscriptionTier;
-
-            const startDate = new Date();
-            const endDate = new Date(startDate);
-            endDate.setMonth(endDate.getMonth() + 1);
-
-            await storage.updateUser(userId, {
-              subscriptionTier: tier,
-              subscriptionStatus: "active",
-              subscriptionStartDate: startDate,
-              subscriptionEndDate: endDate,
-            });
-          }
-          break;
-
-        case "subscription.disable":
-          // Handle subscription cancellation
-          const subscription = await storage.getSubscriptionByPaystackCode(
-            event.data.subscription_code
-          );
-          if (subscription) {
-            await storage.updateSubscription(subscription.id, {
-              status: "cancelled",
-              cancelledAt: new Date(),
-            });
-            await storage.updateUser(subscription.userId, {
-              subscriptionStatus: "cancelled",
-            });
-          }
-          break;
-
-        case "invoice.payment_failed":
-          // Handle failed payment
-          if (event.data.subscription?.subscription_code) {
-            const subscription = await storage.getSubscriptionByPaystackCode(
-              event.data.subscription.subscription_code
-            );
-            if (subscription) {
-              await storage.updateUser(subscription.userId, {
-                subscriptionStatus: "past_due",
-              });
-            }
-          }
-          break;
-      }
-
-      res.sendStatus(200);
-    } catch (error) {
-      console.error("Webhook error:", error);
-      res.sendStatus(500);
-    }
-  });
-
-
->>>>>>> origin/payments
-  async function checkAndExpireItems() {
-    const now = new Date();
-    
-    try {
-      const capacityFullRoutes = await db
-        .update(routes)
-        .set({ status: "Expired", updatedAt: now })
-        .where(and(
-          eq(routes.status, "Active"),
-          sql`${routes.availableCapacity} IS NOT NULL AND ${routes.capacityUsed} >= ${routes.availableCapacity}`
-        ))
-        .returning();
-      
-      if (capacityFullRoutes.length > 0) {
-        console.log(`Expired ${capacityFullRoutes.length} routes due to full capacity`);
-      }
-      
-      const routesToExpire = await db
-        .select()
-        .from(routes)
-        .where(and(
-          eq(routes.status, "Active"),
-          lte(routes.departureDate, now)
-        ));
-      
-      const expiredRoutes = await db
-        .update(routes)
-        .set({ status: "Expired", updatedAt: now })
-        .where(and(
-          eq(routes.status, "Active"),
-          lte(routes.departureDate, now)
-        ))
-        .returning();
-      
-      for (const expiredRoute of expiredRoutes) {
-        if (expiredRoute.frequency && expiredRoute.frequency !== "one_time") {
-          const shouldCreateNext = !expiredRoute.recurrenceEndDate || 
-            new Date(expiredRoute.recurrenceEndDate) > now;
-          
-          if (shouldCreateNext) {
-            const nextDate = new Date(expiredRoute.departureDate);
-            switch (expiredRoute.frequency) {
-              case "daily":
-                nextDate.setDate(nextDate.getDate() + 1);
-                break;
-              case "weekly":
-                nextDate.setDate(nextDate.getDate() + 7);
-                break;
-              case "monthly":
-                nextDate.setMonth(nextDate.getMonth() + 1);
-                break;
-            }
-            
-            if (!expiredRoute.recurrenceEndDate || nextDate <= new Date(expiredRoute.recurrenceEndDate)) {
-              await db.insert(routes).values({
-                carrierId: expiredRoute.carrierId,
-                origin: expiredRoute.origin,
-                destination: expiredRoute.destination,
-                originLat: expiredRoute.originLat,
-                originLng: expiredRoute.originLng,
-                destinationLat: expiredRoute.destinationLat,
-                destinationLng: expiredRoute.destinationLng,
-                intermediateStops: expiredRoute.intermediateStops,
-                departureDate: nextDate,
-                departureTime: expiredRoute.departureTime,
-                frequency: expiredRoute.frequency,
-                recurrenceEndDate: expiredRoute.recurrenceEndDate,
-                maxParcelSize: expiredRoute.maxParcelSize,
-                maxWeight: expiredRoute.maxWeight,
-                availableCapacity: expiredRoute.availableCapacity,
-                capacityUsed: 0,
-                pricePerKg: expiredRoute.pricePerKg,
-                notes: expiredRoute.notes,
-                parentRouteId: expiredRoute.parentRouteId || expiredRoute.id,
-              });
-              console.log(`Created next occurrence for recurring route ${expiredRoute.id}`);
-            }
-          }
-        }
-      }
-      
-      const expiredParcels = await db
-        .update(parcels)
-        .set({ status: "Expired" })
-        .where(and(
-          eq(parcels.status, "Pending"),
-          lte(parcels.expiresAt, now)
-        ))
-        .returning();
-      
-      if (expiredRoutes.length > 0 || expiredParcels.length > 0) {
-        console.log(`Expiry check: ${expiredRoutes.length} routes, ${expiredParcels.length} parcels expired`);
-      }
-    } catch (error) {
-      console.error("Expiry check failed:", error);
-    }
-  }
-
-<<<<<<< HEAD
-=======
   // ============ PHOTO VERIFICATION ROUTES ============
   app.post("/api/parcels/:id/photos/upload", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
@@ -2295,7 +1388,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
->>>>>>> origin/payments
   app.post("/api/admin/check-expiry", async (req, res) => {
     try {
       await checkAndExpireItems();

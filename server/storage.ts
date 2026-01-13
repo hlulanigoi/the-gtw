@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { eq, or, and, desc, avg } from "drizzle-orm";
-=======
 import { eq, or, and, desc, avg, gte } from "drizzle-orm";
->>>>>>> origin/payments
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import {
@@ -15,12 +11,6 @@ import {
   type Review, type InsertReview, reviews,
   type PushToken, type InsertPushToken, pushTokens,
   type Payment, type InsertPayment, payments,
-<<<<<<< HEAD
-} from "@shared/schema";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-=======
   type Subscription, type InsertSubscription, subscriptions,
   type LocationHistory, type InsertLocationHistory, locationHistory,
   type WalletTransaction, type InsertWalletTransaction, walletTransactions,
@@ -38,96 +28,10 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? {
     rejectUnauthorized: false
   } : undefined
->>>>>>> origin/payments
 });
 
 export const db = drizzle(pool);
 
-<<<<<<< HEAD
-=======
-// Graceful shutdown
-const gracefulShutdown = () => {
-  pool.end(() => {
-    console.log('Database pool closed');
-    process.exit(0);
-  });
-};
-
-process.on('SIGTERM', gracefulShutdown);
-process.on('SIGINT', gracefulShutdown);
-
->>>>>>> origin/payments
-export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: InsertUser & { id?: string }): Promise<User>;
-  getAllParcels(): Promise<Parcel[]>;
-  getParcel(id: string): Promise<Parcel | undefined>;
-  getParcelWithSender(id: string): Promise<(Parcel & { sender: User }) | undefined>;
-  createParcel(parcel: InsertParcel): Promise<Parcel>;
-  updateParcel(id: string, updates: Partial<Parcel>): Promise<Parcel | undefined>;
-  getUserConversations(userId: string): Promise<Conversation[]>;
-  getConversation(id: string): Promise<Conversation | undefined>;
-  createConversation(conversation: InsertConversation): Promise<Conversation>;
-  getConversationMessages(conversationId: string): Promise<Message[]>;
-  createMessage(message: InsertMessage): Promise<Message>;
-}
-
-export class DatabaseStorage implements IStorage {
-  async getUser(id: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.id, id));
-    return result[0];
-  }
-
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.email, email));
-    return result[0];
-  }
-
-  async createUser(insertUser: InsertUser & { id?: string }): Promise<User> {
-    const result = await db.insert(users).values(insertUser).returning();
-    return result[0];
-  }
-
-  async getAllParcels(): Promise<Parcel[]> {
-    return await db.select().from(parcels).orderBy(desc(parcels.createdAt));
-  }
-
-  async getParcel(id: string): Promise<Parcel | undefined> {
-    const result = await db.select().from(parcels).where(eq(parcels.id, id));
-    return result[0];
-  }
-
-  async getParcelWithSender(id: string): Promise<(Parcel & { sender: User }) | undefined> {
-    const result = await db
-      .select()
-      .from(parcels)
-      .innerJoin(users, eq(parcels.senderId, users.id))
-      .where(eq(parcels.id, id));
-    if (result[0]) {
-      return { ...result[0].parcels, sender: result[0].users };
-    }
-    return undefined;
-  }
-
-  async createParcel(insertParcel: InsertParcel): Promise<Parcel> {
-<<<<<<< HEAD
-    const user = await this.getUser(insertParcel.senderId);
-    if (!user) throw new Error("User not found");
-
-    if (user.subscriptionStatus === "free" && user.walletBalance < insertParcel.compensation) {
-      // Temporarily bypass wallet check for testing if needed or just handle gracefully
-      console.warn("User has insufficient balance, but allowing for now in development");
-    }
-
-    // Deduct from wallet if not on a premium subscription
-    if (user.subscriptionStatus === "free" && user.walletBalance >= insertParcel.compensation) {
-      await db.update(users)
-        .set({ walletBalance: user.walletBalance - insertParcel.compensation })
-        .where(eq(users.id, user.id));
-    }
-
-=======
 >>>>>>> origin/payments
     const result = await db.insert(parcels).values(insertParcel).returning();
     return result[0];
@@ -369,26 +273,11 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
->>>>>>> origin/payments
   async createPayment(insertPayment: InsertPayment): Promise<Payment> {
     const result = await db.insert(payments).values(insertPayment).returning();
     return result[0];
   }
 
-<<<<<<< HEAD
-  async getPaymentByReference(reference: string): Promise<Payment | undefined> {
-    const result = await db.select().from(payments).where(eq(payments.reference, reference));
-    return result[0];
-  }
-
-  async updatePayment(id: string, updates: Partial<Payment>): Promise<Payment | undefined> {
-    const result = await db.update(payments).set({ ...updates, updatedAt: new Date() }).where(eq(payments.id, id)).returning();
-    return result[0];
-  }
-
-  async getPaymentsByUserId(userId: string): Promise<Payment[]> {
-    return await db.select().from(payments).where(eq(payments.userId, userId)).orderBy(desc(payments.createdAt));
-=======
   async updatePayment(id: string, updates: Partial<Payment>): Promise<Payment | undefined> {
     const result = await db
       .update(payments)
@@ -646,7 +535,6 @@ export class DatabaseStorage implements IStorage {
   async deleteParcelPhoto(id: string): Promise<boolean> {
     const result = await db.delete(parcelPhotos).where(eq(parcelPhotos.id, id)).returning();
     return result.length > 0;
->>>>>>> origin/payments
   }
 }
 

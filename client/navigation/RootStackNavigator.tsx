@@ -5,6 +5,8 @@ import CreateParcelScreen from "@/screens/CreateParcelScreen";
 import RouteFilterScreen from "@/screens/RouteFilterScreen";
 import PaymentScreen from "@/screens/PaymentScreen";
 import PaymentHistoryScreen from "@/screens/PaymentHistoryScreen";
+import PhotoVerificationScreen from "@/screens/PhotoVerificationScreen";
+import LiveTrackingScreen from "@/screens/LiveTrackingScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type RootStackParamList = {
@@ -17,6 +19,15 @@ export type RootStackParamList = {
     parcelId: string;
   };
   PaymentHistory: undefined;
+  PhotoVerification: {
+    parcelId: string;
+    photoType: 'pickup' | 'delivery';
+    parcelOrigin?: string;
+    parcelDestination?: string;
+  };
+  LiveTracking: {
+    parcelId: string;
+  };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();

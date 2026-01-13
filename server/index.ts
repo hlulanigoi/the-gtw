@@ -229,25 +229,11 @@ function configureExpoAndLanding(app: express.Application) {
 }
 
 function setupErrorHandler(app: express.Application) {
-<<<<<<< HEAD
-  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-=======
   app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
->>>>>>> origin/payments
     const error = err as {
       status?: number;
       statusCode?: number;
       message?: string;
-<<<<<<< HEAD
-    };
-
-    const status = error.status || error.statusCode || 500;
-    const message = error.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-
-    throw err;
-=======
       stack?: string;
     };
 
@@ -272,7 +258,6 @@ function setupErrorHandler(app: express.Application) {
       error: message,
       ...(process.env.NODE_ENV !== 'production' && { stack: error.stack })
     });
->>>>>>> origin/payments
   });
 }
 

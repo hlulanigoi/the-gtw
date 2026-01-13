@@ -18,24 +18,6 @@ declare module "http" {
 }
 
 function setupCors(app: express.Application) {
-<<<<<<< HEAD
-  app.use((req, res, next) => {
-    const origins = new Set<string>();
-
-    if (process.env.REPLIT_DEV_DOMAIN) {
-      origins.add(`https://${process.env.REPLIT_DEV_DOMAIN}`);
-    }
-
-    if (process.env.REPLIT_DOMAINS) {
-      process.env.REPLIT_DOMAINS.split(",").forEach((d: string) => {
-        origins.add(`https://${d.trim()}`);
-      });
-    }
-
-    const origin = req.header("origin");
-
-    if (origin && origins.has(origin)) {
-=======
   // Production-ready CORS configuration
   const allowedOrigins = process.env.NODE_ENV === 'production'
     ? (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean)
@@ -57,20 +39,12 @@ function setupCors(app: express.Application) {
     const origin = req.header("origin");
 
     if (origin && allowedOrigins.some(allowed => origin === allowed || origin.startsWith(allowed))) {
->>>>>>> origin/payments
       res.header("Access-Control-Allow-Origin", origin);
       res.header(
         "Access-Control-Allow-Methods",
         "GET, POST, PUT, PATCH, DELETE, OPTIONS",
       );
-<<<<<<< HEAD
-      res.header(
-        "Access-Control-Allow-Headers",
-        "Content-Type, Authorization",
-      );
-=======
       res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
->>>>>>> origin/payments
       res.header("Access-Control-Allow-Credentials", "true");
     }
 

@@ -103,6 +103,13 @@ export default function ProfileStackNavigator() {
           headerTitle: 'File Dispute',
         }}
       />
+      <Stack.Screen
+        name="DisputeDetail"
+        component={DisputeDetailScreen}
+        options={{
+          headerTitle: 'Dispute Chat',
+        }}
+      />
     </Stack.Navigator>
   );
 }

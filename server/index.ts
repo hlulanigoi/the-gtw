@@ -3,11 +3,6 @@ import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import * as fs from "fs";
 import * as path from "path";
-<<<<<<< HEAD
-
-const app = express();
-const log = console.log;
-=======
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import compression from "compression";
@@ -15,7 +10,6 @@ import logger from "./logger";
 
 const app = express();
 const log = logger.info.bind(logger);
->>>>>>> origin/payments
 
 declare module "http" {
   interface IncomingMessage {

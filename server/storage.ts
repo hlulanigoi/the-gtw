@@ -32,7 +32,6 @@ const pool = new Pool({
 
 export const db = drizzle(pool);
 
->>>>>>> origin/payments
     const result = await db.insert(parcels).values(insertParcel).returning();
     return result[0];
   }
@@ -241,8 +240,6 @@ export const db = drizzle(pool);
     return result.length > 0;
   }
 
-<<<<<<< HEAD
-=======
   async getPayment(id: string): Promise<Payment | undefined> {
     const result = await db.select().from(payments).where(eq(payments.id, id));
     return result[0];

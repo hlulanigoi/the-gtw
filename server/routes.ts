@@ -190,7 +190,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
->>>>>>> origin/payments
   app.delete("/api/parcels/:id", async (req, res) => {
     try {
       const deleted = await storage.deleteParcel(req.params.id);
@@ -338,17 +337,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-<<<<<<< HEAD
-  // Paystack Integration
-  app.post("/api/payments/initialize", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const { amount, email, metadata } = req.body;
-      
-      if (!amount || !email) {
-        return res.status(400).json({ error: "Amount and email are required" });
-      }
-
-=======
   // Paystack Payment Integration
   app.post("/api/payments/initialize", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
@@ -1397,93 +1385,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-<<<<<<< HEAD
-  app.get("/api/parcels/:parcelId/messages", async (req, res) => {
-    try {
-      const msgs = await db
-        .select({ id: parcelMessages.id, parcelId: parcelMessages.parcelId, senderId: parcelMessages.senderId, senderName: users.name, senderRole: parcelMessages.senderRole, content: parcelMessages.content, createdAt: parcelMessages.createdAt })
-        .from(parcelMessages)
-        .innerJoin(users, eq(parcelMessages.senderId, users.id))
-        .where(eq(parcelMessages.parcelId, req.params.parcelId))
-        .orderBy(parcelMessages.createdAt);
-      res.json(msgs);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch messages" });
-    }
-  });
-
-  app.post("/api/parcels/:parcelId/messages", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const parsed = insertParcelMessageSchema.safeParse({
-        parcelId: req.params.parcelId,
-        senderId: req.user!.uid,
-        content: req.body.content,
-        senderRole: req.body.senderRole,
-      });
-      if (!parsed.success) return res.status(400).json({ error: parsed.error.errors });
-      const msg = await db.insert(parcelMessages).values(parsed.data).returning();
-      res.json(msg[0]);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to send message" });
-    }
-  });
-
-  app.get("/api/parcels/:parcelId/carrier-location", async (req, res) => {
-    try {
-      const loc = await db.select().from(carrierLocations).where(eq(carrierLocations.parcelId, req.params.parcelId)).orderBy(desc(carrierLocations.timestamp)).limit(1);
-      res.json(loc[0] || null);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch carrier location" });
-    }
-  });
-
-  app.post("/api/parcels/:parcelId/carrier-location", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const parsed = insertCarrierLocationSchema.safeParse({
-        parcelId: req.params.parcelId,
-        carrierId: req.user!.uid,
-        lat: req.body.lat,
-        lng: req.body.lng,
-        heading: req.body.heading,
-        speed: req.body.speed,
-        accuracy: req.body.accuracy,
-      });
-      if (!parsed.success) return res.status(400).json({ error: parsed.error.errors });
-      const loc = await db.insert(carrierLocations).values(parsed.data).returning();
-      res.json(loc[0]);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to save carrier location" });
-    }
-  });
-
-  app.get("/api/parcels/:parcelId/receiver-location", async (req, res) => {
-    try {
-      const loc = await db.select().from(receiverLocations).where(eq(receiverLocations.parcelId, req.params.parcelId)).orderBy(desc(receiverLocations.timestamp)).limit(1);
-      res.json(loc[0] || null);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch receiver location" });
-    }
-  });
-
-  app.post("/api/parcels/:parcelId/receiver-location", requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const parsed = insertReceiverLocationSchema.safeParse({
-        parcelId: req.params.parcelId,
-        receiverId: req.user!.uid,
-        lat: req.body.lat,
-        lng: req.body.lng,
-        accuracy: req.body.accuracy,
-      });
-      if (!parsed.success) return res.status(400).json({ error: parsed.error.errors });
-      const loc = await db.insert(receiverLocations).values(parsed.data).returning();
-      res.json(loc[0]);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to save receiver location" });
-    }
-  });
-
-=======
->>>>>>> origin/payments
   checkAndExpireItems();
   setInterval(checkAndExpireItems, 60 * 60 * 1000);
 

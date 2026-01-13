@@ -90,6 +90,22 @@ export default function RootStackNavigator() {
         }}
       />
       <Stack.Screen
+        name="PickupVerification"
+        component={PickupVerificationScreen}
+        options={{
+          presentation: "modal",
+          headerTitle: "Verify Pickup",
+        }}
+      />
+      <Stack.Screen
+        name="DeliveryVerification"
+        component={DeliveryVerificationScreen}
+        options={{
+          presentation: "modal",
+          headerTitle: "Verify Delivery",
+        }}
+      />
+      <Stack.Screen
         name="LiveTracking"
         component={LiveTrackingScreen}
         options={{

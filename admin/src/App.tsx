@@ -54,6 +54,9 @@ function App() {
                 <Route path="routes" element={<RoutesPage />} />
                 <Route path="payments" element={<Payments />} />
                 <Route path="reviews" element={<Reviews />} />
+                <Route path="disputes" element={<Disputes />} />
+                <Route path="subscriptions" element={<Subscriptions />} />
+                <Route path="wallet" element={<WalletTransactions />} />
               </Route>
             </Routes>
           </Router>

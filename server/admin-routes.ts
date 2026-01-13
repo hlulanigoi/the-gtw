@@ -18,6 +18,10 @@ export function registerAdminRoutes(app: Express) {
         activeRoutes,
         successfulPayments,
         recentUsers,
+        totalDisputes,
+        openDisputes,
+        activeSubscriptions,
+        totalWalletBalance,
       ] = await Promise.all([
         db.select({ count: count() }).from(users),
         db.select({ count: count() }).from(parcels),
@@ -30,6 +34,10 @@ export function registerAdminRoutes(app: Express) {
           .from(payments)
           .where(eq(payments.status, "success")),
         db.select({ count: count() }).from(users).where(gte(users.createdAt, sql`NOW() - INTERVAL '30 days'`)),
+        db.select({ count: count() }).from(disputes),
+        db.select({ count: count() }).from(disputes).where(eq(disputes.status, "open")),
+        db.select({ count: count() }).from(subscriptions).where(eq(subscriptions.status, "active")),
+        db.select({ sum: sql<number>`COALESCE(SUM(${users.walletBalance}), 0)` }).from(users),
       ]);
 
       const revenue = successfulPayments[0]?.sum || 0;
@@ -52,6 +60,15 @@ export function registerAdminRoutes(app: Express) {
         .from(payments)
         .groupBy(payments.status);
 
+      // Get dispute status breakdown
+      const disputeStatusCounts = await db
+        .select({
+          status: disputes.status,
+          count: count(),
+        })
+        .from(disputes)
+        .groupBy(disputes.status);
+
       res.json({
         users: {
           total: totalUsers[0]?.count || 0,
@@ -71,9 +88,20 @@ export function registerAdminRoutes(app: Express) {
           revenue: revenue,
           statusBreakdown: paymentStatusCounts,
         },
+        disputes: {
+          total: totalDisputes[0]?.count || 0,
+          open: openDisputes[0]?.count || 0,
+          statusBreakdown: disputeStatusCounts,
+        },
+        subscriptions: {
+          active: activeSubscriptions[0]?.count || 0,
+        },
+        wallet: {
+          totalBalance: totalWalletBalance[0]?.sum || 0,
+        },
       });
     } catch (error) {
-      console.error("Failed to fetch admin stats:", error);
+      logger.error("Failed to fetch admin stats:", error);
       res.status(500).json({ error: "Failed to fetch statistics" });
     }
   });

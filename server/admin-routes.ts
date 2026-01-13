@@ -1,8 +1,9 @@
 import type { Express } from "express";
 import { db, storage } from "./storage";
-import { users, parcels, routes, payments, reviews, conversations, messages } from "@shared/schema";
+import { users, parcels, routes, payments, reviews, conversations, messages, disputes, disputeMessages, subscriptions, walletTransactions } from "@shared/schema";
 import { eq, desc, count, sql, and, gte, lte, ilike, or } from "drizzle-orm";
 import { requireAdmin, type AuthenticatedRequest } from "./firebase-admin";
+import logger from "./logger";
 
 export function registerAdminRoutes(app: Express) {
   // Dashboard Statistics

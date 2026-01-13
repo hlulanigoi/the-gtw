@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchWithAuth } from '../lib/api'
 import StatsCard from '../components/StatsCard'
-import { Users, Package, Route, CreditCard, TrendingUp, Activity } from 'lucide-react'
+import { Users, Package, Route, CreditCard, TrendingUp, Activity, AlertTriangle, Sparkles, Wallet } from 'lucide-react'
 import { format } from 'date-fns'
 
 export default function Dashboard() {
@@ -30,7 +30,7 @@ export default function Dashboard() {
         <p className="text-gray-600 mt-2">Welcome to ParcelPeer Admin Dashboard</p>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid - Row 1 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Total Users"
@@ -59,8 +59,31 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Stats Grid - Row 2 (New Features) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <StatsCard
+          title="Open Disputes"
+          value={stats?.disputes?.open || 0}
+          change={`${stats?.disputes?.total || 0} total`}
+          icon={<AlertTriangle className="w-6 h-6 text-white" />}
+          color="bg-red-500"
+        />
+        <StatsCard
+          title="Active Subscriptions"
+          value={stats?.subscriptions?.active || 0}
+          icon={<Sparkles className="w-6 h-6 text-white" />}
+          color="bg-indigo-500"
+        />
+        <StatsCard
+          title="Total Wallet Balance"
+          value={`₦${(stats?.wallet?.totalBalance || 0).toLocaleString()}`}
+          icon={<Wallet className="w-6 h-6 text-white" />}
+          color="bg-teal-500"
+        />
+      </div>
+
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Parcel Status Breakdown */}
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Parcel Status</h3>
@@ -81,6 +104,19 @@ export default function Dashboard() {
             {stats?.payments?.statusBreakdown?.map((item: any) => (
               <div key={item.status} className="flex items-center justify-between">
                 <span className="text-gray-600 capitalize">{item.status}</span>
+                <span className="font-semibold text-gray-900">{item.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Dispute Status Breakdown */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Dispute Status</h3>
+          <div className="space-y-3">
+            {stats?.disputes?.statusBreakdown?.map((item: any) => (
+              <div key={item.status} className="flex items-center justify-between">
+                <span className="text-gray-600 capitalize">{item.status.replace('_', ' ')}</span>
                 <span className="font-semibold text-gray-900">{item.count}</span>
               </div>
             ))}

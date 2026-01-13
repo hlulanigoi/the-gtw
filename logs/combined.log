@@ -1,0 +1,8 @@
+{"level":"info","message":"Serving static Expo files with dynamic manifest routing","service":"parcelpeer-api","timestamp":"2026-01-13 15:11:36"}
+{"level":"info","message":"Expo routing: Checking expo-platform header on / and /manifest","service":"parcelpeer-api","timestamp":"2026-01-13 15:11:36"}
+{"level":"info","message":"express server serving on port 5000","service":"parcelpeer-api","timestamp":"2026-01-13 15:11:36"}
+{"error":{"address":"127.0.0.1","code":"ECONNREFUSED","errno":-111,"port":5432,"syscall":"connect"},"level":"error","message":"Database health check failed","service":"parcelpeer-api","timestamp":"2026-01-13 15:17:23"}
+{"level":"info","message":"baseUrl","service":"parcelpeer-api","timestamp":"2026-01-13 15:17:36"}
+{"level":"info","message":"expsUrl","service":"parcelpeer-api","timestamp":"2026-01-13 15:17:36"}
+{"duration":53,"ip":"127.0.0.1","level":"error","message":"GET /api/health 404 in 53ms","method":"GET","path":"/api/health","service":"parcelpeer-api","statusCode":404,"timestamp":"2026-01-13 15:20:04"}
+{"duration":22,"ip":"127.0.0.1","level":"error","message":"GET /api/health 404 in 22ms","method":"GET","path":"/api/health","service":"parcelpeer-api","statusCode":404,"timestamp":"2026-01-13 15:20:10"}

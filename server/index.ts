@@ -59,24 +59,17 @@ function setupCors(app: express.Application) {
 function setupBodyParsing(app: express.Application) {
   app.use(
     express.json({
-<<<<<<< HEAD
-=======
       limit: '10mb', // Prevent large payload attacks
->>>>>>> origin/payments
       verify: (req, _res, buf) => {
         req.rawBody = buf;
       },
     }),
   );
 
-<<<<<<< HEAD
-  app.use(express.urlencoded({ extended: false }));
-=======
   app.use(express.urlencoded({ 
     extended: false, 
     limit: '10mb' 
   }));
->>>>>>> origin/payments
 }
 
 function setupRequestLogging(app: express.Application) {

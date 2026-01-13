@@ -73,6 +73,21 @@ export default function RootStackNavigator() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="PhotoVerification"
+        component={PhotoVerificationScreen}
+        options={{
+          presentation: "modal",
+          headerTitle: "Verify Photo",
+        }}
+      />
+      <Stack.Screen
+        name="LiveTracking"
+        component={LiveTrackingScreen}
+        options={{
+          headerTitle: "Live Tracking",
+        }}
+      />
     </Stack.Navigator>
   );
 }

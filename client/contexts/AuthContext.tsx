@@ -1,22 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import {
-  User,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut as firebaseSignOut,
-  onAuthStateChanged,
-  updateProfile,
-  sendPasswordResetEmail,
-  GoogleAuthProvider,
-  signInWithCredential,
-} from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
-import { Platform } from "react-native";
-import * as Google from "expo-auth-session/providers/google";
-import * as WebBrowser from "expo-web-browser";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-WebBrowser.maybeCompleteAuthSession();
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000/api";
 
 interface UserProfile {
   id: string;
@@ -34,7 +19,7 @@ interface UserProfile {
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: UserProfile | null;
   userProfile: UserProfile | null;
   loading: boolean;
   googleLoading: boolean;
@@ -53,12 +38,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function generateVerificationCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -68,170 +49,143 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string;
   } | null>(null);
 
-  // Google Auth Request for Mobile
-  let request: any = null;
-  let response: any = null;
-  let promptAsync: any = async () => {};
-
-  try {
-    const authResult = Google.useAuthRequest({
-      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-      androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    });
-    request = authResult[0];
-    response = authResult[1];
-    promptAsync = authResult[2];
-  } catch (e) {
-    console.warn("Google.useAuthRequest failed:", e);
-  }
-
-  // Handle Mobile Google Auth Response
+  // Check for existing token on app load
   useEffect(() => {
-    if (response?.type === "success") {
-      const { id_token } = response.params;
-      const credential = GoogleAuthProvider.credential(id_token);
-      
-      setGoogleLoading(true);
-      signInWithCredential(auth, credential)
-        .then(async (result) => {
-          const firebaseUser = result.user;
-          const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-          if (!profileDoc.exists()) {
-            await setDoc(doc(db, "users", firebaseUser.uid), {
-              name: firebaseUser.displayName || "",
-              email: firebaseUser.email || "",
-              rating: 5.0,
-              verified: false,
-              emailVerified: true,
-              createdAt: serverTimestamp(),
-            });
-          }
-        })
-        .catch((error) => {
-          console.error("Google mobile sign-in error:", error);
-        })
-        .finally(() => {
-          setGoogleLoading(false);
-        });
-    }
-  }, [response]);
-
-  const signInWithGoogle = async () => {
-    if (Platform.OS === "web") {
-      const provider = new GoogleAuthProvider();
-      const { signInWithPopup } = await import("firebase/auth");
-      setGoogleLoading(true);
+    const checkAuth = async () => {
       try {
-        const result = await signInWithPopup(auth, provider);
-        const firebaseUser = result.user;
-        const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-        if (!profileDoc.exists()) {
-          await setDoc(doc(db, "users", firebaseUser.uid), {
-            name: firebaseUser.displayName || "",
-            email: firebaseUser.email || "",
-            rating: 5.0,
-            verified: false,
-            emailVerified: true,
-            createdAt: serverTimestamp(),
+        const token = await AsyncStorage.getItem("authToken");
+        if (token) {
+          const response = await fetch(`${API_URL}/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
           });
+          if (response.ok) {
+            const userData = await response.json();
+            setUser(userData);
+            setUserProfile(userData);
+          } else {
+            await AsyncStorage.removeItem("authToken");
+          }
         }
-      } catch (error: any) {
-        console.error("Google web sign-in error:", error);
-        if (error.code !== "auth/popup-closed-by-user") throw error;
+      } catch (error) {
+        console.error("Auth check failed:", error);
       } finally {
-        setGoogleLoading(false);
+        setLoading(false);
       }
-    } else {
-      if (request) {
-        await promptAsync();
-      } else {
-        console.error("Google request not initialized");
-      }
-    }
-  };
+    };
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        const profileDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-        if (profileDoc.exists()) {
-          const data = profileDoc.data();
-          setUserProfile({
-            id: firebaseUser.uid,
-            name: data.name || firebaseUser.displayName || "",
-            email: data.email || firebaseUser.email || "",
-            phone: data.phone,
-            rating: data.rating || 5.0,
-            verified: data.verified || false,
-            emailVerified: data.emailVerified || false,
-            createdAt: data.createdAt?.toDate() || new Date(),
-            savedLocationName: data.savedLocationName,
-            savedLocationAddress: data.savedLocationAddress,
-            savedLocationLat: data.savedLocationLat,
-            savedLocationLng: data.savedLocationLng,
-          });
-        }
-      } else {
-        setUserProfile(null);
-      }
-      setLoading(false);
-    });
-    return () => unsubscribe();
+    checkAuth();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Login failed");
+    }
+
+    const { token, user: userData } = await response.json();
+    await AsyncStorage.setItem("authToken", token);
+    setUser(userData);
+    setUserProfile(userData);
   };
 
-  const signUp = async (email: string, password: string, name: string, isEmailVerified: boolean = false) => {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const firebaseUser = userCredential.user;
-    await updateProfile(firebaseUser, { displayName: name });
-    await setDoc(doc(db, "users", firebaseUser.uid), {
-      name,
-      email,
-      rating: 5.0,
-      verified: false,
-      emailVerified: isEmailVerified,
-      createdAt: serverTimestamp(),
+  const signUp = async (email: string, password: string, name: string) => {
+    const response = await fetch(`${API_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, name }),
     });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Sign up failed");
+    }
+
+    const { token, user: userData } = await response.json();
+    await AsyncStorage.setItem("authToken", token);
+    setUser(userData);
+    setUserProfile(userData);
+  };
+
+  const signInWithGoogle = async () => {
+    // Google sign-in would require Google OAuth flow
+    // For now, we'll show a placeholder
+    throw new Error("Google sign-in is not yet implemented with the API");
   };
 
   const signOut = async () => {
-    await firebaseSignOut(auth);
+    await AsyncStorage.removeItem("authToken");
+    setUser(null);
     setUserProfile(null);
   };
 
   const updateUserProfile = async (data: Partial<UserProfile>) => {
     if (!user) return;
-    await setDoc(doc(db, "users", user.uid), data, { merge: true });
-    if (data.name) await updateProfile(user, { displayName: data.name });
-    setUserProfile((prev) => prev ? { ...prev, ...data } : null);
+
+    const token = await AsyncStorage.getItem("authToken");
+    const response = await fetch(`${API_URL}/auth/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Profile update failed");
+    }
+
+    const updatedUser = await response.json();
+    setUser(updatedUser);
+    setUserProfile(updatedUser);
   };
 
   const sendVerificationCode = async (email: string) => {
-    const code = generateVerificationCode();
-    await setDoc(doc(db, "verificationCodes", email.toLowerCase()), {
-      code,
-      email: email.toLowerCase(),
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-      createdAt: serverTimestamp(),
+    const response = await fetch(`${API_URL}/auth/send-verification-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
     });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to send verification code");
+    }
   };
 
   const verifyCode = async (email: string, code: string): Promise<boolean> => {
-    const codeDoc = await getDoc(doc(db, "verificationCodes", email.toLowerCase()));
-    if (!codeDoc.exists()) return false;
-    const data = codeDoc.data();
-    if (new Date() > data.expiresAt.toDate() || data.code !== code) return false;
-    await deleteDoc(doc(db, "verificationCodes", email.toLowerCase()));
-    return true;
+    const response = await fetch(`${API_URL}/auth/verify-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code }),
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const result = await response.json();
+    return result.valid || false;
   };
 
   const resetPassword = async (email: string) => {
-    await sendPasswordResetEmail(auth, email);
+    const response = await fetch(`${API_URL}/auth/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Password reset failed");
+    }
   };
 
   return (

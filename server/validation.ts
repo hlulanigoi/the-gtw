@@ -4,6 +4,14 @@ import type { Request, Response, NextFunction } from 'express';
 import logger from './logger';
 
 /**
+ * Validate email format
+ */
+export function validateEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+/**
  * Middleware to handle validation errors
  */
 export const handleValidationErrors = (req: Request, res: Response, next: NextFunction) => {

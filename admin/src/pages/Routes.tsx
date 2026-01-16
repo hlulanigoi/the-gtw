@@ -177,32 +177,21 @@ export default function RoutesPage() {
         </div>
       </div>
 
-      <Table columns={columns} data={data?.routes || []} loading={isLoading} />
-
-      {/* Pagination */}
-      {data?.pagination && data.pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between bg-white rounded-lg shadow px-6 py-4">
-          <p className="text-sm text-gray-600">
-            Showing {data.pagination.page} of {data.pagination.totalPages} pages
-          </p>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page >= data.pagination.totalPages}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <Table
+        columns={columns}
+        data={data?.routes || []}
+        loading={isLoading}
+        exportFilename="routes"
+        pagination={
+          data?.pagination && data.pagination.totalPages > 1
+            ? {
+                page: data.pagination.page,
+                totalPages: data.pagination.totalPages,
+                onPageChange: setPage,
+              }
+            : undefined
+        }
+      />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { auth } from "./firebase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /**
  * Gets the base URL for the Express API server (e.g., "http://localhost:3000")
@@ -18,13 +18,7 @@ export function getApiUrl(): string {
 }
 
 async function getAuthToken(): Promise<string | null> {
-  const user = auth.currentUser;
-  if (!user) return null;
-  try {
-    return await user.getIdToken();
-  } catch {
-    return null;
-  }
+  return AsyncStorage.getItem("authToken");
 }
 
 async function throwIfResNotOk(res: Response) {

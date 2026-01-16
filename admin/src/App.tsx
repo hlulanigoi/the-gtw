@@ -13,6 +13,7 @@ import Reviews from './pages/Reviews'
 import Disputes from './pages/Disputes'
 import Subscriptions from './pages/Subscriptions'
 import WalletTransactions from './pages/WalletTransactions'
+import Settings from './pages/Settings'
 import Layout from './components/Layout'
 
 const queryClient = new QueryClient()
@@ -57,6 +58,7 @@ function App() {
                 <Route path="disputes" element={<Disputes />} />
                 <Route path="subscriptions" element={<Subscriptions />} />
                 <Route path="wallet" element={<WalletTransactions />} />
+                <Route path="settings" element={<Settings />} />
               </Route>
             </Routes>
           </Router>

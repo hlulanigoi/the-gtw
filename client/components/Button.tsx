@@ -16,6 +16,8 @@ interface ButtonProps {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   disabled?: boolean;
+  variant?: "primary" | "secondary" | "outline";
+  size?: "small" | "medium" | "large";
 }
 
 const springConfig: WithSpringConfig = {
@@ -33,9 +35,35 @@ export function Button({
   children,
   style,
   disabled = false,
+  variant = "primary",
+  size = "medium",
 }: ButtonProps) {
   const { theme } = useTheme();
   const scale = useSharedValue(1);
+
+  const getBackgroundColor = () => {
+    switch (variant) {
+      case "secondary":
+        return theme.secondary;
+      case "outline":
+        return "transparent";
+      default:
+        return theme.link;
+    }
+  };
+
+  const getBorderStyle = variant === "outline" ? { borderWidth: 2, borderColor: theme.link } : {};
+
+  const getSizeStyles = () => {
+    switch (size) {
+      case "small":
+        return { height: 36 };
+      case "large":
+        return { height: 56 };
+      default:
+        return { height: Spacing.buttonHeight };
+    }
+  };
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -61,17 +89,19 @@ export function Button({
       disabled={disabled}
       style={[
         styles.button,
+        getBorderStyle,
         {
-          backgroundColor: theme.link,
+          backgroundColor: getBackgroundColor(),
           opacity: disabled ? 0.5 : 1,
         },
+        getSizeStyles(),
         style,
         animatedStyle,
       ]}
     >
       <ThemedText
         type="body"
-        style={[styles.buttonText, { color: theme.buttonText }]}
+        style={[styles.buttonText, { color: variant === "outline" ? theme.link : theme.buttonText }]}
       >
         {children}
       </ThemedText>

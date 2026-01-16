@@ -10,32 +10,20 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-<<<<<<< HEAD
-      "bundleIdentifier": "com.thegtw.app"
-    },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
-=======
       "bundleIdentifier": "com.thegtw.app",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0A7EA4",
->>>>>>> origin/payments
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-<<<<<<< HEAD
-      "package": "com.thegtw.app"
-=======
       "package": "com.thegtw.app",
       "googleServicesFile": "./google-services.json"
->>>>>>> origin/payments
     },
     "web": {
       "output": "single",
@@ -48,11 +36,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-<<<<<<< HEAD
-          "backgroundColor": "#FFFFFF",
-=======
           "backgroundColor": "#0A7EA4",
->>>>>>> origin/payments
           "dark": {
             "backgroundColor": "#1A1A1A"
           }

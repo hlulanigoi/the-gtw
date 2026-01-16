@@ -1,74 +1,103 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { User, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
-import { auth } from '../lib/firebase'
-import { fetchWithAuth } from '../lib/api'
+
+// Development mode credentials
+const DEV_MODE = true
+const MOCK_ADMIN_USERS: Record<string, string> = {
+  'admin@parcelpeer.com': 'Admin@123456',
+  'test@parcelpeer.com': 'Test@123456',
+}
+
+interface MockUser {
+  uid: string
+  email: string
+  getIdToken: () => Promise<string>
+}
 
 interface AuthContextType {
-  user: User | null
+  user: MockUser | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
+  getToken: () => Promise<string | null>
+  getIdToken: () => Promise<string | null>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+function generateMockToken(email: string): string {
+  const payload = {
+    email,
+    role: 'admin',
+    iat: Date.now(),
+    exp: Date.now() + 24 * 60 * 60 * 1000,
+  }
+  return `mock_token_${btoa(JSON.stringify(payload))}`
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<MockUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          const token = await firebaseUser.getIdToken()
-          localStorage.setItem('adminToken', token)
-          
-          // Verify user is admin
-          const userData = await fetchWithAuth('/auth/me')
-          if (userData.role === 'admin') {
-            setUser(firebaseUser)
-          } else {
-            await signOut(auth)
-            localStorage.removeItem('adminToken')
-            setUser(null)
-            alert('Access denied: Admin privileges required')
-          }
-        } catch (error) {
-          console.error('Auth error:', error)
-          setUser(null)
-        }
-      } else {
-        setUser(null)
-        localStorage.removeItem('adminToken')
+    // Check for existing dev mode session on mount
+    const devToken = localStorage.getItem('devModeToken')
+    const devEmail = localStorage.getItem('devModeEmail')
+    if (devToken && devEmail) {
+      const mockUser: MockUser = {
+        uid: `dev_${devEmail}`,
+        email: devEmail,
+        getIdToken: async () => devToken,
       }
-      setLoading(false)
-    })
-
-    return unsubscribe
+      setUser(mockUser)
+    }
+    setLoading(false)
   }, [])
 
   const login = async (email: string, password: string) => {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password)
-    const token = await userCredential.user.getIdToken()
-    localStorage.setItem('adminToken', token)
-    
-    // Verify admin access
-    const userData = await fetchWithAuth('/auth/me')
-    if (userData.role !== 'admin') {
-      await signOut(auth)
-      localStorage.removeItem('adminToken')
-      throw new Error('Access denied: Admin privileges required')
+    if (DEV_MODE && MOCK_ADMIN_USERS[email] === password) {
+      const token = generateMockToken(email)
+      localStorage.setItem('devModeToken', token)
+      localStorage.setItem('devModeEmail', email)
+      localStorage.setItem('adminToken', token)
+
+      const mockUser: MockUser = {
+        uid: `dev_${email}`,
+        email,
+        getIdToken: async () => token,
+      }
+      setUser(mockUser)
+      console.log('✅ Logged in with dev credentials')
+    } else {
+      throw new Error('Invalid email or password')
     }
   }
 
   const logout = async () => {
-    await signOut(auth)
     localStorage.removeItem('adminToken')
+    localStorage.removeItem('devModeToken')
+    localStorage.removeItem('devModeEmail')
     setUser(null)
   }
 
+  const getToken = async () => {
+    if (!user) return null
+    try {
+      if ('getIdToken' in user && typeof user.getIdToken === 'function') {
+        return await user.getIdToken()
+      }
+      return localStorage.getItem('adminToken')
+    } catch (error) {
+      console.error('Failed to get token:', error)
+      return null
+    }
+  }
+
+  const getIdToken = async () => {
+    return getToken()
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, getToken, getIdToken }}>
       {children}
     </AuthContext.Provider>
   )

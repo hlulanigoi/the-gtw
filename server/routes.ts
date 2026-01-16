@@ -3,8 +3,9 @@ import { createServer, type Server } from "node:http";
 import { storage, db } from "./storage";
 import { users, parcels, conversations, messages, connections, routes, reviews, pushTokens, payments, subscriptions, insertParcelSchema, insertMessageSchema, insertConnectionSchema, insertRouteSchema, insertReviewSchema, insertPushTokenSchema } from "@shared/schema";
 import { eq, desc, and, gte, lte, ne, sql } from "drizzle-orm";
-import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./firebase-admin";
+import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./jwt-middleware";
 import { registerAdminRoutes } from "./admin-routes";
+import { registerAuthRoutes } from "./auth-routes";
 import { 
   SUBSCRIPTION_PLANS, 
   getSubscriptionPlan, 
@@ -1504,15 +1505,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Not authorized" });
       }
 
-      // Upload photo to Firebase Storage
-      const { uploadPhoto } = await import("./firebase-storage");
-      const uploadResult = await uploadPhoto(photoData, `parcels/${id}/${photoType}`);
+      // Store photo as data URL (embedded base64)
+      // For production, consider using cloud storage service like S3, GCS, or similar
+      const photoUrl = photoData;
 
       // Save photo record
       const photo = await storage.createParcelPhoto({
         parcelId: id,
         uploadedBy: req.user!.uid,
-        photoUrl: uploadResult.url,
+        photoUrl: photoUrl,
         photoType,
         caption: caption || null,
         latitude: latitude || null,
@@ -1522,12 +1523,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update parcel with photo URL if it's pickup or delivery photo
       if (photoType === "pickup") {
         await storage.updateParcel(id, {
-          pickupPhotoUrl: uploadResult.url,
+          pickupPhotoUrl: photoUrl,
           pickupPhotoTimestamp: new Date(),
         });
       } else if (photoType === "delivery") {
         await storage.updateParcel(id, {
-          deliveryPhotoUrl: uploadResult.url,
+          deliveryPhotoUrl: photoUrl,
           deliveryPhotoTimestamp: new Date(),
           status: "Delivered",
         });

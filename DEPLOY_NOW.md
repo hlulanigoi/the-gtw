@@ -19,7 +19,8 @@ nano .env
 Required values:
 - `DATABASE_URL` - Your PostgreSQL connection string
 - `PAYSTACK_SECRET_KEY` - From Paystack dashboard
-- `FIREBASE_PROJECT_ID`, `FIREBASE_PRIVATE_KEY`, `FIREBASE_CLIENT_EMAIL` - From Firebase
+- `JWT_SECRET` - A secure random string for JWT tokens
+- `REFRESH_TOKEN_SECRET` - A secure random string for refresh tokens
 - `ALLOWED_ORIGINS` - Your production domains
 
 **Edit `/app/admin/.env`:**
@@ -127,10 +128,9 @@ railway up
 ```env
 NODE_ENV=production
 DATABASE_URL=postgresql://user:pass@host:5432/db
+JWT_SECRET=your-secret-jwt-key
+REFRESH_TOKEN_SECRET=your-refresh-token-secret
 PAYSTACK_SECRET_KEY=sk_live_xxx
-FIREBASE_PROJECT_ID=your-project
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----..."
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk@project.iam.gserviceaccount.com
 ALLOWED_ORIGINS=https://yourdomain.com
 PORT=5000
 ```

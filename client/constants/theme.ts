@@ -9,6 +9,12 @@ export const Colors = {
   success: "#10B981",
   warning: "#F59E0B",
   error: "#EF4444",
+  info: "#3B82F6",
+  text: "#111827",
+  textSecondary: "#6B7280",
+  background: "#FFFFFF",
+  card: "#F9FAFB",
+  border: "#E5E7EB",
   light: {
     text: "#111827",
     textSecondary: "#6B7280",
@@ -47,6 +53,7 @@ export const Spacing = {
   "3xl": 32,
   "4xl": 40,
   "5xl": 48,
+  xxxl: 64,
   inputHeight: 48,
   buttonHeight: 52,
 };

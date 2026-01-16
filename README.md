@@ -130,7 +130,7 @@ yarn server:prod
 │   ├── sentry.ts             # Error tracking
 │   ├── metrics.ts            # Monitoring
 │   ├── validation.ts         # Input validation
-│   ├── firebase-admin.ts     # Auth middleware
+│   ├── jwt-middleware.ts     # Auth middleware
 │   ├── admin-routes.ts       # Admin API
 │   ├── subscription-utils.ts # Subscription logic
 │   └── __tests__/            # API tests
@@ -162,10 +162,9 @@ yarn server:prod
 
 ### Required
 - `DATABASE_URL` - PostgreSQL connection string
+- `JWT_SECRET` - Secret key for JWT tokens
+- `REFRESH_TOKEN_SECRET` - Secret key for refresh tokens
 - `PAYSTACK_SECRET_KEY` - Paystack API key
-- `FIREBASE_PROJECT_ID` - Firebase project ID
-- `FIREBASE_PRIVATE_KEY` - Firebase private key
-- `FIREBASE_CLIENT_EMAIL` - Firebase service account email
 - `ALLOWED_ORIGINS` - Comma-separated allowed CORS origins
 
 ### Optional

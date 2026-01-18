@@ -3,9 +3,9 @@ import {
   getAuth, 
   initializeAuth,
   browserSessionPersistence,
-  getReactNativePersistence,
   Auth
 } from 'firebase/auth';
+import { getReactNativePersistence } from 'firebase/auth/react-native';
 import { Platform } from 'react-native';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -27,14 +27,16 @@ if (!getApps().length) {
   app = getApps()[0];
 }
 
-try {
-  auth = initializeAuth(app, {
-    persistence: Platform.OS === 'web' 
-      ? browserSessionPersistence 
-      : getReactNativePersistence(ReactNativeAsyncStorage),
-  });
-} catch (e) {
+if (Platform.OS === 'web') {
   auth = getAuth(app);
+} else {
+  try {
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+    });
+  } catch (e) {
+    auth = getAuth(app);
+  }
 }
 
 export { app, auth };

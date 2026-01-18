@@ -120,10 +120,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-function generateMockToken(email: string): string {
+function generateMockToken(email: string, role: 'admin' | 'support'): string {
   const payload = {
     email,
-    role: 'admin',
+    role,
     iat: Date.now(),
     exp: Date.now() + 24 * 60 * 60 * 1000,
   }

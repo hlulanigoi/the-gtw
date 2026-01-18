@@ -199,6 +199,15 @@ export function requireSupport() {
   }
 }
 
+
+
+/**
+ * Check if user is support staff
+ */
+export function isSupport(req: AuthenticatedRequest): boolean {
+  return getUserRole(req) === 'support'
+}
+
 /**
  * Require admin role only
  */

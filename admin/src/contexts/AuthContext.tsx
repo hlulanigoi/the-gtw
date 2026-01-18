@@ -138,10 +138,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for existing dev mode session on mount
     const devToken = localStorage.getItem('devModeToken')
     const devEmail = localStorage.getItem('devModeEmail')
-    if (devToken && devEmail) {
+    const devRole = localStorage.getItem('devModeRole') as 'admin' | 'support' | null
+    if (devToken && devEmail && devRole) {
       const mockUser: MockUser = {
         uid: `dev_${devEmail}`,
         email: devEmail,
+        role: devRole,
         getIdToken: async () => devToken,
       }
       setUser(mockUser)

@@ -72,6 +72,8 @@ export default function Users() {
           className={`px-3 py-1 text-xs font-medium rounded-full ${
             value === 'admin'
               ? 'bg-purple-100 text-purple-800'
+              : value === 'support'
+              ? 'bg-blue-100 text-blue-800'
               : 'bg-gray-100 text-gray-800'
           }`}
         >

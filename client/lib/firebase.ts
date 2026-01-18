@@ -2,10 +2,9 @@ import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
   initializeAuth,
-  browserSessionPersistence,
+  getReactNativePersistence,
   Auth
 } from 'firebase/auth';
-import * as firebaseAuth from 'firebase/auth';
 import { Platform } from 'react-native';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -30,18 +29,13 @@ if (!getApps().length) {
 if (Platform.OS === 'web') {
   auth = getAuth(app);
 } else {
+  // Use getAuth first to register the component before initializing with persistence
+  // This avoids the "Component auth has not been registered yet" error
   try {
-    // Firebase v10.x+ often exports this through the main entry point or a subpath
-    // We try to access it dynamically to avoid resolution issues during bundling
-    const getRNPersistence = (firebaseAuth as any).getReactNativePersistence;
-    
-    if (getRNPersistence) {
-      auth = initializeAuth(app, {
-        persistence: getRNPersistence(ReactNativeAsyncStorage),
-      });
-    } else {
-      auth = getAuth(app);
-    }
+    getAuth(app); 
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+    });
   } catch (e) {
     auth = getAuth(app);
   }

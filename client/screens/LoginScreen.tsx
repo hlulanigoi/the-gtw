@@ -52,7 +52,7 @@ export default function LoginScreen() {
       
       if (code === "auth/invalid-email") {
         message = "Invalid email address.";
-      } else if (code === "auth/user-not-found" || code === "auth/invalid-credential") {
+      } else if (code === "auth/user-not-found" || code === "auth/invalid-credential" || code === "auth/invalid-login-credentials") {
         message = "No account found with this email or incorrect password.";
       } else if (code === "auth/wrong-password") {
         message = "Incorrect password.";

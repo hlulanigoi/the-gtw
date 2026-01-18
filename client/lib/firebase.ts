@@ -30,9 +30,8 @@ if (Platform.OS === 'web') {
   auth = getAuth(app);
 } else {
   // Use a reliable initialization pattern for React Native
-  // Cast to any to access getReactNativePersistence safely across environments
-  const getRNPersistence = (firebaseAuth as any).getReactNativePersistence;
   try {
+    const getRNPersistence = (firebaseAuth as any).getReactNativePersistence;
     if (getRNPersistence) {
       console.log('Initializing Firebase Auth with React Native Persistence');
       auth = initializeAuth(app, {
@@ -42,10 +41,13 @@ if (Platform.OS === 'web') {
       console.warn('getReactNativePersistence not found, falling back to getAuth');
       auth = getAuth(app);
     }
-  } catch (e) {
-    // Fallback if initializeAuth fails (e.g. if already initialized)
-    console.log('Firebase Auth initialization caught error:', e);
-    auth = getAuth(app);
+  } catch (e: any) {
+    if (e.message?.includes('already initialized')) {
+      auth = getAuth(app);
+    } else {
+      console.error('Firebase Auth initialization error:', e);
+      auth = getAuth(app);
+    }
   }
 }
 

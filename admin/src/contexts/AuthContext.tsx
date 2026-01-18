@@ -152,19 +152,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string) => {
-    if (DEV_MODE && MOCK_ADMIN_USERS[email] === password) {
-      const token = generateMockToken(email)
+    const userConfig = MOCK_ADMIN_USERS[email]
+    if (DEV_MODE && userConfig && userConfig.password === password) {
+      const token = generateMockToken(email, userConfig.role)
       localStorage.setItem('devModeToken', token)
       localStorage.setItem('devModeEmail', email)
+      localStorage.setItem('devModeRole', userConfig.role)
       localStorage.setItem('adminToken', token)
 
       const mockUser: MockUser = {
         uid: `dev_${email}`,
         email,
+        role: userConfig.role,
         getIdToken: async () => token,
       }
       setUser(mockUser)
-      console.log('✅ Logged in with dev credentials')
+      console.log(`✅ Logged in as ${userConfig.role}`)
     } else {
       throw new Error('Invalid email or password')
     }

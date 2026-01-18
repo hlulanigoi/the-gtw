@@ -109,162 +109,124 @@ export default function Dashboard() {
           title="Open Disputes"
           value={stats?.disputes?.open || 0}
           change={`${stats?.disputes?.total || 0} total`}
-          icon={<AlertTriangle className="w-8 h-8 text-white" />}
+          icon={<AlertTriangle className="w-8 h-8 text-white" aria-hidden="true" />}
           color="bg-red-500"
+          data-testid="stat-open-disputes"
         />
         <StatsCard
           title="Active Subscriptions"
           value={stats?.subscriptions?.active || 0}
-          icon={<Sparkles className="w-8 h-8 text-white" />}
+          icon={<Sparkles className="w-8 h-8 text-white" aria-hidden="true" />}
           color="bg-indigo-500"
+          data-testid="stat-active-subscriptions"
         />
         <StatsCard
           title="Total Wallet Balance"
-          value={`${(stats?.wallet?.totalBalance || 0).toLocaleString()}`}
-          icon={<Wallet className="w-8 h-8 text-white" />}
+          value={`$${(stats?.wallet?.totalBalance || 0).toLocaleString()}`}
+          icon={<Wallet className="w-8 h-8 text-white" aria-hidden="true" />}
           color="bg-teal-500"
+          data-testid="stat-wallet-balance"
         />
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" role="region" aria-label="Data visualizations">
         {/* Parcel Status Pie Chart */}
         <div className="card p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-5 flex items-center">
-            <div className="w-1 h-6 bg-primary rounded-full mr-3"></div>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-5 flex items-center">
+            <div className="w-1 h-6 bg-primary rounded-full mr-3" aria-hidden="true"></div>
             Parcel Status Distribution
           </h3>
           <div className="flex justify-center">
             {stats?.parcels?.statusBreakdown && stats.parcels.statusBreakdown.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={stats.parcels.statusBreakdown}
-                    dataKey="count"
-                    nameKey="status"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label
-                  >
-                    {stats.parcels.statusBreakdown.map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={['#0EA5E9', '#10B981', '#F59E0B', '#EF4444'][index % 4]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <MemoizedPieChart 
+                data={stats.parcels.statusBreakdown} 
+                colors={['#0EA5E9', '#10B981', '#F59E0B', '#EF4444']}
+              />
             ) : (
-              <p className="text-gray-500">No data available</p>
+              <p className="text-gray-500 dark:text-gray-400 py-16">No data available</p>
             )}
           </div>
         </div>
 
         {/* Payment Status Pie Chart */}
         <div className="card p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-5 flex items-center">
-            <div className="w-1 h-6 bg-secondary rounded-full mr-3"></div>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-5 flex items-center">
+            <div className="w-1 h-6 bg-secondary rounded-full mr-3" aria-hidden="true"></div>
             Payment Status Distribution
           </h3>
           <div className="flex justify-center">
             {stats?.payments?.statusBreakdown && stats.payments.statusBreakdown.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={stats.payments.statusBreakdown}
-                    dataKey="count"
-                    nameKey="status"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label
-                  >
-                    {stats.payments.statusBreakdown.map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={['#06B6D4', '#8B5CF6', '#EC4899', '#6B7280'][index % 4]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <MemoizedPieChart 
+                data={stats.payments.statusBreakdown} 
+                colors={['#06B6D4', '#8B5CF6', '#EC4899', '#6B7280']}
+              />
             ) : (
-              <p className="text-gray-500">No data available</p>
+              <p className="text-gray-500 dark:text-gray-400 py-16">No data available</p>
             )}
           </div>
         </div>
 
         {/* Dispute Status Pie Chart */}
         <div className="card p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-5 flex items-center">
-            <div className="w-1 h-6 bg-red-500 rounded-full mr-3"></div>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-5 flex items-center">
+            <div className="w-1 h-6 bg-red-500 rounded-full mr-3" aria-hidden="true"></div>
             Dispute Status Distribution
           </h3>
           <div className="flex justify-center">
             {stats?.disputes?.statusBreakdown && stats.disputes.statusBreakdown.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={stats.disputes.statusBreakdown}
-                    dataKey="count"
-                    nameKey="status"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label
-                  >
-                    {stats.disputes.statusBreakdown.map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={['#EF4444', '#F97316', '#FCD34D', '#94A3B8'][index % 4]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <MemoizedPieChart 
+                data={stats.disputes.statusBreakdown} 
+                colors={['#EF4444', '#F97316', '#FCD34D', '#94A3B8']}
+              />
             ) : (
-              <p className="text-gray-500">No data available</p>
+              <p className="text-gray-500 dark:text-gray-400 py-16">No data available</p>
             )}
           </div>
         </div>
       </div>
 
       {/* Detailed Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" role="region" aria-label="Detailed statistics">
         {stats?.parcels?.statusBreakdown?.map((item: any) => (
           <div key={item.status} className="card p-4">
-            <p className="text-sm text-gray-600 font-medium">{item.status}</p>
-            <p className="text-2xl font-bold text-primary mt-2">{item.count}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">{item.status}</p>
+            <p className="text-2xl font-bold text-primary dark:text-primary mt-2">{item.count}</p>
           </div>
         ))}
       </div>
 
       {/* Recent Activity */}
-      <div className="card">
-        <div className="p-6 border-b border-gray-200">
+      <div className="card" role="region" aria-label="Recent activity">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-              <Activity className="w-5 h-5 text-primary" />
+              <Activity className="w-5 h-5 text-primary" aria-hidden="true" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900">Recent Activity</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Recent Activity</h3>
           </div>
         </div>
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-gray-200 dark:divide-gray-700">
           {activityData?.activities?.slice(0, 10).map((activity: any) => (
-            <div key={`${activity.type}-${activity.id}`} className="p-6 hover:bg-gray-50/50 transition-colors duration-200">
+            <div key={`${activity.type}-${activity.id}`} className="p-6 hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{activity.description}</p>
-                  <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{activity.description}</p>
+                  <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
                     <span className="font-medium">{activity.userName}</span>
-                    <span className="text-gray-300">•</span>
-                    <span>{format(new Date(activity.createdAt), 'MMM dd, yyyy HH:mm')}</span>
+                    <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">•</span>
+                    <time dateTime={activity.createdAt}>{format(new Date(activity.createdAt), 'MMM dd, yyyy HH:mm')}</time>
                   </div>
                 </div>
                 <span
                   className={`px-4 py-1 text-xs font-bold rounded-full whitespace-nowrap ml-4 ${
                     activity.status === 'Pending' || activity.status === 'pending'
-                      ? 'bg-yellow-100 text-yellow-700'
+                      ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                       : activity.status === 'Active' || activity.status === 'success'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-700'
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
                   }`}
+                  role="status"
                 >
                   {activity.status}
                 </span>

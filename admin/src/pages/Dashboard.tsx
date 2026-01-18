@@ -1,9 +1,35 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchWithAuth } from '../lib/api'
 import StatsCard from '../components/StatsCard'
-import { Users, Package, Route, CreditCard, TrendingUp, Activity, AlertTriangle, Sparkles, Wallet, Download } from 'lucide-react'
+import { SkeletonCard, SkeletonChart } from '../components/Skeleton'
+import { Users, Package, Route, CreditCard, TrendingUp, Activity, AlertTriangle, Sparkles, Wallet, Download, ArrowUp, ArrowDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { PieChart, Pie, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
+import { memo } from 'react'
+
+// Memoized chart components for performance
+const MemoizedPieChart = memo(({ data, colors }: { data: any[], colors: string[] }) => (
+  <ResponsiveContainer width="100%" height={250}>
+    <PieChart>
+      <Pie
+        data={data}
+        dataKey="count"
+        nameKey="status"
+        cx="50%"
+        cy="50%"
+        outerRadius={80}
+        label
+      >
+        {data.map((entry: any, index: number) => (
+          <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+        ))}
+      </Pie>
+      <Tooltip />
+    </PieChart>
+  </ResponsiveContainer>
+))
+
+MemoizedPieChart.displayName = 'MemoizedPieChart'
 
 export default function Dashboard() {
   const { data: stats, isLoading } = useQuery({

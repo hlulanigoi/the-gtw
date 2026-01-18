@@ -29,21 +29,21 @@ if (!getApps().length) {
 if (Platform.OS === 'web') {
   auth = getAuth(app);
 } else {
-  // Use getAuth first to register the component before initializing with persistence
-  // We access getReactNativePersistence from the subpath if needed, or through any cast
-  // to avoid strict type errors while ensuring the registration order is correct.
-  auth = getAuth(app);
-  try {
-    const getRNPersistence = (firebaseAuth as any).getReactNativePersistence;
-    
-    if (getRNPersistence) {
-      // Re-initialize with persistence if available
+  // Use a dynamic check for getReactNativePersistence to avoid build-time errors
+  // while ensuring persistence is correctly initialized.
+  const getRNPersistence = (firebaseAuth as any).getReactNativePersistence;
+  
+  if (getRNPersistence) {
+    try {
       auth = initializeAuth(app, {
         persistence: getRNPersistence(ReactNativeAsyncStorage),
       });
+    } catch (e) {
+      // If already initialized, fallback to getAuth
+      auth = getAuth(app);
     }
-  } catch (e) {
-    // If already initialized or failed, auth is already set via getAuth(app)
+  } else {
+    auth = getAuth(app);
   }
 }
 

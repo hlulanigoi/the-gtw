@@ -157,12 +157,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signInWithGoogle = async (idToken: string) => {
+  const signInWithGoogle = async () => {
     try {
       setGoogleLoading(true);
-      const credential = GoogleAuthProvider.credential(idToken);
-      const userCredential = await signInWithCredential(auth, credential);
-      await syncUserWithBackend(userCredential.user);
+      // In a real Expo environment, you would use expo-auth-session or a similar library 
+      // to get the idToken. For now, we are providing a placeholder message.
+      // This function needs to be correctly implemented with a native Google Sign-In flow.
+      console.log('Google sign in attempted');
+      throw new Error('Google Sign-In is not fully configured. Please use Email/Password for now.');
     } catch (error: any) {
       console.error('Google sign in error:', error);
       throw new Error(error.message || 'Failed to sign in with Google');

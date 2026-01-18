@@ -69,7 +69,7 @@ export default function LoginScreen() {
     try {
       await signInWithGoogle();
     } catch (error: any) {
-      Alert.alert("Error", "Failed to sign in with Google. Please try again.");
+      Alert.alert("Google Sign In", error.message || "Failed to sign in with Google. Please try again.");
     }
   };
 

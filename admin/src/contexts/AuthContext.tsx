@@ -177,6 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('adminToken')
     localStorage.removeItem('devModeToken')
     localStorage.removeItem('devModeEmail')
+    localStorage.removeItem('devModeRole')
     setUser(null)
   }
 

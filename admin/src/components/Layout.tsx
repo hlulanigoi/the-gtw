@@ -62,6 +62,9 @@ export default function Layout() {
   useKeyboardShortcut({ key: 'k', meta: true }, () => setIsCommandPaletteOpen(true))
   useKeyboardShortcut({ key: 'k', ctrl: true }, () => setIsCommandPaletteOpen(true))
 
+  // Filter navigation based on user permissions
+  const visibleNavigation = navigation.filter(item => hasPermission(user, item.permission))
+
   const handleClearNotification = (id: string) => {
     setNotifications(notifications.filter((n) => n.id !== id))
   }

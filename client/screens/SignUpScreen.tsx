@@ -63,14 +63,22 @@ export default function SignUpScreen() {
     try {
       await signUp(email.trim(), password, name.trim());
     } catch (error: any) {
+      console.error("SignUp component error:", error);
       let message = "Failed to create account. Please try again.";
-      if (error.code === "auth/email-already-in-use") {
+      const code = error.code || error.message;
+
+      if (code === "auth/email-already-in-use") {
         message = "An account with this email already exists.";
-      } else if (error.code === "auth/invalid-email") {
+      } else if (code === "auth/invalid-email") {
         message = "Invalid email address.";
-      } else if (error.code === "auth/weak-password") {
-        message = "Password is too weak.";
+      } else if (code === "auth/weak-password" || code?.includes("password-does-not-meet-requirements")) {
+        message = "Password is too weak or does not meet requirements.";
+      } else if (code?.includes("network-request-failed")) {
+        message = "Network error. Please check your connection.";
+      } else if (error.message) {
+        message = error.message;
       }
+      
       Alert.alert("Error", message);
     } finally {
       setLoading(false);

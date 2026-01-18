@@ -153,7 +153,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await syncUserWithBackend(userCredential.user, { name, phone });
     } catch (error: any) {
       console.error('Sign up error:', error);
-      throw new Error(error.message || 'Failed to sign up');
+      // Pass the specific error code or a more descriptive message
+      const firebaseError = error as { code?: string; message: string };
+      throw firebaseError;
     }
   };
 

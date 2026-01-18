@@ -6,6 +6,8 @@ import { eq, desc, and, gte, lte, ne, sql } from "drizzle-orm";
 import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./jwt-middleware";
 import { registerAdminRoutes } from "./admin-routes";
 import { registerAuthRoutes } from "./auth-routes";
+import { registerFirebaseAuthRoutes } from "./firebase-routes";
+import { initializeFirebaseAdmin } from "./firebase-admin";
 import { 
   SUBSCRIPTION_PLANS, 
   getSubscriptionPlan, 
@@ -18,6 +20,14 @@ import crypto from "crypto";
 import logger from "./logger";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize Firebase Admin SDK
+  try {
+    initializeFirebaseAdmin();
+    logger.info('Firebase Admin SDK initialized successfully');
+  } catch (error) {
+    logger.error('Failed to initialize Firebase Admin SDK', { error });
+  }
+
   // Health check endpoint
   app.get("/health", async (req, res) => {
     const checks = {
@@ -42,6 +52,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register admin routes
   registerAdminRoutes(app);
+  
+  // Register Firebase authentication routes
+  registerFirebaseAuthRoutes(app);
+  
   app.post("/api/auth/sync", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const { uid, email } = req.user!;

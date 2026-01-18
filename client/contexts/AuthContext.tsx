@@ -1,7 +1,25 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  sendEmailVerification as firebaseSendEmailVerification,
+  User as FirebaseUser,
+  GoogleAuthProvider,
+  signInWithCredential,
+  sendPasswordResetEmail,
+  onAuthStateChanged,
+  reload as reloadUser,
+} from 'firebase/auth';
+import { auth } from '../lib/firebase';
+import { 
+  registerForPushNotifications, 
+  syncFCMTokenWithBackend,
+  removeFCMTokenFromBackend 
+} from '../lib/notifications';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 interface UserProfile {
   id: string;
@@ -12,10 +30,9 @@ interface UserProfile {
   verified: boolean;
   emailVerified: boolean;
   createdAt: Date;
-  savedLocationName?: string;
-  savedLocationAddress?: string;
-  savedLocationLat?: number;
-  savedLocationLng?: number;
+  role?: string;
+  subscriptionTier?: string;
+  subscriptionStatus?: string;
 }
 
 interface AuthContextType {
@@ -23,17 +40,14 @@ interface AuthContextType {
   userProfile: UserProfile | null;
   loading: boolean;
   googleLoading: boolean;
-  pendingVerification: { email: string; name: string; password: string } | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  signUp: (email: string, password: string, name: string, phone?: string) => Promise<void>;
+  signInWithGoogle: (idToken: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
-  sendVerificationCode: (email: string) => Promise<void>;
-  verifyCode: (email: string, code: string) => Promise<boolean>;
+  sendEmailVerification: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  setPendingVerification: (data: { email: string; name: string; password: string } | null) => void;
-  completeSignUp: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,148 +57,200 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [pendingVerification, setPendingVerification] = useState<{
-    email: string;
-    name: string;
-    password: string;
-  } | null>(null);
 
-  // Check for existing token on app load
+  // Sync Firebase user with backend
+  const syncUserWithBackend = async (firebaseUser: FirebaseUser, additionalData?: { name?: string; phone?: string }) => {
+    try {
+      const token = await firebaseUser.getIdToken();
+      await AsyncStorage.setItem('firebaseToken', token);
+
+      const response = await fetch(`${API_URL}/firebase/sync-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(additionalData || {}),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to sync user with backend');
+      }
+
+      const { user: userData } = await response.json();
+      
+      const profile: UserProfile = {
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        phone: userData.phone,
+        rating: userData.rating,
+        verified: userData.verified,
+        emailVerified: firebaseUser.emailVerified,
+        createdAt: new Date(userData.createdAt),
+        role: userData.role,
+        subscriptionTier: userData.subscriptionTier,
+        subscriptionStatus: userData.subscriptionStatus,
+      };
+
+      setUser(profile);
+      setUserProfile(profile);
+
+      // Register for push notifications
+      const fcmToken = await registerForPushNotifications();
+      if (fcmToken) {
+        await syncFCMTokenWithBackend(fcmToken);
+      }
+
+      return profile;
+    } catch (error) {
+      console.error('Error syncing user with backend:', error);
+      throw error;
+    }
+  };
+
+  // Listen to auth state changes
   useEffect(() => {
-    const checkAuth = async () => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
-        const token = await AsyncStorage.getItem("authToken");
-        if (token) {
-          const response = await fetch(`${API_URL}/auth/me`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-            setUserProfile(userData);
-          } else {
-            await AsyncStorage.removeItem("authToken");
-          }
+        if (firebaseUser) {
+          await syncUserWithBackend(firebaseUser);
+        } else {
+          setUser(null);
+          setUserProfile(null);
+          await AsyncStorage.removeItem('firebaseToken');
         }
       } catch (error) {
-        console.error("Auth check failed:", error);
+        console.error('Auth state change error:', error);
+        setUser(null);
+        setUserProfile(null);
       } finally {
         setLoading(false);
       }
-    };
+    });
 
-    checkAuth();
+    return () => unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Login failed");
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await syncUserWithBackend(userCredential.user);
+    } catch (error: any) {
+      console.error('Sign in error:', error);
+      throw new Error(error.message || 'Failed to sign in');
     }
-
-    const { token, user: userData } = await response.json();
-    await AsyncStorage.setItem("authToken", token);
-    setUser(userData);
-    setUserProfile(userData);
   };
 
-  const signUp = async (email: string, password: string, name: string) => {
-    const response = await fetch(`${API_URL}/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, name }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Sign up failed");
+  const signUp = async (email: string, password: string, name: string, phone?: string) => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Send email verification
+      await firebaseSendEmailVerification(userCredential.user);
+      
+      // Sync with backend
+      await syncUserWithBackend(userCredential.user, { name, phone });
+    } catch (error: any) {
+      console.error('Sign up error:', error);
+      throw new Error(error.message || 'Failed to sign up');
     }
-
-    const { token, user: userData } = await response.json();
-    await AsyncStorage.setItem("authToken", token);
-    setUser(userData);
-    setUserProfile(userData);
   };
 
-  const signInWithGoogle = async () => {
-    // Google sign-in would require Google OAuth flow
-    // For now, we'll show a placeholder
-    throw new Error("Google sign-in is not yet implemented with the API");
+  const signInWithGoogle = async (idToken: string) => {
+    try {
+      setGoogleLoading(true);
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      await syncUserWithBackend(userCredential.user);
+    } catch (error: any) {
+      console.error('Google sign in error:', error);
+      throw new Error(error.message || 'Failed to sign in with Google');
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   const signOut = async () => {
-    await AsyncStorage.removeItem("authToken");
-    setUser(null);
-    setUserProfile(null);
+    try {
+      // Remove FCM token from backend
+      await removeFCMTokenFromBackend();
+      
+      // Sign out from Firebase
+      await firebaseSignOut(auth);
+      
+      // Clear local storage
+      await AsyncStorage.removeItem('firebaseToken');
+      
+      setUser(null);
+      setUserProfile(null);
+    } catch (error) {
+      console.error('Sign out error:', error);
+      throw new Error('Failed to sign out');
+    }
   };
 
   const updateUserProfile = async (data: Partial<UserProfile>) => {
     if (!user) return;
 
-    const token = await AsyncStorage.getItem("authToken");
-    const response = await fetch(`${API_URL}/auth/profile`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    });
+    try {
+      const token = await AsyncStorage.getItem('firebaseToken');
+      
+      const response = await fetch(`${API_URL}/firebase/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Profile update failed");
-    }
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
 
-    const updatedUser = await response.json();
-    setUser(updatedUser);
-    setUserProfile(updatedUser);
-  };
-
-  const sendVerificationCode = async (email: string) => {
-    const response = await fetch(`${API_URL}/auth/send-verification-code`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Failed to send verification code");
+      const updatedUser = await response.json();
+      
+      setUser({ ...user, ...updatedUser });
+      setUserProfile({ ...userProfile, ...updatedUser });
+    } catch (error) {
+      console.error('Update profile error:', error);
+      throw new Error('Failed to update profile');
     }
   };
 
-  const verifyCode = async (email: string, code: string): Promise<boolean> => {
-    const response = await fetch(`${API_URL}/auth/verify-code`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code }),
-    });
+  const sendEmailVerification = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('No user signed in');
+      }
 
-    if (!response.ok) {
-      return false;
+      await firebaseSendEmailVerification(currentUser);
+    } catch (error: any) {
+      console.error('Send verification error:', error);
+      throw new Error(error.message || 'Failed to send verification email');
     }
-
-    const result = await response.json();
-    return result.valid || false;
   };
 
   const resetPassword = async (email: string) => {
-    const response = await fetch(`${API_URL}/auth/reset-password`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (error: any) {
+      console.error('Reset password error:', error);
+      throw new Error(error.message || 'Failed to send reset email');
+    }
+  };
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Password reset failed");
+  const refreshUser = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        await reloadUser(currentUser);
+        await syncUserWithBackend(currentUser);
+      }
+    } catch (error) {
+      console.error('Refresh user error:', error);
     }
   };
 
@@ -195,17 +261,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userProfile,
         loading,
         googleLoading,
-        pendingVerification,
         signIn,
         signUp,
         signInWithGoogle,
         signOut,
         updateUserProfile,
-        sendVerificationCode,
-        verifyCode,
+        sendEmailVerification,
         resetPassword,
-        setPendingVerification,
-        completeSignUp: async () => {},
+        refreshUser,
       }}
     >
       {children}
@@ -215,6 +278,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) throw new Error("useAuth must be used within an AuthProvider");
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
   return context;
 }

@@ -1,99 +1,167 @@
-import { Platform } from "react-native";
-import * as Notifications from "expo-notifications";
-import Constants from "expo-constants";
-import { post } from "./api";
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+// Configure notification handler
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
   }),
 });
 
-export async function registerForPushNotifications(userId: string): Promise<string | null> {
-  if (Platform.OS === "web") {
-    console.log("Push notifications not supported on web in Expo Go");
-    return null;
-  }
-
+/**
+ * Register for push notifications and get FCM token
+ */
+export async function registerForPushNotifications(): Promise<string | null> {
   try {
+    if (!Device.isDevice) {
+      console.log('Push notifications only work on physical devices');
+      return null;
+    }
+
+    // Check existing permissions
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
-    if (existingStatus !== "granted") {
+    // Request permissions if not granted
+    if (existingStatus !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
 
-    if (finalStatus !== "granted") {
-      console.log("Permission not granted for push notifications");
+    if (finalStatus !== 'granted') {
+      console.log('Failed to get push notification permissions');
       return null;
     }
 
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId 
-      ?? Constants.easConfig?.projectId
-      ?? process.env.EXPO_PUBLIC_PROJECT_ID;
-
-    if (!projectId) {
-      console.log("No project ID found for push notifications");
-      return null;
-    }
-
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId,
-    });
+    // Get FCM token
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     
-    const token = tokenData.data;
-
-    // Send push token to backend
-    try {
-      await post("/users/push-token", { token });
-    } catch (error) {
-      console.error("Error sending push token to backend:", error);
+    if (!projectId) {
+      console.error('Project ID not found. Make sure to configure EAS in app.json');
+      return null;
     }
 
-    if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("default", {
-        name: "Default",
+    const token = await Notifications.getExpoPushTokenAsync({ projectId });
+    console.log('FCM Token:', token.data);
+
+    // Set notification channel for Android
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#0A7EA4",
+        lightColor: '#FF231F7C',
       });
     }
 
-    return token;
+    return token.data;
   } catch (error) {
-    console.error("Error registering for push notifications:", error);
+    console.error('Error registering for push notifications:', error);
     return null;
   }
 }
 
-export async function sendLocalNotification(
-  title: string,
-  body: string,
-  data?: Record<string, unknown>
-) {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title,
-      body,
-      data: data || {},
-    },
-    trigger: null,
-  });
+/**
+ * Send FCM token to backend
+ */
+export async function syncFCMTokenWithBackend(fcmToken: string): Promise<void> {
+  try {
+    const authToken = await AsyncStorage.getItem('firebaseToken');
+    
+    if (!authToken) {
+      console.log('No auth token found, skipping FCM sync');
+      return;
+    }
+
+    const response = await fetch(`${API_URL}/firebase/fcm-token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ fcmToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to sync FCM token with backend');
+    }
+
+    console.log('FCM token synced with backend');
+  } catch (error) {
+    console.error('Error syncing FCM token:', error);
+  }
 }
 
-export function addNotificationListener(
-  callback: (notification: Notifications.Notification) => void
-) {
-  return Notifications.addNotificationReceivedListener(callback);
+/**
+ * Remove FCM token from backend (on logout)
+ */
+export async function removeFCMTokenFromBackend(): Promise<void> {
+  try {
+    const authToken = await AsyncStorage.getItem('firebaseToken');
+    
+    if (!authToken) {
+      return;
+    }
+
+    const response = await fetch(`${API_URL}/firebase/fcm-token`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to remove FCM token from backend');
+    }
+
+    console.log('FCM token removed from backend');
+  } catch (error) {
+    console.error('Error removing FCM token:', error);
+  }
 }
 
+/**
+ * Add notification received listener
+ */
+export function addNotificationReceivedListener(
+  listener: (notification: Notifications.Notification) => void
+) {
+  return Notifications.addNotificationReceivedListener(listener);
+}
+
+/**
+ * Add notification response listener (when user taps notification)
+ */
 export function addNotificationResponseListener(
-  callback: (response: Notifications.NotificationResponse) => void
+  listener: (response: Notifications.NotificationResponse) => void
 ) {
-  return Notifications.addNotificationResponseReceivedListener(callback);
+  return Notifications.addNotificationResponseReceivedListener(listener);
+}
+
+/**
+ * Get badge count
+ */
+export async function getBadgeCount(): Promise<number> {
+  return await Notifications.getBadgeCountAsync();
+}
+
+/**
+ * Set badge count
+ */
+export async function setBadgeCount(count: number): Promise<void> {
+  await Notifications.setBadgeCountAsync(count);
+}
+
+/**
+ * Clear all notifications
+ */
+export async function clearAllNotifications(): Promise<void> {
+  await Notifications.dismissAllNotificationsAsync();
 }

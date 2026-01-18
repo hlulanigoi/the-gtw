@@ -115,7 +115,7 @@ export default function Users() {
           >
             <Eye className="w-4 h-4" />
           </Link>
-          {!row.verified && (
+          {!row.verified && hasPermission(user, 'verify_users') && (
             <button
               onClick={() =>
                 updateUserMutation.mutate({ id: row.id, updates: { verified: true } })
@@ -127,7 +127,7 @@ export default function Users() {
               <CheckCircle className="w-4 h-4" />
             </button>
           )}
-          {row.role !== 'admin' && (
+          {row.role !== 'admin' && hasPermission(user, 'delete_users') && (
             <button
               onClick={() =>
                 updateUserMutation.mutate({ id: row.id, updates: { role: 'admin' } })
@@ -139,23 +139,25 @@ export default function Users() {
               <Shield className="w-4 h-4" />
             </button>
           )}
-          <button
-            onClick={() =>
-              updateUserMutation.mutate({
-                id: row.id,
-                updates: { suspended: !row.suspended },
-              })
-            }
-            className={`p-1 rounded ${
-              row.suspended
-                ? 'text-green-600 hover:bg-green-50'
-                : 'text-red-600 hover:bg-red-50'
-            }`}
-            title={row.suspended ? 'Unsuspend' : 'Suspend'}
-            data-testid="suspend-user-btn"
-          >
-            <Ban className="w-4 h-4" />
-          </button>
+          {hasPermission(user, 'delete_users') && (
+            <button
+              onClick={() =>
+                updateUserMutation.mutate({
+                  id: row.id,
+                  updates: { suspended: !row.suspended },
+                })
+              }
+              className={`p-1 rounded ${
+                row.suspended
+                  ? 'text-green-600 hover:bg-green-50'
+                  : 'text-red-600 hover:bg-red-50'
+              }`}
+              title={row.suspended ? 'Unsuspend' : 'Suspend'}
+              data-testid="suspend-user-btn"
+            >
+              <Ban className="w-4 h-4" />
+            </button>
+          )}
         </div>
       ),
     },

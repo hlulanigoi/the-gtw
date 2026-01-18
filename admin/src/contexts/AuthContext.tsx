@@ -2,9 +2,10 @@ import { createContext, useContext, useEffect, useState } from 'react'
 
 // Development mode credentials
 const DEV_MODE = true
-const MOCK_ADMIN_USERS: Record<string, string> = {
-  'admin@parcelpeer.com': 'Admin@123456',
-  'test@parcelpeer.com': 'Test@123456',
+const MOCK_ADMIN_USERS: Record<string, { password: string; role: 'admin' | 'support' }> = {
+  'admin@parcelpeer.com': { password: 'Admin@123456', role: 'admin' },
+  'test@parcelpeer.com': { password: 'Test@123456', role: 'admin' },
+  'support@parcelpeer.com': { password: 'Support@123456', role: 'support' },
 }
 
 interface MockUser {

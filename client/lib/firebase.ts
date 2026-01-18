@@ -3,6 +3,7 @@ import {
   getAuth, 
   initializeAuth,
   browserSessionPersistence,
+  getReactNativePersistence,
   Auth
 } from 'firebase/auth';
 import { Platform } from 'react-native';
@@ -27,7 +28,9 @@ if (!getApps().length) {
       persistence: browserSessionPersistence,
     });
   } else {
-    auth = getAuth(app);
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
   }
 } else {
   app = getApps()[0];

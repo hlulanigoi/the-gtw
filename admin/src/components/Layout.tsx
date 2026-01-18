@@ -71,16 +71,27 @@ export default function Layout() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+      {/* Skip to main content for screen readers */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
+      {/* Command Palette */}
+      <CommandPalette 
+        isOpen={isCommandPaletteOpen} 
+        onClose={() => setIsCommandPaletteOpen(false)} 
+      />
+
       <div className="flex">
         {/* Sidebar */}
-        <div className="w-64 bg-gradient-to-b from-primary to-[#0A5A80] shadow-2xl fixed h-full overflow-y-auto">
+        <div className="w-64 bg-gradient-to-b from-primary to-[#0A5A80] dark:from-gray-900 dark:to-gray-950 shadow-2xl fixed h-full overflow-y-auto" role="navigation" aria-label="Main navigation">
           <div className="flex flex-col h-full">
             {/* Logo Section */}
-            <div className="p-6 border-b border-white/10">
+            <div className="p-6 border-b border-white/10 dark:border-gray-800">
               <div className="flex items-center space-x-2 mb-2">
                 <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center">
-                  <Package className="w-6 h-6 text-white font-bold" />
+                  <Package className="w-6 h-6 text-white font-bold" aria-hidden="true" />
                 </div>
                 <h1 className="text-2xl font-bold text-white">ParcelPeer</h1>
               </div>
@@ -88,7 +99,7 @@ export default function Layout() {
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 p-3 space-y-1">
+            <nav className="flex-1 p-3 space-y-1" aria-label="Primary">
               {navigation.map((item) => {
                 const Icon = item.icon
                 const isActive = location.pathname === item.href
@@ -101,21 +112,23 @@ export default function Layout() {
                         ? 'bg-white text-primary shadow-lg'
                         : 'text-white/80 hover:bg-white/10 hover:text-white'
                     }`}
+                    aria-current={isActive ? 'page' : undefined}
+                    data-testid={`nav-${item.name.toLowerCase()}`}
                   >
-                    <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                    <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} aria-hidden="true" />
                     <span className="font-medium text-sm">{item.name}</span>
-                    {isActive && <div className="ml-auto w-2 h-2 bg-secondary rounded-full"></div>}
+                    {isActive && <div className="ml-auto w-2 h-2 bg-secondary rounded-full" aria-hidden="true"></div>}
                   </Link>
                 )
               })}
             </nav>
 
             {/* User Section */}
-            <div className="p-4 border-t border-white/10 space-y-3">
+            <div className="p-4 border-t border-white/10 dark:border-gray-800 space-y-3">
               <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-secondary/20 rounded-lg flex items-center justify-center">
-                    <Users className="w-5 h-5 text-secondary" />
+                    <Users className="w-5 h-5 text-secondary" aria-hidden="true" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-white text-sm truncate">{user?.email}</p>
@@ -126,8 +139,10 @@ export default function Layout() {
               <button
                 onClick={logout}
                 className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 text-white rounded-xl transition-colors duration-200 font-medium text-sm backdrop-blur-sm"
+                data-testid="logout-btn"
+                aria-label="Logout from admin panel"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-4 h-4" aria-hidden="true" />
                 <span>Logout</span>
               </button>
             </div>
@@ -137,17 +152,44 @@ export default function Layout() {
         {/* Main content */}
         <div className="ml-64 flex-1">
           {/* Top bar with notifications */}
-          <div className="bg-white shadow-sm border-b border-gray-200 px-8 py-4 flex items-center justify-between">
-            <div />
-            <NotificationCenter 
-              notifications={notifications}
-              onClear={handleClearNotification}
-              onClearAll={handleClearAllNotifications}
-            />
+          <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-8 py-4 flex items-center justify-between sticky top-0 z-40">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setIsCommandPaletteOpen(true)}
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                data-testid="open-command-palette"
+                aria-label="Open command palette"
+              >
+                <Command className="w-4 h-4 text-gray-600 dark:text-gray-300" aria-hidden="true" />
+                <span className="text-sm text-gray-600 dark:text-gray-300">Quick actions</span>
+                <kbd className="hidden md:inline-block px-2 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded">
+                  ⌘K
+                </kbd>
+              </button>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setIsDark(!isDark)}
+                className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                data-testid="dark-mode-toggle"
+                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {isDark ? (
+                  <Sun className="w-5 h-5 text-yellow-500" aria-hidden="true" />
+                ) : (
+                  <Moon className="w-5 h-5 text-gray-600" aria-hidden="true" />
+                )}
+              </button>
+              <NotificationCenter 
+                notifications={notifications}
+                onClear={handleClearNotification}
+                onClearAll={handleClearAllNotifications}
+              />
+            </div>
           </div>
-          <div className="p-8 min-h-screen">
+          <main id="main-content" className="p-8 min-h-screen">
             <Outlet />
-          </div>
+          </main>
         </div>
       </div>
     </div>

@@ -11,7 +11,102 @@ const MOCK_ADMIN_USERS: Record<string, { password: string; role: 'admin' | 'supp
 interface MockUser {
   uid: string
   email: string
+  role: 'admin' | 'support'
   getIdToken: () => Promise<string>
+}
+
+type UserRole = 'admin' | 'support'
+type Permission = 
+  | 'view_dashboard'
+  | 'view_users'
+  | 'verify_users'
+  | 'delete_users'
+  | 'view_parcels'
+  | 'update_parcel_status'
+  | 'delete_parcels'
+  | 'view_routes'
+  | 'update_routes'
+  | 'delete_routes'
+  | 'view_payments'
+  | 'process_refunds'
+  | 'view_disputes'
+  | 'comment_disputes'
+  | 'resolve_disputes'
+  | 'view_subscriptions'
+  | 'cancel_subscriptions'
+  | 'view_reviews'
+  | 'moderate_reviews'
+  | 'delete_reviews'
+  | 'view_wallet'
+  | 'adjust_wallets'
+  | 'access_settings'
+
+// Role-based permissions mapping (matches backend)
+const rolePermissions: Record<UserRole, Permission[]> = {
+  support: [
+    'view_dashboard',
+    'view_users',
+    'verify_users',
+    'view_parcels',
+    'update_parcel_status',
+    'view_routes',
+    'view_payments',
+    'view_disputes',
+    'comment_disputes',
+    'view_subscriptions',
+    'view_reviews',
+    'moderate_reviews',
+    'delete_reviews',
+    'view_wallet',
+  ],
+  admin: [
+    'view_dashboard',
+    'view_users',
+    'verify_users',
+    'delete_users',
+    'view_parcels',
+    'update_parcel_status',
+    'delete_parcels',
+    'view_routes',
+    'update_routes',
+    'delete_routes',
+    'view_payments',
+    'process_refunds',
+    'view_disputes',
+    'comment_disputes',
+    'resolve_disputes',
+    'view_subscriptions',
+    'cancel_subscriptions',
+    'view_reviews',
+    'moderate_reviews',
+    'delete_reviews',
+    'view_wallet',
+    'adjust_wallets',
+    'access_settings',
+  ],
+}
+
+/**
+ * Check if user has permission
+ */
+export function hasPermission(user: MockUser | null, permission: Permission): boolean {
+  if (!user) return false
+  const permissions = rolePermissions[user.role] || []
+  return permissions.includes(permission)
+}
+
+/**
+ * Check if user is admin
+ */
+export function isAdmin(user: MockUser | null): boolean {
+  return user?.role === 'admin'
+}
+
+/**
+ * Check if user is support
+ */
+export function isSupport(user: MockUser | null): boolean {
+  return user?.role === 'support'
 }
 
 interface AuthContextType {

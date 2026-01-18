@@ -38,6 +38,8 @@ const navigation = [
 export default function Layout() {
   const { user, logout } = useAuth()
   const location = useLocation()
+  const [isDark, setIsDark] = useDarkMode()
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([
     {
       id: '1',
@@ -56,6 +58,9 @@ export default function Layout() {
       read: false,
     },
   ])
+
+  useKeyboardShortcut({ key: 'k', meta: true }, () => setIsCommandPaletteOpen(true))
+  useKeyboardShortcut({ key: 'k', ctrl: true }, () => setIsCommandPaletteOpen(true))
 
   const handleClearNotification = (id: string) => {
     setNotifications(notifications.filter((n) => n.id !== id))

@@ -2,6 +2,9 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useState } from 'react'
 import NotificationCenter, { Notification } from './NotificationCenter'
+import CommandPalette from './CommandPalette'
+import { useDarkMode } from '../hooks/useDarkMode'
+import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
 import { 
   LayoutDashboard, 
   Users, 
@@ -13,7 +16,10 @@ import {
   Sparkles,
   Wallet,
   Settings,
-  LogOut 
+  LogOut,
+  Moon,
+  Sun,
+  Command
 } from 'lucide-react'
 
 const navigation = [

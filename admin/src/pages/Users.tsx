@@ -14,12 +14,20 @@ export default function Users() {
   const [page, setPage] = useState(1)
   const queryClient = useQueryClient()
   const { showToast } = useToast()
+  
+  // Debounce search to reduce API calls
+  const debouncedSearch = useDebounce(search, 500)
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, roleFilter])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'users', page, search, roleFilter],
+    queryKey: ['admin', 'users', page, debouncedSearch, roleFilter],
     queryFn: () =>
       fetchWithAuth(
-        `/admin/users?page=${page}&limit=20&search=${search}&role=${roleFilter}`
+        `/admin/users?page=${page}&limit=20&search=${debouncedSearch}&role=${roleFilter}`
       ),
   })
 

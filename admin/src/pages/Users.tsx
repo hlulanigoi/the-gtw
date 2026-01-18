@@ -15,6 +15,7 @@ export default function Users() {
   const [page, setPage] = useState(1)
   const queryClient = useQueryClient()
   const { showToast } = useToast()
+  const { user } = useAuth()
   
   // Debounce search to reduce API calls
   const debouncedSearch = useDebounce(search, 500)

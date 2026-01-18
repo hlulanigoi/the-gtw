@@ -196,6 +196,7 @@ export default function Users() {
           >
             <option value="">All Roles</option>
             <option value="user">Users</option>
+            <option value="support">Support Staff</option>
             <option value="admin">Admins</option>
           </select>
         </div>

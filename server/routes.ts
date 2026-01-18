@@ -58,7 +58,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/auth/sync", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { uid, email } = req.user!;
+      const { uid, email } = req.user as any;
       const { name, phone } = req.body;
 
       let user = await storage.getUser(uid);
@@ -69,7 +69,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: name || email?.split("@")[0] || "User",
           email: email || "",
           phone: phone || null,
-        });
+          passwordHash: "firebase-auth",
+        } as any);
       }
 
       res.json(user);
@@ -81,7 +82,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/auth/me", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const user = await storage.getUser(req.user!.uid);
+      const user = await storage.getUser((req.user as any).uid);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }

@@ -37,6 +37,7 @@ export const users = pgTable("users", {
   monthlyParcelCount: integer("monthly_parcel_count").default(0),
   lastParcelResetDate: timestamp("last_parcel_reset_date").defaultNow(),
   walletBalance: integer("wallet_balance").default(0),
+  fcmToken: text("fcm_token"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

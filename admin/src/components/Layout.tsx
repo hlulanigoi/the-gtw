@@ -135,7 +135,15 @@ export default function Layout() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-white text-sm truncate">{user?.email}</p>
-                    <p className="text-xs text-white/60">Administrator</p>
+                    <div className="flex items-center space-x-1 mt-0.5">
+                      <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                        user?.role === 'admin' 
+                          ? 'bg-purple-500/30 text-purple-100' 
+                          : 'bg-blue-500/30 text-blue-100'
+                      }`}>
+                        {user?.role === 'admin' ? '👑 Admin' : '🛟 Support'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

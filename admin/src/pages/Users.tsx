@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { fetchWithAuth } from '../lib/api'
 import { useToast } from '../contexts/ToastContext'
+import { useDebounce } from '../hooks/useDebounce'
 import Table from '../components/Table'
 import { Search, CheckCircle, XCircle, Shield, Ban, Eye } from 'lucide-react'
 import { format } from 'date-fns'
@@ -13,12 +14,20 @@ export default function Users() {
   const [page, setPage] = useState(1)
   const queryClient = useQueryClient()
   const { showToast } = useToast()
+  
+  // Debounce search to reduce API calls
+  const debouncedSearch = useDebounce(search, 500)
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, roleFilter])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'users', page, search, roleFilter],
+    queryKey: ['admin', 'users', page, debouncedSearch, roleFilter],
     queryFn: () =>
       fetchWithAuth(
-        `/admin/users?page=${page}&limit=20&search=${search}&role=${roleFilter}`
+        `/admin/users?page=${page}&limit=20&search=${debouncedSearch}&role=${roleFilter}`
       ),
   })
 
@@ -151,29 +160,33 @@ export default function Users() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Users</h1>
-        <p className="text-gray-600 mt-2">Manage all platform users</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Users</h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-2">Manage all platform users</p>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="card p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" aria-hidden="true" />
               <input
                 type="text"
                 placeholder="Search by name, email, or phone..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                data-testid="search-users-input"
+                aria-label="Search users"
               />
             </div>
           </div>
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            data-testid="filter-role"
+            aria-label="Filter by role"
           >
             <option value="">All Roles</option>
             <option value="user">Users</option>

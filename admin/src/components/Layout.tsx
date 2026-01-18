@@ -40,6 +40,7 @@ export default function Layout() {
   const location = useLocation()
   const [isDark, setIsDark] = useDarkMode()
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([
     {
       id: '1',
@@ -86,9 +87,30 @@ export default function Layout() {
         onClose={() => setIsCommandPaletteOpen(false)} 
       />
 
-      <div className="flex">
+      <div className="flex relative">
+        {/* Mobile menu button */}
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="lg:hidden fixed bottom-6 right-6 z-50 p-4 bg-primary text-white rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all"
+          aria-label="Toggle navigation menu"
+        >
+          <LayoutDashboard className="w-6 h-6" />
+        </button>
+
+        {/* Overlay for mobile */}
+        {isMobileMenuOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+
         {/* Sidebar */}
-        <div className="w-64 bg-gradient-to-b from-primary to-[#0A5A80] dark:from-gray-900 dark:to-gray-950 shadow-2xl fixed h-full overflow-y-auto" role="navigation" aria-label="Main navigation">
+        <div className={`
+          w-64 bg-gradient-to-b from-primary to-[#0A5A80] dark:from-gray-900 dark:to-gray-950 shadow-2xl fixed h-full overflow-y-auto z-40
+          transition-transform duration-300 lg:translate-x-0
+          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        `} role="navigation" aria-label="Main navigation">
           <div className="flex flex-col h-full">
             {/* Logo Section */}
             <div className="p-6 border-b border-white/10 dark:border-gray-800">

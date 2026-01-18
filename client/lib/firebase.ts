@@ -29,10 +29,10 @@ if (!getApps().length) {
 if (Platform.OS === 'web') {
   auth = getAuth(app);
 } else {
+  // Use a reliable initialization pattern for React Native
+  // Cast to any to access getReactNativePersistence safely across environments
   const getRNPersistence = (firebaseAuth as any).getReactNativePersistence;
-  
   try {
-    // Attempt initialization with persistence first
     if (getRNPersistence) {
       auth = initializeAuth(app, {
         persistence: getRNPersistence(ReactNativeAsyncStorage),
@@ -41,7 +41,7 @@ if (Platform.OS === 'web') {
       auth = getAuth(app);
     }
   } catch (e) {
-    // Component already registered or other init error
+    // Fallback if initializeAuth fails (e.g. if already initialized)
     auth = getAuth(app);
   }
 }

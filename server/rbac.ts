@@ -158,6 +158,54 @@ export function requirePermission(...permissions: Permission[]) {
       next(error)
     }
   }
+
+/**
+ * Require support or admin role
+ * Support staff can access but with limited permissions
+ */
+export function requireSupport() {
+  return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      throw new UnauthorizedError('Authentication required')
+    }
+
+    try {
+      // Fetch user with role
+      const userResult = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, req.user.userId))
+        .limit(1)
+
+      if (userResult.length === 0) {
+        throw new UnauthorizedError('User not found')
+      }
+
+      const user = userResult[0]
+      const userRole = (user.role as UserRole) || 'user'
+
+      if (userRole !== 'support' && userRole !== 'admin') {
+        throw new ForbiddenError(
+          'This endpoint requires Support or Admin access'
+        )
+      }
+
+      ;(req as any).userRole = userRole
+
+      next()
+    } catch (error) {
+      next(error)
+    }
+  }
+}
+
+/**
+ * Require admin role only
+ */
+export function requireAdmin() {
+  return requireRole('admin')
+}
+
 }
 
 /**

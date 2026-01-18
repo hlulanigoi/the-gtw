@@ -134,25 +134,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('Attempting sign in for:', email);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('Firebase sign in successful, syncing with backend...');
       await syncUserWithBackend(userCredential.user);
+      console.log('Backend sync successful');
     } catch (error: any) {
-      console.error('Sign in error:', error);
-      throw new Error(error.message || 'Failed to sign in');
+      console.error('Sign in error details:', error);
+      // Ensure the error object is passed with its code and message
+      throw error;
     }
   };
 
   const signUp = async (email: string, password: string, name: string, phone?: string) => {
     try {
+      console.log('Attempting sign up for:', email);
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      console.log('Firebase sign up successful, sending verification...');
       
       // Send email verification
       await firebaseSendEmailVerification(userCredential.user);
       
+      console.log('Syncing with backend...');
       // Sync with backend
       await syncUserWithBackend(userCredential.user, { name, phone });
+      console.log('Backend sync successful');
     } catch (error: any) {
-      console.error('Sign up error:', error);
+      console.error('Sign up error details:', error);
       // Pass the specific error code or a more descriptive message
       const firebaseError = error as { code?: string; message: string };
       throw firebaseError;

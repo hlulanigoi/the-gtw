@@ -43,9 +43,10 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
+      console.log("Starting login process for:", email.trim());
       await signIn(email.trim(), password);
     } catch (error: any) {
-      console.error("Login component error:", error);
+      console.error("Login Screen error catch:", error);
       let message = "Failed to sign in. Please try again.";
       const code = error.code || error.message;
       

@@ -61,9 +61,10 @@ export default function SignUpScreen() {
 
     setLoading(true);
     try {
+      console.log("Starting sign up process for:", email.trim());
       await signUp(email.trim(), password, name.trim());
     } catch (error: any) {
-      console.error("SignUp component error:", error);
+      console.error("SignUp Screen error catch:", error);
       let message = "Failed to create account. Please try again.";
       const code = error.code || error.message;
 

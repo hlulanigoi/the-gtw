@@ -103,7 +103,7 @@ export default function Layout() {
 
             {/* Navigation */}
             <nav className="flex-1 p-3 space-y-1" aria-label="Primary">
-              {navigation.map((item) => {
+              {visibleNavigation.map((item) => {
                 const Icon = item.icon
                 const isActive = location.pathname === item.href
                 return (

@@ -52,6 +52,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register admin routes
   registerAdminRoutes(app);
+  
+  // Register Firebase authentication routes
+  registerFirebaseAuthRoutes(app);
+  
   app.post("/api/auth/sync", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const { uid, email } = req.user!;

@@ -44,46 +44,62 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="space-y-8">
+        <SkeletonCard />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <SkeletonChart />
+          <SkeletonChart />
+          <SkeletonChart />
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" data-testid="dashboard">
       {/* Header Section */}
-      <div className="bg-gradient-to-r from-primary to-[#0A5A80] rounded-3xl p-8 text-white shadow-xl">
+      <div className="bg-gradient-to-r from-primary to-[#0A5A80] dark:from-gray-800 dark:to-gray-900 rounded-3xl p-8 text-white shadow-xl">
         <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
         <p className="text-white/80 text-lg">Welcome back! Here's what's happening with your platform today.</p>
       </div>
 
       {/* Stats Grid - Row 1 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" role="region" aria-label="Key metrics">
         <StatsCard
           title="Total Users"
           value={stats?.users?.total || 0}
           change={`+${stats?.users?.recent || 0} this month`}
-          icon={<Users className="w-8 h-8 text-white" />}
+          icon={<Users className="w-8 h-8 text-white" aria-hidden="true" />}
           color="bg-blue-500"
+          trend={stats?.users?.recent > 0 ? 'up' : 'neutral'}
+          data-testid="stat-total-users"
         />
         <StatsCard
           title="Active Parcels"
           value={stats?.parcels?.pending || 0}
-          icon={<Package className="w-8 h-8 text-white" />}
+          icon={<Package className="w-8 h-8 text-white" aria-hidden="true" />}
           color="bg-green-500"
+          data-testid="stat-active-parcels"
         />
         <StatsCard
           title="Active Routes"
           value={stats?.routes?.active || 0}
-          icon={<Route className="w-8 h-8 text-white" />}
+          icon={<Route className="w-8 h-8 text-white" aria-hidden="true" />}
           color="bg-purple-500"
+          data-testid="stat-active-routes"
         />
         <StatsCard
           title="Total Revenue"
-          value={`${(stats?.payments?.revenue || 0).toLocaleString()}`}
-          icon={<CreditCard className="w-8 h-8 text-white" />}
+          value={`$${(stats?.payments?.revenue || 0).toLocaleString()}`}
+          icon={<CreditCard className="w-8 h-8 text-white" aria-hidden="true" />}
           color="bg-orange-500"
+          data-testid="stat-total-revenue"
         />
       </div>
 

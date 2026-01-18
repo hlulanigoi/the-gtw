@@ -28,17 +28,13 @@ if (!getApps().length) {
 }
 
 try {
-  auth = getAuth(app);
+  auth = initializeAuth(app, {
+    persistence: Platform.OS === 'web' 
+      ? browserSessionPersistence 
+      : getReactNativePersistence(ReactNativeAsyncStorage),
+  });
 } catch (e) {
-  if (Platform.OS === 'web') {
-    auth = initializeAuth(app, {
-      persistence: browserSessionPersistence,
-    });
-  } else {
-    auth = initializeAuth(app, {
-      persistence: getReactNativePersistence(ReactNativeAsyncStorage),
-    });
-  }
+  auth = getAuth(app);
 }
 
 export { app, auth };

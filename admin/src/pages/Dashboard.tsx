@@ -82,7 +82,7 @@ export default function Dashboard() {
         <StatsCard
           title="Total Users"
           value={stats?.users?.total || 0}
-          change={`+${stats?.users?.recent || 0} this month`}
+          change={stats?.users?.recent ? `+${stats.users.recent} this month` : undefined}
           icon={<Users className="w-8 h-8 text-white" aria-hidden="true" />}
           color="bg-blue-500"
           trend={stats?.users?.recent > 0 ? 'up' : 'neutral'}
@@ -93,6 +93,7 @@ export default function Dashboard() {
           value={stats?.parcels?.pending || 0}
           icon={<Package className="w-8 h-8 text-white" aria-hidden="true" />}
           color="bg-green-500"
+          trend="neutral"
           data-testid="stat-active-parcels"
         />
         <StatsCard
@@ -100,6 +101,7 @@ export default function Dashboard() {
           value={stats?.routes?.active || 0}
           icon={<Route className="w-8 h-8 text-white" aria-hidden="true" />}
           color="bg-purple-500"
+          trend="neutral"
           data-testid="stat-active-routes"
         />
         <StatsCard
@@ -107,6 +109,7 @@ export default function Dashboard() {
           value={`$${(stats?.payments?.revenue || 0).toLocaleString()}`}
           icon={<CreditCard className="w-8 h-8 text-white" aria-hidden="true" />}
           color="bg-orange-500"
+          trend="neutral"
           data-testid="stat-total-revenue"
         />
       </div>
@@ -116,9 +119,10 @@ export default function Dashboard() {
         <StatsCard
           title="Open Disputes"
           value={stats?.disputes?.open || 0}
-          change={`${stats?.disputes?.total || 0} total`}
+          change={stats?.disputes?.total ? `${stats.disputes.total} total` : undefined}
           icon={<AlertTriangle className="w-8 h-8 text-white" aria-hidden="true" />}
           color="bg-red-500"
+          trend="down"
           data-testid="stat-open-disputes"
         />
         <StatsCard
@@ -126,6 +130,7 @@ export default function Dashboard() {
           value={stats?.subscriptions?.active || 0}
           icon={<Sparkles className="w-8 h-8 text-white" aria-hidden="true" />}
           color="bg-indigo-500"
+          trend="up"
           data-testid="stat-active-subscriptions"
         />
         <StatsCard
@@ -133,6 +138,7 @@ export default function Dashboard() {
           value={`$${(stats?.wallet?.totalBalance || 0).toLocaleString()}`}
           icon={<Wallet className="w-8 h-8 text-white" aria-hidden="true" />}
           color="bg-teal-500"
+          trend="neutral"
           data-testid="stat-wallet-balance"
         />
       </div>

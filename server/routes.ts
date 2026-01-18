@@ -20,6 +20,14 @@ import crypto from "crypto";
 import logger from "./logger";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize Firebase Admin SDK
+  try {
+    initializeFirebaseAdmin();
+    logger.info('Firebase Admin SDK initialized successfully');
+  } catch (error) {
+    logger.error('Failed to initialize Firebase Admin SDK', { error });
+  }
+
   // Health check endpoint
   app.get("/health", async (req, res) => {
     const checks = {

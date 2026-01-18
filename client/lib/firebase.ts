@@ -5,7 +5,7 @@ import {
   browserSessionPersistence,
   Auth
 } from 'firebase/auth';
-import { getReactNativePersistence } from 'firebase/auth/react-native';
+import * as firebaseAuth from 'firebase/auth';
 import { Platform } from 'react-native';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -31,9 +31,17 @@ if (Platform.OS === 'web') {
   auth = getAuth(app);
 } else {
   try {
-    auth = initializeAuth(app, {
-      persistence: getReactNativePersistence(ReactNativeAsyncStorage),
-    });
+    // Firebase v10.x+ often exports this through the main entry point or a subpath
+    // We try to access it dynamically to avoid resolution issues during bundling
+    const getRNPersistence = (firebaseAuth as any).getReactNativePersistence;
+    
+    if (getRNPersistence) {
+      auth = initializeAuth(app, {
+        persistence: getRNPersistence(ReactNativeAsyncStorage),
+      });
+    } else {
+      auth = getAuth(app);
+    }
   } catch (e) {
     auth = getAuth(app);
   }

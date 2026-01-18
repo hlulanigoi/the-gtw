@@ -34,16 +34,25 @@ if (Platform.OS === 'web') {
   const getRNPersistence = (firebaseAuth as any).getReactNativePersistence;
   try {
     if (getRNPersistence) {
+      console.log('Initializing Firebase Auth with React Native Persistence');
       auth = initializeAuth(app, {
         persistence: getRNPersistence(ReactNativeAsyncStorage),
       });
     } else {
+      console.warn('getReactNativePersistence not found, falling back to getAuth');
       auth = getAuth(app);
     }
   } catch (e) {
     // Fallback if initializeAuth fails (e.g. if already initialized)
+    console.log('Firebase Auth initialization caught error:', e);
     auth = getAuth(app);
   }
+}
+
+// Log auth state for debugging
+console.log('Firebase Auth initialized:', !!auth);
+if (auth) {
+  console.log('Current Platform:', Platform.OS);
 }
 
 export { app, auth };

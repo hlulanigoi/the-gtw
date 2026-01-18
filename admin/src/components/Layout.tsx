@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth, hasPermission } from '../contexts/AuthContext'
 import { useState } from 'react'
 import NotificationCenter, { Notification } from './NotificationCenter'
 import CommandPalette from './CommandPalette'
@@ -23,16 +23,16 @@ import {
 } from 'lucide-react'
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Users', href: '/users', icon: Users },
-  { name: 'Parcels', href: '/parcels', icon: Package },
-  { name: 'Routes', href: '/routes', icon: Route },
-  { name: 'Payments', href: '/payments', icon: CreditCard },
-  { name: 'Reviews', href: '/reviews', icon: Star },
-  { name: 'Disputes', href: '/disputes', icon: AlertTriangle },
-  { name: 'Subscriptions', href: '/subscriptions', icon: Sparkles },
-  { name: 'Wallet', href: '/wallet', icon: Wallet },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard, permission: 'view_dashboard' as const },
+  { name: 'Users', href: '/users', icon: Users, permission: 'view_users' as const },
+  { name: 'Parcels', href: '/parcels', icon: Package, permission: 'view_parcels' as const },
+  { name: 'Routes', href: '/routes', icon: Route, permission: 'view_routes' as const },
+  { name: 'Payments', href: '/payments', icon: CreditCard, permission: 'view_payments' as const },
+  { name: 'Reviews', href: '/reviews', icon: Star, permission: 'view_reviews' as const },
+  { name: 'Disputes', href: '/disputes', icon: AlertTriangle, permission: 'view_disputes' as const },
+  { name: 'Subscriptions', href: '/subscriptions', icon: Sparkles, permission: 'view_subscriptions' as const },
+  { name: 'Wallet', href: '/wallet', icon: Wallet, permission: 'view_wallet' as const },
+  { name: 'Settings', href: '/settings', icon: Settings, permission: 'access_settings' as const },
 ]
 
 export default function Layout() {

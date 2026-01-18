@@ -102,7 +102,7 @@ export default function Layout() {
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 p-3 space-y-1" aria-label="Primary">
+            <nav className="flex-1 p-4 space-y-2" aria-label="Primary">
               {visibleNavigation.map((item) => {
                 const Icon = item.icon
                 const isActive = location.pathname === item.href
@@ -110,17 +110,19 @@ export default function Layout() {
                   <Link
                     key={item.name}
                     to={item.href}
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+                    className={`flex items-center space-x-3 px-5 py-3.5 rounded-2xl transition-all duration-300 group relative ${
                       isActive
-                        ? 'bg-white text-primary shadow-lg'
-                        : 'text-white/80 hover:bg-white/10 hover:text-white'
+                        ? 'bg-white text-primary shadow-xl scale-[1.02]'
+                        : 'text-white/70 hover:bg-white/10 hover:text-white hover:translate-x-1'
                     }`}
                     aria-current={isActive ? 'page' : undefined}
                     data-testid={`nav-${item.name.toLowerCase()}`}
                   >
-                    <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} aria-hidden="true" />
-                    <span className="font-medium text-sm">{item.name}</span>
-                    {isActive && <div className="ml-auto w-2 h-2 bg-secondary rounded-full" aria-hidden="true"></div>}
+                    <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'rotate-3 scale-110' : 'group-hover:scale-110'}`} aria-hidden="true" />
+                    <span className="font-semibold text-sm tracking-wide">{item.name}</span>
+                    {isActive && (
+                      <div className="ml-auto w-1.5 h-1.5 bg-secondary rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" aria-hidden="true"></div>
+                    )}
                   </Link>
                 )
               })}

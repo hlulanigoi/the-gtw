@@ -64,9 +64,17 @@ export default function Dashboard() {
   return (
     <div className="space-y-8" data-testid="dashboard">
       {/* Header Section */}
-      <div className="bg-gradient-to-r from-primary to-[#0A5A80] dark:from-gray-800 dark:to-gray-900 rounded-3xl p-8 text-white shadow-xl">
-        <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
-        <p className="text-white/80 text-lg">Welcome back! Here's what's happening with your platform today.</p>
+      <div className="bg-gradient-to-br from-primary via-[#0A5A80] to-primary dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 rounded-[2rem] p-10 text-white shadow-2xl relative overflow-hidden">
+        <div className="relative z-10">
+          <h1 className="text-5xl font-extrabold mb-4 tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white to-white/70">
+            Dashboard
+          </h1>
+          <p className="text-white/80 text-xl font-medium max-w-2xl leading-relaxed">
+            Welcome back! Here's a high-level overview of your platform's performance and recent activity.
+          </p>
+        </div>
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-white/10 rounded-full blur-3xl" aria-hidden="true"></div>
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-60 h-60 bg-secondary/10 rounded-full blur-3xl" aria-hidden="true"></div>
       </div>
 
       {/* Stats Grid - Row 1 */}

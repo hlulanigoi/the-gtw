@@ -6,6 +6,8 @@ import { eq, desc, and, gte, lte, ne, sql } from "drizzle-orm";
 import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./jwt-middleware";
 import { registerAdminRoutes } from "./admin-routes";
 import { registerAuthRoutes } from "./auth-routes";
+import { registerFirebaseAuthRoutes } from "./firebase-routes";
+import { initializeFirebaseAdmin } from "./firebase-admin";
 import { 
   SUBSCRIPTION_PLANS, 
   getSubscriptionPlan, 

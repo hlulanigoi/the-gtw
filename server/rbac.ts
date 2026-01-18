@@ -5,17 +5,39 @@ import { db } from './storage'
 import { ForbiddenError, UnauthorizedError } from './error-handler'
 import { AuthenticatedRequest } from './jwt-middleware'
 
-export type UserRole = 'user' | 'carrier' | 'admin'
+export type UserRole = 'user' | 'carrier' | 'support' | 'admin'
 export type Permission = 
   | 'view_dashboard'
   | 'manage_users'
+  | 'view_users'
+  | 'verify_users'
+  | 'delete_users'
   | 'manage_parcels'
+  | 'view_parcels'
+  | 'update_parcel_status'
+  | 'delete_parcels'
   | 'manage_routes'
+  | 'view_routes'
+  | 'update_routes'
+  | 'delete_routes'
   | 'manage_payments'
+  | 'view_payments'
+  | 'process_refunds'
   | 'manage_disputes'
+  | 'view_disputes'
+  | 'comment_disputes'
+  | 'resolve_disputes'
   | 'manage_subscriptions'
+  | 'view_subscriptions'
+  | 'cancel_subscriptions'
+  | 'view_reviews'
+  | 'moderate_reviews'
+  | 'delete_reviews'
+  | 'view_wallet'
+  | 'adjust_wallets'
   | 'view_analytics'
   | 'view_reports'
+  | 'access_settings'
 
 // Role-based permissions mapping
 const rolePermissions: Record<UserRole, Permission[]> = {
@@ -26,16 +48,56 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'view_dashboard',
     'manage_routes',
   ],
+  support: [
+    'view_dashboard',
+    'view_users',
+    'verify_users',
+    'view_parcels',
+    'update_parcel_status',
+    'view_routes',
+    'view_payments',
+    'view_disputes',
+    'comment_disputes',
+    'view_subscriptions',
+    'view_reviews',
+    'moderate_reviews',
+    'delete_reviews',
+    'view_wallet',
+    'view_analytics',
+    'view_reports',
+  ],
   admin: [
     'view_dashboard',
     'manage_users',
+    'view_users',
+    'verify_users',
+    'delete_users',
     'manage_parcels',
+    'view_parcels',
+    'update_parcel_status',
+    'delete_parcels',
     'manage_routes',
+    'view_routes',
+    'update_routes',
+    'delete_routes',
     'manage_payments',
+    'view_payments',
+    'process_refunds',
     'manage_disputes',
+    'view_disputes',
+    'comment_disputes',
+    'resolve_disputes',
     'manage_subscriptions',
+    'view_subscriptions',
+    'cancel_subscriptions',
+    'view_reviews',
+    'moderate_reviews',
+    'delete_reviews',
+    'view_wallet',
+    'adjust_wallets',
     'view_analytics',
     'view_reports',
+    'access_settings',
   ],
 }
 

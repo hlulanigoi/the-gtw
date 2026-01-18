@@ -96,3 +96,9 @@
 {"level":"info","message":"express server serving on port 5000","service":"parcelpeer-api","timestamp":"2026-01-18 09:51:38"}
 {"error":{"address":"127.0.0.1","code":"ECONNREFUSED","errno":-111,"port":5432,"syscall":"connect"},"level":"error","message":"Database health check failed","service":"parcelpeer-api","timestamp":"2026-01-18 09:56:40"}
 {"duration":3,"ip":"127.0.0.1","level":"error","message":"GET /api/firebase/me 401 in 3ms :: {\"error\":\"No authorization token provided\"}","method":"GET","path":"/api/firebase/me","service":"parcelpeer-api","statusCode":401,"timestamp":"2026-01-18 09:56:51"}
+{"level":"info","message":"Serving static Expo files with dynamic manifest routing","service":"parcelpeer-api","timestamp":"2026-01-18 13:21:09"}
+{"level":"info","message":"Expo routing: Checking expo-platform header on / and /manifest","service":"parcelpeer-api","timestamp":"2026-01-18 13:21:09"}
+{"level":"warn","message":"Firebase Admin initialized in minimal mode - service account not provided","service":"parcelpeer-api","timestamp":"2026-01-18 13:21:09"}
+{"level":"warn","message":"Some features may be limited. Set FIREBASE_SERVICE_ACCOUNT in production.","service":"parcelpeer-api","timestamp":"2026-01-18 13:21:09"}
+{"level":"info","message":"Firebase Admin SDK initialized successfully","service":"parcelpeer-api","timestamp":"2026-01-18 13:21:09"}
+{"level":"info","message":"express server serving on port 5000","service":"parcelpeer-api","timestamp":"2026-01-18 13:21:09"}

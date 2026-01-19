@@ -168,7 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(getAuth(), async (firebaseUser) => {
       setUser(firebaseUser);
       
       if (firebaseUser) {

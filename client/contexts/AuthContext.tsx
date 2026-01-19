@@ -10,7 +10,7 @@ import {
   GoogleAuthProvider,
   signInWithCredential,
 } from "firebase/auth";
-import { auth as getAuth } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import { Platform } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";

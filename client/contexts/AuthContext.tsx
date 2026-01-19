@@ -248,7 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, name: string, isEmailVerified: boolean = false) => {
-    const userCredential = await createUserWithEmailAndPassword(getAuth(), email, password);
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const firebaseUser = userCredential.user;
 
     await updateProfile(firebaseUser, { displayName: name });

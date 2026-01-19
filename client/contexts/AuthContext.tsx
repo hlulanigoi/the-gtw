@@ -281,7 +281,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await firebaseSignOut(getAuth());
+    await firebaseSignOut(auth);
     setUserProfile(null);
     setPendingVerification(null);
   };

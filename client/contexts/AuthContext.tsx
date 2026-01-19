@@ -244,7 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    await signInWithEmailAndPassword(getAuth(), email, password);
   };
 
   const signUp = async (email: string, password: string, name: string, isEmailVerified: boolean = false) => {

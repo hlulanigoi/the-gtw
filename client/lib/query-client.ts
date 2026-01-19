@@ -1,5 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { auth } from "./firebase";
+import { auth as getAuth } from "./firebase";
 
 /**
  * Gets the base URL for the Express API server (e.g., "http://localhost:3000")
@@ -18,7 +18,8 @@ export function getApiUrl(): string {
 }
 
 async function getAuthToken(): Promise<string | null> {
-  const user = auth.currentUser;
+  const authInstance = getAuth();
+  const user = authInstance.currentUser;
   if (!user) return null;
   try {
     return await user.getIdToken();

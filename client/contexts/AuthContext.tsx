@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { signInWithPopup } = await import("firebase/auth");
       setGoogleLoading(true);
       try {
-        const result = await signInWithPopup(getAuth(), provider);
+        const result = await signInWithPopup(auth, provider);
         const firebaseUser = result.user;
         
         // Sync user to PostgreSQL

@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
-import { getAuth, initializeAuth, Auth } from "firebase/auth";
+import { getAuth, initializeAuth, Auth, getReactNativePersistence } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -14,60 +14,48 @@ const firebaseConfig = {
   measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase App
+// Initialize Firebase App immediately
 let app: FirebaseApp;
-function getFirebaseApp(): FirebaseApp {
-  if (!app) {
-    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-  }
-  return app;
+try {
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+} catch (error) {
+  console.error("Firebase App initialization error:", error);
+  throw error;
 }
 
-// Lazy initialization for Auth
-let authInstance: Auth | null = null;
-
-function getFirebaseAuth(): Auth {
-  if (authInstance) {
-    return authInstance;
-  }
-
-  const firebaseApp = getFirebaseApp();
-
+// Initialize Auth immediately based on platform
+let authInstance: Auth;
+try {
   if (Platform.OS === "web") {
-    authInstance = getAuth(firebaseApp);
+    authInstance = getAuth(app);
   } else {
+    // For React Native, use getReactNativePersistence with AsyncStorage
     try {
-      // For React Native, we need to use getReactNativePersistence
-      // Import it dynamically to avoid TypeScript issues
-      const { getReactNativePersistence } = require("firebase/auth");
-      
-      authInstance = initializeAuth(firebaseApp, {
+      authInstance = initializeAuth(app, {
         persistence: getReactNativePersistence(AsyncStorage),
       });
     } catch (error: any) {
       // If auth is already initialized, get the existing instance
       if (error.code === "auth/already-initialized") {
-        authInstance = getAuth(firebaseApp);
+        authInstance = getAuth(app);
       } else {
-        console.error("Firebase Auth initialization error:", error);
         throw error;
       }
     }
   }
-
-  return authInstance;
+} catch (error) {
+  console.error("Firebase Auth initialization error:", error);
+  throw error;
 }
 
-// Lazy initialization for Firestore
-let dbInstance: Firestore | null = null;
-
-function getFirebaseFirestore(): Firestore {
-  if (!dbInstance) {
-    const firebaseApp = getFirebaseApp();
-    dbInstance = getFirestore(firebaseApp);
-  }
-  return dbInstance;
+// Initialize Firestore immediately
+let dbInstance: Firestore;
+try {
+  dbInstance = getFirestore(app);
+} catch (error) {
+  console.error("Firebase Firestore initialization error:", error);
+  throw error;
 }
 
-// Export the getter functions and app
-export { getFirebaseApp as app, getFirebaseAuth as auth, getFirebaseFirestore as db };
+// Export the instances directly
+export { app, authInstance as auth, dbInstance as db };

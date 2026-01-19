@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (async () => {
         try {
           const credential = GoogleAuthProvider.credential(id_token, access_token);
-          const result = await signInWithCredential(auth, credential);
+          const result = await signInWithCredential(getAuth(), credential);
           const firebaseUser = result.user;
           
           // Sync user to PostgreSQL

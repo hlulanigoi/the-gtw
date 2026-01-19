@@ -353,7 +353,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
-    await sendPasswordResetEmail(getAuth(), email);
+    await sendPasswordResetEmail(auth, email);
   };
 
   return (

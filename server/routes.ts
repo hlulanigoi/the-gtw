@@ -525,17 +525,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Amount and email are required" });
       }
 
+      const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+      if (!paystackSecretKey) {
+        return res.status(500).json({ error: "Paystack configuration missing" });
+      }
+
+      // Get the base URL from request or environment
+      const protocol = req.get("x-forwarded-proto") || req.protocol || "https";
+      const host = req.get("x-forwarded-host") || req.get("host");
+      const baseUrl = `${protocol}://${host}`;
+
       const response = await fetch("https://api.paystack.co/transaction/initialize", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          Authorization: `Bearer ${paystackSecretKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           amount: Math.round(amount * 100), // Convert to kobo/cents
           email,
           metadata,
-          callback_url: `${process.env.EXPO_PUBLIC_DOMAIN}/api/payments/webhook`,
+          callback_url: `${baseUrl}/api/payments/verify-web`,
         }),
       });
 

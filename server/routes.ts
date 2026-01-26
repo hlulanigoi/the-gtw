@@ -604,7 +604,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Paystack webhook endpoint
   app.post("/api/payments/webhook", async (req, res) => {
     try {
-      const hash = createHmac("sha512", process.env.PAYSTACK_SECRET_KEY || "").update(JSON.stringify(req.body)).digest("hex");
+      const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+      if (!paystackSecretKey) {
+        console.error("PAYSTACK_SECRET_KEY not configured");
+        return res.status(500).json({ error: "Payment configuration missing" });
+      }
+
+      const hash = createHmac("sha512", paystackSecretKey).update(JSON.stringify(req.body)).digest("hex");
       
       if (hash !== req.headers["x-paystack-signature"]) {
         console.warn("Invalid Paystack webhook signature");

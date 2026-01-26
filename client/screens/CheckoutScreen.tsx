@@ -101,14 +101,19 @@ export default function CheckoutScreen() {
     setPaymentStep("processing");
 
     try {
+      const apiUrl = getApiUrl();
+      
+      // Get Firebase auth token
+      const token = await user.getIdToken();
+
       // Initialize payment
       const initResponse = await fetch(
-        `${process.env.EXPO_PUBLIC_DOMAIN}/api/payments/initialize`,
+        `${apiUrl}/api/payments/initialize`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${user.uid}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             amount: parcel.compensation,
@@ -132,10 +137,10 @@ export default function CheckoutScreen() {
 
       // Verify payment after browser closes
       const verifyResponse = await fetch(
-        `${process.env.EXPO_PUBLIC_DOMAIN}/api/payments/verify/${initData.reference}`,
+        `${apiUrl}/api/payments/verify/${initData.reference}`,
         {
           headers: {
-            Authorization: `Bearer ${user.uid}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -163,6 +168,7 @@ export default function CheckoutScreen() {
         setPaymentStep("summary");
       }
     } catch (error: any) {
+      console.error("Payment error:", error);
       Alert.alert("Payment Error", error.message || "Something went wrong");
       setPaymentStep("summary");
     } finally {

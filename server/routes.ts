@@ -580,9 +580,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/payments/verify/:reference", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const { reference } = req.params;
+      const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+      
+      if (!paystackSecretKey) {
+        return res.status(500).json({ error: "Payment configuration missing" });
+      }
+
       const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
         headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          Authorization: `Bearer ${paystackSecretKey}`,
         },
       });
 

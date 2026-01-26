@@ -22,6 +22,7 @@ import { Button } from "@/components/Button";
 import { BrowseStackParamList } from "@/navigation/BrowseStackNavigator";
 import { useParcels } from "@/hooks/useParcels";
 import { useAuth } from "@/contexts/AuthContext";
+import { getApiUrl } from "@/lib/query-client";
 
 type RouteType = RouteProp<BrowseStackParamList, "Checkout">;
 type PaymentMethod = "paystack" | "cash";

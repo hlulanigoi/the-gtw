@@ -380,6 +380,9 @@ export const insertParcelSchema = createInsertSchema(parcels).omit({
   createdAt: true,
   status: true,
   transporterId: true,
+  // tracking toggles are controlled after creation
+  manualTrackingEnabled: true,
+  liveTrackingEnabled: true,
 });
 
 export const insertConversationSchema = createInsertSchema(conversations).omit({

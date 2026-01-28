@@ -12,6 +12,7 @@ import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollV
 import { useTheme } from "@/hooks/useTheme";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
+import { formatCurrency } from "@/lib/currency";
 import { Card } from "@/components/Card";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProfileStackParamList } from "@/navigation/ProfileStackNavigator";
@@ -47,7 +48,7 @@ export default function ProfileScreen() {
   };
 
   const stats = [
-    { label: "Wallet", value: `R ${userProfile?.walletBalance || 0}`, icon: "credit-card" as const },
+    { label: "Wallet", value: userProfile?.walletBalance || 0, icon: "credit-card" as const },
     { label: "Plan", value: userProfile?.subscriptionStatus === "premium" ? "Premium" : "Free", icon: "award" as const },
     { label: "Rating", value: userProfile?.rating?.toFixed(1) || "5.0", icon: "star" as const },
   ];
@@ -117,7 +118,7 @@ export default function ProfileScreen() {
             <Card key={index} elevation={1} style={[styles.statCard, isWallet && styles.statCardWallet]}>
               <Feather name={stat.icon} size={24} color={isWallet ? Colors.primary : Colors.primary} />
               <ThemedText type="h3" style={[styles.statValue, isWallet && styles.statValueWallet]}>
-                {stat.value}
+                {formatCurrency(stat.value)}
               </ThemedText>
               <ThemedText
                 type="caption"
@@ -129,7 +130,7 @@ export default function ProfileScreen() {
           );
 
           return isWallet ? (
-            <Pressable key={index} onPress={handlePaymentHistory} style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, flex: 1 }] }>
+            <Pressable key={index} onPress={() => navigation.navigate("Wallet" as any)} style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, flex: 1 }] }>
               {Content}
             </Pressable>
           ) : (

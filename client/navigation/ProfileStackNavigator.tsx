@@ -17,6 +17,7 @@ export type ProfileStackParamList = {
   ChangePassword: undefined;
   Connections: undefined;
   Reviews: undefined;
+  Wallet: undefined;
   PaymentHistory: undefined;
   Receipt: { payment: any };
 };
@@ -75,6 +76,13 @@ export default function ProfileStackNavigator() {
         component={PaymentHistoryScreen}
         options={{
           headerTitle: "Transaction History",
+        }}
+      />
+      <Stack.Screen
+        name="Wallet"
+        component={require("@/screens/WalletScreen").default}
+        options={{
+          headerTitle: "Wallet",
         }}
       />
       <Stack.Screen

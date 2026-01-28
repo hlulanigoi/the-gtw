@@ -2,7 +2,9 @@ import { Platform } from "react-native";
 import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 
+import React from "react";
 import { useTheme } from "@/hooks/useTheme";
+import HeaderActions from "@/components/HeaderActions";
 
 interface UseScreenOptionsParams {
   transparent?: boolean;
@@ -31,5 +33,6 @@ export function useScreenOptions({
     contentStyle: {
       backgroundColor: theme.backgroundRoot,
     },
+    headerRight: () => React.createElement(HeaderActions),
   };
 }

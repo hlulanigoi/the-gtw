@@ -485,3 +485,6 @@ export type InsertReceiverLocation = z.infer<typeof insertReceiverLocationSchema
 export type ReceiverLocation = typeof receiverLocations.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type Payment = typeof payments.$inferSelect;
+export type InsertParcelTrackingEvent = z.infer<typeof insertParcelTrackingEventSchema>;
+export type ParcelTrackingEvent = typeof parcelTrackingEvents.$inferSelect;
+

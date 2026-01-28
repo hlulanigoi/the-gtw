@@ -388,6 +388,13 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
   }),
 }));
 
+export const walletTransactionsRelations = relations(walletTransactions, ({ one }) => ({
+  user: one(users, {
+    fields: [walletTransactions.userId],
+    references: [users.id],
+  }),
+}));
+
 export const reviewsRelations = relations(reviews, ({ one }) => ({
   parcel: one(parcels, {
     fields: [reviews.parcelId],

@@ -196,7 +196,12 @@ export default function SettingsScreen() {
           icon: "shield" as const, 
           onPress: () => Alert.alert("Privacy", "Privacy settings coming soon"),
         },
-        { label: "Language", icon: "globe" as const, value: "English" },
+        { 
+          label: "Language", 
+          icon: "globe" as const, 
+          value: "English",
+          onPress: () => Alert.alert("Language", "Language settings coming soon. Currently set to English."),
+        },
       ],
     },
     {

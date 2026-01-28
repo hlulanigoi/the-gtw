@@ -3,6 +3,8 @@ import { View, StyleSheet, Pressable, Alert, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useTheme } from "@/hooks/useTheme";
@@ -10,10 +12,14 @@ import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { LocationPickerModal } from "@/components/LocationPickerModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { ProfileStackParamList } from "@/navigation/ProfileStackNavigator";
+
+type NavigationProp = NativeStackNavigationProp<ProfileStackParamList>;
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
+  const navigation = useNavigation<NavigationProp>();
   const { userProfile, updateUserProfile, signOut } = useAuth();
   const [showLocationPicker, setShowLocationPicker] = useState(false);
 
@@ -22,6 +28,39 @@ export default function SettingsScreen() {
       { text: "Cancel", style: "cancel" },
       { text: "Log Out", style: "destructive", onPress: () => signOut() },
     ]);
+  };
+
+  const handleEditProfile = () => {
+    navigation.navigate("EditProfile");
+  };
+
+  const handleChangePassword = () => {
+    navigation.navigate("ChangePassword");
+  };
+
+  const handlePhoneNumber = () => {
+    Alert.prompt(
+      "Phone Number",
+      "Enter your phone number",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Save", 
+          onPress: async (text) => {
+            if (text !== undefined) {
+              try {
+                await updateUserProfile({ phone: text.trim() || null });
+                Alert.alert("Success", "Phone number updated");
+              } catch (error: any) {
+                Alert.alert("Error", error.message || "Failed to update phone number");
+              }
+            }
+          } 
+        }
+      ],
+      "plain-text",
+      userProfile?.phone || ""
+    );
   };
 
   const handleSetLocation = (location: { name: string; fullAddress: string; lat: number; lng: number }) => {
@@ -106,16 +145,17 @@ export default function SettingsScreen() {
     {
       title: "Account",
       items: [
-        { label: "Edit Profile", icon: "edit-2" as const, onPress: () => {} },
+        { label: "Edit Profile", icon: "edit-2" as const, onPress: handleEditProfile },
         {
           label: "Change Password",
           icon: "lock" as const,
-          onPress: () => {},
+          onPress: handleChangePassword,
         },
         {
           label: "Phone Number",
           icon: "phone" as const,
-          onPress: () => {},
+          onPress: handlePhoneNumber,
+          value: userProfile?.phone || "Not set",
         },
       ],
     },
@@ -137,9 +177,13 @@ export default function SettingsScreen() {
         {
           label: "Notifications",
           icon: "bell" as const,
-          onPress: () => {},
+          onPress: () => Alert.alert("Notifications", "Notification settings coming soon"),
         },
-        { label: "Privacy", icon: "shield" as const, onPress: () => {} },
+        { 
+          label: "Privacy", 
+          icon: "shield" as const, 
+          onPress: () => Alert.alert("Privacy", "Privacy settings coming soon"),
+        },
         { label: "Language", icon: "globe" as const, value: "English" },
       ],
     },
@@ -149,17 +193,17 @@ export default function SettingsScreen() {
         {
           label: "Help Center",
           icon: "help-circle" as const,
-          onPress: () => {},
+          onPress: () => Alert.alert("Help Center", "For support, please contact: support@parcelpeer.com"),
         },
         {
           label: "Terms of Service",
           icon: "file-text" as const,
-          onPress: () => {},
+          onPress: () => Alert.alert("Terms of Service", "Terms of Service will be displayed here"),
         },
         {
           label: "Privacy Policy",
           icon: "shield" as const,
-          onPress: () => {},
+          onPress: () => Alert.alert("Privacy Policy", "Privacy Policy will be displayed here"),
         },
       ],
     },
@@ -201,6 +245,7 @@ export default function SettingsScreen() {
                   },
                   { opacity: pressed ? 0.7 : 1 },
                 ]}
+                data-testid={`settings-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
               >
                 <View style={styles.settingsItemLeft}>
                   <Feather name={item.icon} size={20} color={theme.text} />
@@ -239,6 +284,7 @@ export default function SettingsScreen() {
             styles.dangerButton,
             { backgroundColor: theme.backgroundDefault, opacity: pressed ? 0.7 : 1 },
           ]}
+          data-testid="settings-logout-button"
         >
           <Feather name="log-out" size={20} color={Colors.error} />
           <ThemedText type="body" style={{ color: Colors.error }}>
@@ -252,6 +298,7 @@ export default function SettingsScreen() {
             styles.dangerButton,
             { backgroundColor: theme.backgroundDefault, opacity: pressed ? 0.7 : 1 },
           ]}
+          data-testid="settings-delete-account-button"
         >
           <Feather name="trash-2" size={20} color={Colors.error} />
           <ThemedText type="body" style={{ color: Colors.error }}>

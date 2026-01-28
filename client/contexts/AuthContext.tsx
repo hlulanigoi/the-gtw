@@ -21,6 +21,7 @@ interface UserProfile {
   name: string;
   email: string;
   phone?: string;
+  photoUrl?: string;
   rating: number;
   verified: boolean;
   emailVerified: boolean;

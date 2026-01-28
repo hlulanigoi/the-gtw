@@ -144,6 +144,23 @@ class CarrierLocationOut(BaseModel):
     timestamp: datetime
 
 
+
+class ReceiverLocationCreate(BaseModel):
+    lat: float
+    lng: float
+    accuracy: Optional[float] = None
+
+
+class ReceiverLocationOut(BaseModel):
+    id: str
+    parcelId: str
+    receiverId: str
+    lat: float
+    lng: float
+    accuracy: Optional[float] = None
+    timestamp: datetime
+
+
 def _now() -> datetime:
     return datetime.utcnow()
 

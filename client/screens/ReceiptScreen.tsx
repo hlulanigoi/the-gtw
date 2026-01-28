@@ -129,7 +129,7 @@ export default function ReceiptScreen() {
                 Parcel Compensation
               </ThemedText>
               <ThemedText type="body">
-                ₦{payment.amount.toLocaleString()}
+                {formatCurrency(payment.amount / 100, currency)}
               </ThemedText>
             </View>
             <View style={[styles.row, { marginTop: Spacing.md }]}>
@@ -137,7 +137,7 @@ export default function ReceiptScreen() {
                 Platform Fee (3%)
               </ThemedText>
               <ThemedText type="body">
-                ₦{payment.platformFee.toLocaleString()}
+                {formatCurrency(payment.platformFee / 100, currency)}
               </ThemedText>
             </View>
           </View>
@@ -164,7 +164,7 @@ export default function ReceiptScreen() {
                   fontWeight: "700",
                 }}
               >
-                ₦{payment.totalAmount.toLocaleString()}
+                {formatCurrency(payment.totalAmount / 100, currency)}
               </ThemedText>
             </View>
           </View>

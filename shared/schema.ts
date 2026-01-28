@@ -496,6 +496,12 @@ export const insertReceiverLocationSchema = createInsertSchema(receiverLocations
   timestamp: true,
 });
 
+export const insertWalletTransactionSchema = createInsertSchema(walletTransactions).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertParcel = z.infer<typeof insertParcelSchema>;

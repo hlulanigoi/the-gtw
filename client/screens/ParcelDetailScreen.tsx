@@ -909,4 +909,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.xs,
   },
+  tabBar: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    paddingTop: Spacing.sm,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.xs,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 3,
+    borderBottomColor: "transparent",
+  },
+  activeTab: {
+    borderBottomWidth: 3,
+  },
 });

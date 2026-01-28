@@ -6,11 +6,13 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { Feather } from "@expo/vector-icons";
 
 import { useTheme } from "@/hooks/useTheme";
+import { useCurrency } from "@/hooks/useCurrency";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
+import { formatCurrency } from "@/lib/currency";
 
 type ReceiptScreenRouteProp = RouteProp<
   { Receipt: { payment: any } },
@@ -21,13 +23,14 @@ export default function ReceiptScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
+  const { currency } = useCurrency();
   const route = useRoute<ReceiptScreenRouteProp>();
   const { payment } = route.params;
 
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Receipt for Parcel Payment\n\nReference: ${payment.reference}\nAmount: ₦${payment.totalAmount.toLocaleString()}\nStatus: ${payment.status}\nDate: ${new Date(payment.createdAt).toLocaleDateString()}`,
+        message: `Receipt for Parcel Payment\n\nReference: ${payment.reference}\nAmount: ${formatCurrency(payment.totalAmount / 100, currency)}\nStatus: ${payment.status}\nDate: ${new Date(payment.createdAt).toLocaleDateString()}`,
       });
     } catch (error) {
       console.error("Share error:", error);

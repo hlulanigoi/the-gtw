@@ -220,7 +220,7 @@ function setupErrorHandler(app: express.Application) {
   });
 }
 
-(async () => {
+export async function createServerInstance() {
   setupCors(app);
   setupBodyParsing(app);
   setupRequestLogging(app);
@@ -231,15 +231,23 @@ function setupErrorHandler(app: express.Application) {
 
   setupErrorHandler(app);
 
-  const port = parseInt(process.env.PORT || "5000", 10);
-  server.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
+  return server;
+}
+
+// Start server automatically unless we're in a test environment
+if (process.env.NODE_ENV !== "test") {
+  (async () => {
+    const server = await createServerInstance();
+
+    const port = parseInt(process.env.PORT || "5000", 10);
+    const listenOptions: any = { port, host: "0.0.0.0" };
+    // `reusePort` is not supported on some platforms (e.g., Windows), so set it conditionally
+    if (process.platform !== "win32") {
+      listenOptions.reusePort = true;
+    }
+
+    server.listen(listenOptions, () => {
       log(`express server serving on port ${port}`);
-    },
-  );
-})();
+    });
+  })();
+}

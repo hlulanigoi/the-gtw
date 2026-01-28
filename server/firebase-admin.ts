@@ -1,10 +1,33 @@
 import * as admin from 'firebase-admin';
+import * as fs from 'fs';
+import * as path from 'path';
 
 if (!admin.apps.length) {
   try {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '{}');
+    let serviceAccount: any = {};
+
+    // First try environment variable (keeps CI / env-config options working)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+      } catch (e) {
+        console.warn('Invalid FIREBASE_SERVICE_ACCOUNT_JSON env var, will try file fallback.');
+      }
+    }
+
+    // Then fallback to external file (path can be overridden by FIREBASE_SERVICE_ACCOUNT_PATH)
+    const accountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || path.resolve(process.cwd(), 'server', 'firebase-service-account.json');
+    if (!serviceAccount.project_id && fs.existsSync(accountPath)) {
+      try {
+        const fileContents = fs.readFileSync(accountPath, 'utf8');
+        serviceAccount = JSON.parse(fileContents);
+      } catch (e) {
+        console.warn('Failed to read/parse firebase service account file:', e);
+      }
+    }
+
     if (!serviceAccount.project_id) {
-      console.warn('FIREBASE_SERVICE_ACCOUNT_JSON is missing or invalid. Falling back to default auth.');
+      console.warn('Firebase service account not provided. Falling back to default auth.');
     } else {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),

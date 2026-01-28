@@ -17,6 +17,12 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+// Guard against unhandled pool errors (e.g., when Postgres isn't available) so the server
+// can continue running in development when the database is not present.
+pool.on("error", (err) => {
+  console.error("Postgres pool error (non-fatal):", err);
+});
+
 export const db = drizzle(pool);
 
 export interface IStorage {

@@ -328,6 +328,23 @@ async def post_carrier_location(
         "id": str(uuid.uuid4()),
         "parcelId": parcel_id,
         "carrierId": carrierId,
+
+
+class ReceiverLocationCreate(BaseModel):
+    lat: float
+    lng: float
+    accuracy: Optional[float] = None
+
+
+class ReceiverLocationOut(BaseModel):
+    id: str
+    parcelId: str
+    receiverId: str
+    lat: float
+    lng: float
+    accuracy: Optional[float] = None
+    timestamp: datetime
+
         "lat": body.lat,
         "lng": body.lng,
         "heading": body.heading,

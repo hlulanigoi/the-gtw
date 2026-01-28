@@ -4,7 +4,17 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const parcelSizeEnum = pgEnum("parcel_size", ["small", "medium", "large"]);
-export const parcelStatusEnum = pgEnum("parcel_status", ["Pending", "Paid", "In Transit", "Delivered", "Expired"]);
+export const parcelStatusEnum = pgEnum("parcel_status", ["Pending", "Paid", "Accepted", "Picked Up", "In Transit", "Arrived", "Delivered", "Expired"]);
+
+export const parcelTrackingEventEnum = pgEnum("parcel_tracking_event", [
+  "Accepted",
+  "Picked Up",
+  "In Transit",
+  "Arrived",
+  "Delivered",
+  "Cancelled",
+  "Issue",
+]);
 export const connectionTypeEnum = pgEnum("connection_type", ["trusted_carrier", "saved_contact"]);
 export const routeStatusEnum = pgEnum("route_status", ["Active", "Completed", "Expired", "Cancelled"]);
 export const routeFrequencyEnum = pgEnum("route_frequency", ["one_time", "daily", "weekly", "monthly"]);
@@ -63,6 +73,9 @@ export const parcels = pgTable("parcels", {
   insuranceNeeded: boolean("insurance_needed").default(false),
   contactPhone: text("contact_phone"),
   status: parcelStatusEnum("status").default("Pending"),
+  // Tracking features
+  manualTrackingEnabled: boolean("manual_tracking_enabled").default(true).notNull(),
+  liveTrackingEnabled: boolean("live_tracking_enabled").default(false).notNull(),
   senderId: varchar("sender_id").notNull().references(() => users.id),
   transporterId: varchar("transporter_id").references(() => users.id),
   receiverId: varchar("receiver_id").references(() => users.id),
@@ -160,6 +173,18 @@ export const carrierLocations = pgTable("carrier_locations", {
   accuracy: real("accuracy"),
   timestamp: timestamp("timestamp").defaultNow(),
 });
+
+export const parcelTrackingEvents = pgTable("parcel_tracking_events", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  parcelId: varchar("parcel_id").notNull().references(() => parcels.id),
+  eventType: parcelTrackingEventEnum("event_type").notNull(),
+  note: text("note"),
+  createdByUserId: varchar("created_by_user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 
 export const receiverLocations = pgTable("receiver_locations", {
   id: varchar("id")
@@ -368,6 +393,9 @@ export const insertParcelSchema = createInsertSchema(parcels).omit({
   createdAt: true,
   status: true,
   transporterId: true,
+  // tracking toggles are controlled after creation
+  manualTrackingEnabled: true,
+  liveTrackingEnabled: true,
 });
 
 export const insertConversationSchema = createInsertSchema(conversations).omit({
@@ -397,6 +425,12 @@ export const insertReviewSchema = createInsertSchema(reviews).omit({
   createdAt: true,
 });
 
+export const insertParcelTrackingEventSchema = createInsertSchema(parcelTrackingEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+
 export const insertPushTokenSchema = createInsertSchema(pushTokens).omit({
   id: true,
   createdAt: true,
@@ -418,6 +452,8 @@ export const insertCarrierLocationSchema = createInsertSchema(carrierLocations).
   id: true,
   timestamp: true,
 });
+
+
 
 export const insertReceiverLocationSchema = createInsertSchema(receiverLocations).omit({
   id: true,
@@ -448,3 +484,6 @@ export type InsertReceiverLocation = z.infer<typeof insertReceiverLocationSchema
 export type ReceiverLocation = typeof receiverLocations.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type Payment = typeof payments.$inferSelect;
+export type InsertParcelTrackingEvent = z.infer<typeof insertParcelTrackingEventSchema>;
+export type ParcelTrackingEvent = typeof parcelTrackingEvents.$inferSelect;
+

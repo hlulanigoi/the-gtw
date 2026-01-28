@@ -5,6 +5,8 @@ import { users, parcels, conversations, messages, connections, routes, reviews, 
 import { createHmac } from "crypto";
 import { eq, desc, and, gte, lte, ne, sql } from "drizzle-orm";
 import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./firebase-admin";
+import { registerReceiverEnhancements } from "./receiver-enhancements";
+import { NotificationService } from "./notification-service";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/sync", requireAuth, async (req: AuthenticatedRequest, res) => {
@@ -139,6 +141,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const parcel = await storage.createParcel(parcelData);
+      
+      // Send notification to receiver if receiverId is set
+      if (parcel.receiverId) {
+        const sender = await storage.getUser(req.user!.uid);
+        await NotificationService.notifyNewIncomingParcel(
+          parcel.receiverId,
+          parcel.id,
+          sender?.name || "Someone"
+        );
+      }
+      
       res.status(201).json(parcel);
     } catch (error) {
       console.error("Failed to create parcel:", error);
@@ -148,10 +161,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/parcels/:id", async (req, res) => {
     try {
+      const oldParcel = await storage.getParcel(req.params.id);
       const parcel = await storage.updateParcel(req.params.id, req.body);
       if (!parcel) {
         return res.status(404).json({ error: "Parcel not found" });
       }
+      
+      // Send notification on status change
+      if (oldParcel && parcel.status !== oldParcel.status) {
+        // Notify receiver
+        if (parcel.receiverId) {
+          await NotificationService.notifyStatusChange(
+            parcel.receiverId,
+            parcel.id,
+            oldParcel.status,
+            parcel.status
+          );
+        }
+        // Notify sender
+        if (parcel.senderId) {
+          await NotificationService.notifyStatusChange(
+            parcel.senderId,
+            parcel.id,
+            oldParcel.status,
+            parcel.status
+          );
+        }
+      }
+      
       res.json(parcel);
     } catch (error) {
       res.status(500).json({ error: "Failed to update parcel" });
@@ -1358,6 +1395,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   checkAndExpireItems();
   setInterval(checkAndExpireItems, 60 * 60 * 1000);
+
+  // Register receiver enhancements
+  registerReceiverEnhancements(app);
 
   const httpServer = createServer(app);
 

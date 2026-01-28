@@ -45,6 +45,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   sendVerificationCode: (email: string) => Promise<void>;
   verifyCode: (email: string, code: string) => Promise<boolean>;
   resetPassword: (email: string) => Promise<void>;

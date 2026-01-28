@@ -29,9 +29,14 @@ export const users = pgTable("users", {
   photoUrl: text("photo_url"),
   rating: real("rating").default(5.0),
   verified: boolean("verified").default(false),
+  emailVerified: boolean("email_verified").default(false),
   walletBalance: integer("wallet_balance").default(0).notNull(),
   subscriptionStatus: text("subscription_status").default("free").notNull(),
   subscriptionExpiresAt: timestamp("subscription_expires_at"),
+  savedLocationName: text("saved_location_name"),
+  savedLocationAddress: text("saved_location_address"),
+  savedLocationLat: real("saved_location_lat"),
+  savedLocationLng: real("saved_location_lng"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

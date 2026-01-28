@@ -161,10 +161,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/parcels/:id", async (req, res) => {
     try {
+      const oldParcel = await storage.getParcel(req.params.id);
       const parcel = await storage.updateParcel(req.params.id, req.body);
       if (!parcel) {
         return res.status(404).json({ error: "Parcel not found" });
       }
+      
+      // Send notification on status change
+      if (oldParcel && parcel.status !== oldParcel.status) {
+        // Notify receiver
+        if (parcel.receiverId) {
+          await NotificationService.notifyStatusChange(
+            parcel.receiverId,
+            parcel.id,
+            oldParcel.status,
+            parcel.status
+          );
+        }
+        // Notify sender
+        if (parcel.senderId) {
+          await NotificationService.notifyStatusChange(
+            parcel.senderId,
+            parcel.id,
+            oldParcel.status,
+            parcel.status
+          );
+        }
+      }
+      
       res.json(parcel);
     } catch (error) {
       res.status(500).json({ error: "Failed to update parcel" });

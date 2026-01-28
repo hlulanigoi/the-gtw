@@ -14,6 +14,7 @@ import * as WebBrowser from "expo-web-browser";
 import { Feather } from "@expo/vector-icons";
 
 import { useTheme } from "@/hooks/useTheme";
+import { useCurrency } from "@/hooks/useCurrency";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -23,6 +24,7 @@ import { BrowseStackParamList } from "@/navigation/BrowseStackNavigator";
 import { useParcels } from "@/hooks/useParcels";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiUrl } from "@/lib/query-client";
+import { formatCurrency } from "@/lib/currency";
 
 type RouteType = RouteProp<BrowseStackParamList, "Checkout">;
 type PaymentMethod = "paystack" | "cash";
@@ -30,6 +32,7 @@ type PaymentMethod = "paystack" | "cash";
 export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
+  const { currency } = useCurrency();
   const route = useRoute<RouteType>();
   const navigation = useNavigation();
   const { parcelId } = route.params;
@@ -282,7 +285,7 @@ export default function CheckoutScreen() {
 
             <View style={styles.priceRow}>
               <ThemedText type="body">Compensation</ThemedText>
-              <ThemedText type="body">₦{parcel.compensation.toLocaleString()}</ThemedText>
+              <ThemedText type="body">{formatCurrency(parcel.compensation / 100, currency)}</ThemedText>
             </View>
 
             <View style={[styles.priceRow, { marginBottom: Spacing.md }]}>
@@ -290,14 +293,14 @@ export default function CheckoutScreen() {
                 Platform Fee (3%)
               </ThemedText>
               <ThemedText type="body" style={{ color: theme.textSecondary }}>
-                ₦{platformFee.toLocaleString()}
+                {formatCurrency(platformFee / 100, currency)}
               </ThemedText>
             </View>
 
             <View style={[styles.priceRow, styles.totalRow]}>
               <ThemedText type="h3">Total</ThemedText>
               <ThemedText type="h3" style={{ color: Colors.primary }}>
-                ₦{totalAmount.toLocaleString()}
+                {formatCurrency(totalAmount / 100, currency)}
               </ThemedText>
             </View>
           </View>

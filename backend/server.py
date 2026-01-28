@@ -328,56 +328,6 @@ async def post_carrier_location(
         "id": str(uuid.uuid4()),
         "parcelId": parcel_id,
         "carrierId": carrierId,
-
-
-class ReceiverLocationCreate(BaseModel):
-    lat: float
-    lng: float
-
-
-@app.get("/api/parcels/{parcel_id}/receiver-location", response_model=Optional[ReceiverLocationOut])
-async def get_receiver_location(parcel_id: str):
-    await _get_parcel_or_404(parcel_id)
-    doc = await db.receiver_locations.find({"parcelId": parcel_id}).sort("timestamp", -1).limit(1).to_list(length=1)
-    return doc[0] if doc else None
-
-
-@app.post("/api/parcels/{parcel_id}/receiver-location", response_model=ReceiverLocationOut)
-async def post_receiver_location(
-    parcel_id: str,
-    body: ReceiverLocationCreate,
-    receiverId: str = Query(..., description="Receiver user id"),
-):
-    parcel = await _get_parcel_or_404(parcel_id)
-
-    # receiver shares their own location; allow receiverId that matches parcel.receiverId, OR matches receiverEmail (when receiverId not set)
-    if parcel.get("receiverId") and parcel.get("receiverId") != receiverId:
-        raise HTTPException(status_code=403, detail="Only the parcel receiver can post receiver location")
-
-    loc = {
-        "id": str(uuid.uuid4()),
-        "parcelId": parcel_id,
-        "receiverId": receiverId,
-        "lat": body.lat,
-        "lng": body.lng,
-        "accuracy": body.accuracy,
-        "timestamp": _now(),
-    }
-    await db.receiver_locations.insert_one(loc)
-    return loc
-
-    accuracy: Optional[float] = None
-
-
-class ReceiverLocationOut(BaseModel):
-    id: str
-    parcelId: str
-    receiverId: str
-    lat: float
-    lng: float
-    accuracy: Optional[float] = None
-    timestamp: datetime
-
         "lat": body.lat,
         "lng": body.lng,
         "heading": body.heading,

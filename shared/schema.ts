@@ -448,6 +448,9 @@ export const insertParcelMessageSchema = createInsertSchema(parcelMessages).omit
 });
 
 export const insertCarrierLocationSchema = createInsertSchema(carrierLocations).omit({
+export type InsertParcelTrackingEvent = z.infer<typeof insertParcelTrackingEventSchema>;
+export type ParcelTrackingEvent = typeof parcelTrackingEvents.$inferSelect;
+
   id: true,
   timestamp: true,
 });

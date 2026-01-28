@@ -43,6 +43,20 @@ export default function ProfileStackNavigator() {
         }}
       />
       <Stack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{
+          headerTitle: "Edit Profile",
+        }}
+      />
+      <Stack.Screen
+        name="ChangePassword"
+        component={ChangePasswordScreen}
+        options={{
+          headerTitle: "Change Password",
+        }}
+      />
+      <Stack.Screen
         name="Connections"
         component={ConnectionsScreen}
         options={{

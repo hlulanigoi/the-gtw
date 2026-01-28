@@ -173,6 +173,18 @@ export const carrierLocations = pgTable("carrier_locations", {
   timestamp: timestamp("timestamp").defaultNow(),
 });
 
+export const parcelTrackingEvents = pgTable("parcel_tracking_events", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  parcelId: varchar("parcel_id").notNull().references(() => parcels.id),
+  eventType: parcelTrackingEventEnum("event_type").notNull(),
+  note: text("note"),
+  createdByUserId: varchar("created_by_user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+
 export const receiverLocations = pgTable("receiver_locations", {
   id: varchar("id")
     .primaryKey()

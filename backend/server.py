@@ -311,7 +311,11 @@ async def get_carrier_location(parcel_id: str):
 
 
 @app.post("/api/parcels/{parcel_id}/carrier-location", response_model=CarrierLocationOut)
-async def post_carrier_location(parcel_id: str, body: CarrierLocationCreate, carrierId: str = Field(..., description="Carrier user id")):
+async def post_carrier_location(
+    parcel_id: str,
+    body: CarrierLocationCreate,
+    carrierId: str = Query(..., description="Carrier user id"),
+):
     parcel = await _get_parcel_or_404(parcel_id)
 
     if not parcel.get("liveTrackingEnabled", False):

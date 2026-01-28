@@ -4,7 +4,17 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const parcelSizeEnum = pgEnum("parcel_size", ["small", "medium", "large"]);
-export const parcelStatusEnum = pgEnum("parcel_status", ["Pending", "Paid", "In Transit", "Delivered", "Expired"]);
+export const parcelStatusEnum = pgEnum("parcel_status", ["Pending", "Paid", "Accepted", "Picked Up", "In Transit", "Arrived", "Delivered", "Expired"]);
+
+export const parcelTrackingEventEnum = pgEnum("parcel_tracking_event", [
+  "Accepted",
+  "Picked Up",
+  "In Transit",
+  "Arrived",
+  "Delivered",
+  "Cancelled",
+  "Issue",
+]);
 export const connectionTypeEnum = pgEnum("connection_type", ["trusted_carrier", "saved_contact"]);
 export const routeStatusEnum = pgEnum("route_status", ["Active", "Completed", "Expired", "Cancelled"]);
 export const routeFrequencyEnum = pgEnum("route_frequency", ["one_time", "daily", "weekly", "monthly"]);

@@ -353,6 +353,30 @@ export const payments = pgTable("payments", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Wallet transactions
+export const transactionTypeEnum = pgEnum("transaction_type", ["topup", "debit", "refund", "bonus"]);
+export const transactionStatusEnum = pgEnum("transaction_status", ["pending", "completed", "failed", "cancelled"]);
+
+export const walletTransactions = pgTable("wallet_transactions", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  type: transactionTypeEnum("type").notNull(),
+  amount: integer("amount").notNull(),
+  currency: text("currency").notNull().default("USD"),
+  status: transactionStatusEnum("status").notNull().default("pending"),
+  reference: text("reference").notNull().unique(),
+  description: text("description"),
+  metadata: text("metadata"),
+  paymentMethod: text("payment_method"),
+  paymentData: text("payment_data"),
+  balanceBefore: integer("balance_before").notNull(),
+  balanceAfter: integer("balance_after").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
 export const paymentsRelations = relations(payments, ({ one }) => ({
   parcel: one(parcels, {
     fields: [payments.parcelId],

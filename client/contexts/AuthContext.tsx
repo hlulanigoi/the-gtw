@@ -181,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name: data.name || firebaseUser.displayName || "",
             email: data.email || firebaseUser.email || "",
             phone: data.phone,
+            photoUrl: data.photoUrl,
             rating: data.rating || 5.0,
             verified: data.verified || false,
             emailVerified: data.emailVerified || false,

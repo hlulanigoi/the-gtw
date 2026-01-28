@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/query-client";
+import { Parcel } from "@/hooks/useParcels";
 
 export interface Message {
   id: string;
@@ -14,11 +15,26 @@ export interface Message {
   isOwn?: boolean;
 }
 
-export function useMessages(parcelId?: string) {
+export function useMessages(parcelId?: string, parcel?: Parcel) {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: messages = [], isLoading } = useQuery<Message[]>({
+  // Determine current user's role in this parcel
+  const userRole: "sender" | "carrier" | "receiver" | null = (() => {
+    if (!parcel || !user) return null;
+    
+    if (user.uid === parcel.senderId) return "sender";
+    if (user.uid === parcel.transporterId) return "carrier";
+    if (user.uid === parcel.receiverId) return "receiver";
+    if (userProfile?.email && parcel.receiverEmail && 
+        userProfile.email.toLowerCase() === parcel.receiverEmail.toLowerCase()) {
+      return "receiver";
+    }
+    
+    return null;
+  })();
+
+  const { data: messages = [], isLoading, refetch } = useQuery<Message[]>({
     queryKey: ["/api/parcels", parcelId, "messages"],
     queryFn: async () => {
       if (!parcelId) return [];
@@ -30,14 +46,17 @@ export function useMessages(parcelId?: string) {
       }));
     },
     enabled: !!parcelId,
+    refetchInterval: 5000, // Auto-refresh every 5 seconds for real-time updates
   });
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
-      if (!parcelId || !user) throw new Error("Missing parcelId or user");
+      if (!parcelId || !user || !userRole) {
+        throw new Error("Missing parcelId, user, or user role");
+      }
       return apiRequest("POST", `/api/parcels/${parcelId}/messages`, {
         content: content.trim(),
-        senderRole: "sender",
+        senderRole: userRole,
       });
     },
     onSuccess: () => {
@@ -46,8 +65,8 @@ export function useMessages(parcelId?: string) {
   });
 
   const sendMessage = useCallback(
-    async (content: string, role: "sender" | "carrier" | "receiver") => {
-      if (!user || !parcelId || !content.trim()) return;
+    async (content: string) => {
+      if (!user || !parcelId || !content.trim() || !userRole) return;
       try {
         await sendMessageMutation.mutateAsync(content);
       } catch (err) {
@@ -55,12 +74,14 @@ export function useMessages(parcelId?: string) {
         throw err;
       }
     },
-    [user, parcelId, sendMessageMutation]
+    [user, parcelId, userRole, sendMessageMutation]
   );
 
   return {
     messages,
     sendMessage,
     isLoading,
+    userRole,
+    refetch,
   };
 }

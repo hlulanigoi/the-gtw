@@ -19,6 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCarrierLocation } from "@/hooks/useCarrierLocation";
 import { useReceiverLocation } from "@/hooks/useReceiverLocation";
 import { formatCurrency } from "@/lib/currency";
+import { ParcelMessagesTab } from "@/components/ParcelMessagesTab";
 
 type RouteType = RouteProp<BrowseStackParamList, "ParcelDetail">;
 

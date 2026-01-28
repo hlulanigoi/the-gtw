@@ -8,6 +8,9 @@ import ConnectionsScreen from "@/screens/ConnectionsScreen";
 import ReviewsScreen from "@/screens/ReviewsScreen";
 import PaymentHistoryScreen from "@/screens/PaymentHistoryScreen";
 import ReceiptScreen from "@/screens/ReceiptScreen";
+import WalletScreen from "@/screens/WalletScreen";
+import TopUpScreen from "@/screens/TopUpScreen";
+import WalletTransactionsScreen from "@/screens/WalletTransactionsScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type ProfileStackParamList = {
@@ -18,6 +21,8 @@ export type ProfileStackParamList = {
   Connections: undefined;
   Reviews: undefined;
   Wallet: undefined;
+  TopUp: undefined;
+  WalletTransactions: undefined;
   PaymentHistory: undefined;
   Receipt: { payment: any };
 };
@@ -72,17 +77,31 @@ export default function ProfileStackNavigator() {
         }}
       />
       <Stack.Screen
-        name="PaymentHistory"
-        component={PaymentHistoryScreen}
+        name="Wallet"
+        component={WalletScreen}
         options={{
-          headerTitle: "Transaction History",
+          headerTitle: "Wallet",
         }}
       />
       <Stack.Screen
-        name="Wallet"
-        component={require("@/screens/WalletScreen").default}
+        name="TopUp"
+        component={TopUpScreen}
         options={{
-          headerTitle: "Wallet",
+          headerTitle: "Top Up Wallet",
+        }}
+      />
+      <Stack.Screen
+        name="WalletTransactions"
+        component={WalletTransactionsScreen}
+        options={{
+          headerTitle: "Wallet Transactions",
+        }}
+      />
+      <Stack.Screen
+        name="PaymentHistory"
+        component={PaymentHistoryScreen}
+        options={{
+          headerTitle: "Payment History",
         }}
       />
       <Stack.Screen

@@ -242,17 +242,75 @@ export default function ParcelDetailScreen() {
     large: "Large",
   };
 
+  // Check if user has access to messages (is sender, carrier, or receiver)
+  const hasMessageAccess = parcel.isOwner || parcel.isTransporting || parcel.isReceiver;
+
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={{
-          paddingTop: Spacing.xl,
-          paddingBottom: insets.bottom + 100,
-          paddingHorizontal: Spacing.lg,
-        }}
-        scrollIndicatorInsets={{ bottom: insets.bottom }}
-      >
+      {hasMessageAccess && (
+        <View style={[styles.tabBar, { backgroundColor: theme.backgroundDefault, borderBottomColor: theme.border }]}>
+          <Pressable
+            style={[
+              styles.tab,
+              activeTab === "details" && styles.activeTab,
+              activeTab === "details" && { borderBottomColor: Colors.primary },
+            ]}
+            onPress={() => setActiveTab("details")}
+          >
+            <Feather
+              name="info"
+              size={20}
+              color={activeTab === "details" ? Colors.primary : theme.textSecondary}
+            />
+            <ThemedText
+              type="body"
+              style={{
+                fontWeight: activeTab === "details" ? "600" : "400",
+                color: activeTab === "details" ? Colors.primary : theme.textSecondary,
+              }}
+            >
+              Details
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.tab,
+              activeTab === "messages" && styles.activeTab,
+              activeTab === "messages" && { borderBottomColor: Colors.primary },
+            ]}
+            onPress={() => setActiveTab("messages")}
+          >
+            <Feather
+              name="message-circle"
+              size={20}
+              color={activeTab === "messages" ? Colors.primary : theme.textSecondary}
+            />
+            <ThemedText
+              type="body"
+              style={{
+                fontWeight: activeTab === "messages" ? "600" : "400",
+                color: activeTab === "messages" ? Colors.primary : theme.textSecondary,
+              }}
+            >
+              Messages
+            </ThemedText>
+          </Pressable>
+        </View>
+      )}
+
+      {activeTab === "messages" && hasMessageAccess ? (
+        <ParcelMessagesTab parcelId={parcelId} parcel={parcel} />
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={{
+            paddingTop: Spacing.xl,
+            paddingBottom: insets.bottom + 100,
+            paddingHorizontal: Spacing.lg,
+          }}
+          scrollIndicatorInsets={{ bottom: insets.bottom }}
+        >
         <Card elevation={1} style={styles.routeCard}>
           <View style={styles.routeContainer}>
             <View style={styles.routePoint}>

@@ -1361,6 +1361,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   checkAndExpireItems();
   setInterval(checkAndExpireItems, 60 * 60 * 1000);
 
+  // Register receiver enhancements
+  registerReceiverEnhancements(app);
+
   const httpServer = createServer(app);
 
   return httpServer;

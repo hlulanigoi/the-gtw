@@ -6,6 +6,7 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
+import { Image } from "expo-image";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useTheme } from "@/hooks/useTheme";
@@ -29,6 +30,10 @@ export default function ProfileScreen() {
     navigation.navigate("Settings");
   };
 
+  const handleEditProfile = () => {
+    navigation.navigate("EditProfile");
+  };
+
   const handleConnections = () => {
     navigation.navigate("Connections");
   };
@@ -48,7 +53,7 @@ export default function ProfileScreen() {
   ];
 
   const menuItems = [
-    { label: "Edit Profile", icon: "edit-2" as const, onPress: () => {} },
+    { label: "Edit Profile", icon: "edit-2" as const, onPress: handleEditProfile },
     { label: "My Connections", icon: "users" as const, onPress: handleConnections },
     { label: "My Reviews", icon: "star" as const, onPress: handleReviews },
     { label: "Transaction History", icon: "clock" as const, onPress: handlePaymentHistory },
@@ -67,16 +72,24 @@ export default function ProfileScreen() {
       scrollIndicatorInsets={{ bottom: insets.bottom }}
     >
       <View style={styles.profileHeader}>
-        <View
-          style={[
-            styles.avatar,
-            { backgroundColor: Colors.primary },
-          ]}
-        >
-          <ThemedText type="h1" style={{ color: "#FFFFFF" }}>
-            {(userProfile?.name || "U").substring(0, 2).toUpperCase()}
-          </ThemedText>
-        </View>
+        {userProfile?.photoUrl ? (
+          <Image
+            source={{ uri: userProfile.photoUrl }}
+            style={styles.avatar}
+            contentFit="cover"
+          />
+        ) : (
+          <View
+            style={[
+              styles.avatar,
+              { backgroundColor: Colors.primary },
+            ]}
+          >
+            <ThemedText type="h1" style={{ color: "#FFFFFF" }}>
+              {(userProfile?.name || "U").substring(0, 2).toUpperCase()}
+            </ThemedText>
+          </View>
+        )}
         <ThemedText type="h2" style={styles.userName}>
           {userProfile?.name || "User"}
         </ThemedText>
@@ -139,6 +152,7 @@ export default function ProfileScreen() {
                 opacity: pressed ? 0.8 : 1,
               },
             ]}
+            data-testid={`profile-menu-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
           >
             <View style={styles.menuItemLeft}>
               <View

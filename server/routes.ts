@@ -5,6 +5,8 @@ import { users, parcels, conversations, messages, connections, routes, reviews, 
 import { createHmac } from "crypto";
 import { eq, desc, and, gte, lte, ne, sql } from "drizzle-orm";
 import { requireAuth, optionalAuth, type AuthenticatedRequest } from "./firebase-admin";
+import { registerReceiverEnhancements } from "./receiver-enhancements";
+import { NotificationService } from "./notification-service";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/sync", requireAuth, async (req: AuthenticatedRequest, res) => {

@@ -58,6 +58,7 @@ export default function ParcelDetailScreen() {
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [activeTab, setActiveTab] = useState<"details" | "messages">("details");
 
   const parcel = parcels.find((p) => p.id === parcelId);
 

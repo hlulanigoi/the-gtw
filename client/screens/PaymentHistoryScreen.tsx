@@ -8,12 +8,14 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 
 import { useTheme } from "@/hooks/useTheme";
+import { useCurrency } from "@/hooks/useCurrency";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { Card } from "@/components/Card";
 import { usePayments } from "@/hooks/usePayments";
 import { ProfileStackParamList } from "@/navigation/ProfileStackNavigator";
+import { formatCurrency } from "@/lib/currency";
 
 type NavigationProp = NativeStackNavigationProp<ProfileStackParamList>;
 
@@ -22,6 +24,7 @@ export default function PaymentHistoryScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
+  const { currency } = useCurrency();
   const navigation = useNavigation<NavigationProp>();
   const { payments, isLoading } = usePayments();
 
@@ -87,7 +90,7 @@ export default function PaymentHistoryScreen() {
             Amount
           </ThemedText>
           <ThemedText type="body">
-            ₦{item.amount.toLocaleString()}
+            {formatCurrency(item.amount / 100, currency)}
           </ThemedText>
         </View>
         <View style={{ alignItems: "flex-end" }}>
@@ -95,7 +98,7 @@ export default function PaymentHistoryScreen() {
             Total (with fee)
           </ThemedText>
           <ThemedText type="body" style={{ color: Colors.primary, fontWeight: "600" }}>
-            ₦{item.totalAmount.toLocaleString()}
+            {formatCurrency(item.totalAmount / 100, currency)}
           </ThemedText>
         </View>
       </View>

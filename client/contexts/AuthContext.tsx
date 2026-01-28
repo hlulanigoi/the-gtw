@@ -363,6 +363,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await sendPasswordResetEmail(auth, email);
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    if (!user || !user.email) {
+      throw new Error("No user logged in");
+    }
+
+    // Re-authenticate user before changing password
+    const credential = EmailAuthProvider.credential(user.email, currentPassword);
+    await reauthenticateWithCredential(user, credential);
+    
+    // Now update the password
+    await updatePassword(user, newPassword);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -376,6 +389,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithGoogle,
         signOut,
         updateUserProfile,
+        changePassword,
         sendVerificationCode,
         verifyCode,
         resetPassword,

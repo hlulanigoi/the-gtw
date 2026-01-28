@@ -141,6 +141,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const parcel = await storage.createParcel(parcelData);
+      
+      // Send notification to receiver if receiverId is set
+      if (parcel.receiverId) {
+        const sender = await storage.getUser(req.user!.uid);
+        await NotificationService.notifyNewIncomingParcel(
+          parcel.receiverId,
+          parcel.id,
+          sender?.name || "Someone"
+        );
+      }
+      
       res.status(201).json(parcel);
     } catch (error) {
       console.error("Failed to create parcel:", error);

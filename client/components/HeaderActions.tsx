@@ -28,10 +28,10 @@ export default function HeaderActions() {
         onLongPress={() => {
           // allow user to select currency on long-press
           Alert.alert("Choose currency", "Select display currency:", [
-            { text: "USD", onPress: () => setCurrency("USD") },
-            { text: "EUR", onPress: () => setCurrency("EUR") },
-            { text: "ZAR (R)", onPress: () => setCurrency("ZAR") },
-            { text: "NGN (₦)", onPress: () => setCurrency("NGN"), style: "cancel" },
+            { text: "USD ($)", onPress: () => setCurrency("USD") },
+            { text: "EUR (€)", onPress: () => setCurrency("EUR") },
+            { text: "GBP (£)", onPress: () => setCurrency("GBP") },
+            { text: "ZAR (R)", onPress: () => setCurrency("ZAR"), style: "cancel" },
           ]);
         }}
         accessibilityLabel={`Open wallet, balance ${balance}`}

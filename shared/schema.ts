@@ -424,6 +424,12 @@ export const insertReviewSchema = createInsertSchema(reviews).omit({
   createdAt: true,
 });
 
+export const insertParcelTrackingEventSchema = createInsertSchema(parcelTrackingEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+
 export const insertPushTokenSchema = createInsertSchema(pushTokens).omit({
   id: true,
   createdAt: true,

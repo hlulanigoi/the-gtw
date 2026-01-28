@@ -1325,6 +1325,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/parcels/:parcelId/messages", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
+      const parcel = await storage.getParcel(req.params.parcelId);
+      if (!parcel) {
+        return res.status(404).json({ error: "Parcel not found" });
+      }
+
+      // Verify user has permission to send messages (must be sender, carrier, or receiver)
+      const userId = req.user!.uid;
+      const userEmail = req.user!.email;
+      const isParticipant = 
+        userId === parcel.senderId || 
+        userId === parcel.transporterId || 
+        userId === parcel.receiverId ||
+        (userEmail && parcel.receiverEmail && userEmail.toLowerCase() === parcel.receiverEmail.toLowerCase());
+
+      if (!isParticipant) {
+        return res.status(403).json({ error: "You don't have permission to send messages for this parcel" });
+      }
+
       const parsed = insertParcelMessageSchema.safeParse({
         parcelId: req.params.parcelId,
         senderId: req.user!.uid,
@@ -1333,8 +1351,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       if (!parsed.success) return res.status(400).json({ error: parsed.error.errors });
       const msg = await db.insert(parcelMessages).values(parsed.data).returning();
-      res.json(msg[0]);
+      
+      // Get sender info to return complete message
+      const sender = await storage.getUser(req.user!.uid);
+      const completeMsg = {
+        ...msg[0],
+        senderName: sender?.name || "Unknown",
+      };
+      
+      res.json(completeMsg);
     } catch (error) {
+      console.error("Failed to send message:", error);
       res.status(500).json({ error: "Failed to send message" });
     }
   });

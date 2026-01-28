@@ -2,9 +2,9 @@ import { useEffect, useState, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { setRuntimeCurrency, getRuntimeCurrency } from "@/lib/currency";
 
-const STORAGE_KEY = "@thegtw_currency";
+const STORAGE_KEY = "@parcel_currency";
 
-export type CurrencyCode = "NGN" | "USD" | "EUR" | "ZAR";
+export type CurrencyCode = "USD" | "EUR" | "ZAR" | "GBP";
 
 export function useCurrency() {
   const [currency, setCurrencyState] = useState<CurrencyCode>(() => getRuntimeCurrency().code as CurrencyCode);

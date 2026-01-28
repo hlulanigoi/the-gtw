@@ -602,6 +602,7 @@ export default function ParcelDetailScreen() {
           </Card>
         ) : null}
       </ScrollView>
+      )}
 
       {!parcel.isOwner && !parcel.isTransporting ? (
         <View

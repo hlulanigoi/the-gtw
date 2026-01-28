@@ -452,8 +452,6 @@ export const insertCarrierLocationSchema = createInsertSchema(carrierLocations).
   timestamp: true,
 });
 
-export type InsertParcelTrackingEvent = z.infer<typeof insertParcelTrackingEventSchema>;
-export type ParcelTrackingEvent = typeof parcelTrackingEvents.$inferSelect;
 
 
 export const insertReceiverLocationSchema = createInsertSchema(receiverLocations).omit({

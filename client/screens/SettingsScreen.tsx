@@ -39,28 +39,40 @@ export default function SettingsScreen() {
   };
 
   const handlePhoneNumber = () => {
-    Alert.prompt(
-      "Phone Number",
-      "Enter your phone number",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Save", 
-          onPress: async (text) => {
-            if (text !== undefined) {
-              try {
-                await updateUserProfile({ phone: text.trim() || null });
-                Alert.alert("Success", "Phone number updated");
-              } catch (error: any) {
-                Alert.alert("Error", error.message || "Failed to update phone number");
+    if (Platform.OS === "ios") {
+      Alert.prompt(
+        "Phone Number",
+        "Enter your phone number",
+        [
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Save", 
+            onPress: async (text) => {
+              if (text !== undefined) {
+                try {
+                  await updateUserProfile({ phone: text.trim() || null });
+                  Alert.alert("Success", "Phone number updated");
+                } catch (error: any) {
+                  Alert.alert("Error", error.message || "Failed to update phone number");
+                }
               }
-            }
-          } 
-        }
-      ],
-      "plain-text",
-      userProfile?.phone || ""
-    );
+            } 
+          }
+        ],
+        "plain-text",
+        userProfile?.phone || ""
+      );
+    } else {
+      // For Android and Web, show an alert with the current number
+      Alert.alert(
+        "Phone Number",
+        `Current: ${userProfile?.phone || "Not set"}\n\nTo update your phone number, please use Edit Profile.`,
+        [
+          { text: "OK", style: "cancel" },
+          { text: "Edit Profile", onPress: handleEditProfile }
+        ]
+      );
+    }
   };
 
   const handleSetLocation = (location: { name: string; fullAddress: string; lat: number; lng: number }) => {

@@ -2,6 +2,8 @@ import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import ProfileScreen from "@/screens/ProfileScreen";
 import SettingsScreen from "@/screens/SettingsScreen";
+import EditProfileScreen from "@/screens/EditProfileScreen";
+import ChangePasswordScreen from "@/screens/ChangePasswordScreen";
 import ConnectionsScreen from "@/screens/ConnectionsScreen";
 import ReviewsScreen from "@/screens/ReviewsScreen";
 import PaymentHistoryScreen from "@/screens/PaymentHistoryScreen";
@@ -11,6 +13,8 @@ import { useScreenOptions } from "@/hooks/useScreenOptions";
 export type ProfileStackParamList = {
   Profile: undefined;
   Settings: undefined;
+  EditProfile: undefined;
+  ChangePassword: undefined;
   Connections: undefined;
   Reviews: undefined;
   PaymentHistory: undefined;

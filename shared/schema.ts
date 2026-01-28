@@ -62,6 +62,9 @@ export const parcels = pgTable("parcels", {
   insuranceNeeded: boolean("insurance_needed").default(false),
   contactPhone: text("contact_phone"),
   status: parcelStatusEnum("status").default("Pending"),
+  // Tracking features
+  manualTrackingEnabled: boolean("manual_tracking_enabled").default(true).notNull(),
+  liveTrackingEnabled: boolean("live_tracking_enabled").default(false).notNull(),
   senderId: varchar("sender_id").notNull().references(() => users.id),
   transporterId: varchar("transporter_id").references(() => users.id),
   receiverId: varchar("receiver_id").references(() => users.id),

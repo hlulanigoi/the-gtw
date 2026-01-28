@@ -98,20 +98,33 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.statsContainer}>
-        {stats.map((stat, index) => (
-          <Card key={index} elevation={1} style={styles.statCard}>
-            <Feather name={stat.icon} size={24} color={Colors.primary} />
-            <ThemedText type="h3" style={styles.statValue}>
-              {stat.value}
-            </ThemedText>
-            <ThemedText
-              type="caption"
-              style={[styles.statLabel, { color: theme.textSecondary }]}
-            >
-              {stat.label}
-            </ThemedText>
-          </Card>
-        ))}
+        {stats.map((stat, index) => {
+          const isWallet = stat.label === 'Wallet';
+          const Content = (
+            <Card key={index} elevation={1} style={[styles.statCard, isWallet && styles.statCardWallet]}>
+              <Feather name={stat.icon} size={24} color={isWallet ? Colors.primary : Colors.primary} />
+              <ThemedText type="h3" style={[styles.statValue, isWallet && styles.statValueWallet]}>
+                {stat.value}
+              </ThemedText>
+              <ThemedText
+                type="caption"
+                style={[styles.statLabel, { color: theme.textSecondary }]}
+              >
+                {stat.label}
+              </ThemedText>
+            </Card>
+          );
+
+          return isWallet ? (
+            <Pressable key={index} onPress={handlePaymentHistory} style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, flex: 1 }] }>
+              {Content}
+            </Pressable>
+          ) : (
+            <View key={index} style={{ flex: 1 }}>
+              {Content}
+            </View>
+          );
+        })}
       </View>
 
       <View style={styles.menuContainer}>
@@ -194,9 +207,18 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.sm,
   },
+  statCardWallet: {
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    backgroundColor: '#FAFBFF',
+  },
   statValue: {
     marginTop: Spacing.sm,
     marginBottom: Spacing.xs,
+  },
+  statValueWallet: {
+    fontSize: 20,
+    fontWeight: '700',
   },
   statLabel: {
     textAlign: "center",

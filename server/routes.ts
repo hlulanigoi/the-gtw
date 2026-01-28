@@ -809,8 +809,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/routes", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
+      // Normalize date strings to Date objects (allow clients to send ISO strings)
+      const body: any = { ...req.body };
+      if (typeof body.departureDate === 'string') body.departureDate = new Date(body.departureDate);
+      if (typeof body.recurrenceEndDate === 'string' && body.recurrenceEndDate) body.recurrenceEndDate = new Date(body.recurrenceEndDate);
+
       const parsed = insertRouteSchema.safeParse({
-        ...req.body,
+        ...body,
         carrierId: req.user!.uid,
       });
       if (!parsed.success) {

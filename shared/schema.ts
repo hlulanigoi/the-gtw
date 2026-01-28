@@ -16,6 +16,7 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   phone: text("phone"),
+  photoUrl: text("photo_url"),
   rating: real("rating").default(5.0),
   verified: boolean("verified").default(false),
   walletBalance: integer("wallet_balance").default(0).notNull(),

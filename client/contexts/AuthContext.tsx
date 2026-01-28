@@ -9,6 +9,9 @@ import {
   sendPasswordResetEmail,
   GoogleAuthProvider,
   signInWithCredential,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Platform } from "react-native";

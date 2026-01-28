@@ -528,4 +528,6 @@ export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type Payment = typeof payments.$inferSelect;
 export type InsertParcelTrackingEvent = z.infer<typeof insertParcelTrackingEventSchema>;
 export type ParcelTrackingEvent = typeof parcelTrackingEvents.$inferSelect;
+export type InsertWalletTransaction = z.infer<typeof insertWalletTransactionSchema>;
+export type WalletTransaction = typeof walletTransactions.$inferSelect;
 

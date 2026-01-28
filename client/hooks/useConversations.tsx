@@ -29,10 +29,15 @@ export function useConversations() {
   const queryClient = useQueryClient();
 
   const { data: conversations = [], isLoading, error } = useQuery<Conversation[]>({
-    queryKey: ["/api/conversations"],
+    queryKey: ["/api/conversations", user?.uid],
     queryFn: async () => {
       if (!user) return [];
-      return ((await apiRequest("GET", "/api/conversations")) as unknown) as Conversation[];
+      const response = ((await apiRequest("GET", `/api/users/${user.uid}/conversations`)) as unknown) as any[];
+      return response.map((conv: any) => ({
+        ...conv,
+        lastMessageTime: conv.lastMessageTime ? new Date(conv.lastMessageTime) : new Date(conv.createdAt),
+        createdAt: conv.createdAt ? new Date(conv.createdAt) : new Date(),
+      }));
     },
     enabled: !!user,
   });

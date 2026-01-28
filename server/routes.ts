@@ -1424,6 +1424,205 @@ export async function registerRoutes(app: Express): Promise<Server> {
   checkAndExpireItems();
   setInterval(checkAndExpireItems, 60 * 60 * 1000);
 
+  // ========== WALLET TOP-UP API ROUTES ==========
+  
+  // Initialize wallet top-up
+  app.post("/api/wallet/topup/initialize", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { amount, currency, email } = req.body;
+      
+      if (!amount || !currency || !email) {
+        return res.status(400).json({ error: "Amount, currency, and email are required" });
+      }
+
+      if (amount < 5 || amount > 50000) {
+        return res.status(400).json({ error: "Invalid amount" });
+      }
+
+      const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+      if (!paystackSecretKey) {
+        return res.status(500).json({ error: "Payment configuration missing" });
+      }
+
+      const user = await storage.getUser(req.user!.uid);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Get the base URL from request or environment
+      const protocol = req.get("x-forwarded-proto") || req.protocol || "https";
+      const host = req.get("x-forwarded-host") || req.get("host");
+      const baseUrl = `${protocol}://${host}`;
+
+      // Convert to smallest unit (cents, pence, etc.) - amount is already in major unit
+      const amountInSmallestUnit = Math.round(amount * 100);
+
+      const response = await fetch("https://api.paystack.co/transaction/initialize", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${paystackSecretKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: amountInSmallestUnit, // Already in smallest unit
+          email,
+          currency: currency.toUpperCase(),
+          metadata: {
+            userId: req.user!.uid,
+            type: "wallet_topup",
+            currency,
+          },
+          callback_url: `${baseUrl}/api/wallet/topup/verify-web`,
+        }),
+      });
+
+      const data = await response.json();
+      if (!data.status) {
+        throw new Error(data.message || "Failed to initialize Paystack transaction");
+      }
+
+      // Create wallet transaction record
+      await db.insert(walletTransactions).values({
+        userId: req.user!.uid,
+        type: "topup",
+        amount: amountInSmallestUnit,
+        currency: currency.toUpperCase(),
+        status: "pending",
+        reference: data.data.reference,
+        description: `Wallet top-up`,
+        paymentMethod: "paystack",
+        paymentData: JSON.stringify(data.data),
+        balanceBefore: user.walletBalance,
+        balanceAfter: user.walletBalance, // Will be updated on success
+      });
+
+      res.json(data.data);
+    } catch (error: any) {
+      console.error("Wallet top-up initialization error:", error);
+      res.status(500).json({ error: error.message || "Failed to initialize top-up" });
+    }
+  });
+
+  // Verify wallet top-up
+  app.get("/api/wallet/topup/verify/:reference", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { reference } = req.params;
+      const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+      
+      if (!paystackSecretKey) {
+        return res.status(500).json({ error: "Payment configuration missing" });
+      }
+
+      const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+        headers: {
+          Authorization: `Bearer ${paystackSecretKey}`,
+        },
+      });
+
+      const data = await response.json();
+      
+      if (data.status && data.data.status === "success") {
+        const { metadata, amount, currency } = data.data;
+        
+        // Get transaction record
+        const txnResult = await db
+          .select()
+          .from(walletTransactions)
+          .where(eq(walletTransactions.reference, reference));
+        
+        if (txnResult.length > 0 && txnResult[0].status === "pending") {
+          const transaction = txnResult[0];
+          
+          // Get user
+          const user = await storage.getUser(metadata.userId);
+          if (user) {
+            // Update user wallet balance
+            const newBalance = user.walletBalance + transaction.amount;
+            await db
+              .update(users)
+              .set({ walletBalance: newBalance })
+              .where(eq(users.id, metadata.userId));
+            
+            // Update transaction status
+            await db
+              .update(walletTransactions)
+              .set({ 
+                status: "completed",
+                balanceAfter: newBalance,
+                completedAt: new Date(),
+              })
+              .where(eq(walletTransactions.reference, reference));
+          }
+        }
+      }
+
+      res.json(data);
+    } catch (error: any) {
+      console.error("Wallet top-up verification error:", error);
+      res.status(500).json({ error: error.message || "Failed to verify top-up" });
+    }
+  });
+
+  // Web fallback for browser top-up completion
+  app.get("/api/wallet/topup/verify-web", async (req, res) => {
+    const { reference } = req.query;
+    res.send(`
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; text-align: center; background: #f5f5f5; }
+            .container { max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            h1 { color: #0A58FF; margin-bottom: 10px; }
+            p { color: #666; }
+            .icon { font-size: 48px; margin-bottom: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="icon">✓</div>
+            <h1>Processing Payment</h1>
+            <p>Your wallet top-up is being verified. You can close this window and return to the app.</p>
+          </div>
+          <script>
+            setTimeout(() => window.close(), 3000);
+          </script>
+        </body>
+      </html>
+    `);
+  });
+
+  // Get wallet transactions
+  app.get("/api/wallet/transactions", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const transactions = await db
+        .select()
+        .from(walletTransactions)
+        .where(eq(walletTransactions.userId, req.user!.uid))
+        .orderBy(desc(walletTransactions.createdAt));
+      
+      res.json(transactions);
+    } catch (error: any) {
+      console.error("Failed to fetch wallet transactions:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch transactions" });
+    }
+  });
+
+  // Get wallet balance
+  app.get("/api/wallet/balance", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const user = await storage.getUser(req.user!.uid);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      res.json({ balance: user.walletBalance, currency: "USD" });
+    } catch (error: any) {
+      console.error("Failed to fetch wallet balance:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch balance" });
+    }
+  });
+
   // Register receiver enhancements
   registerReceiverEnhancements(app);
 

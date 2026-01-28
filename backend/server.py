@@ -335,6 +335,26 @@ async def post_carrier_location(
 ):
     parcel = await _get_parcel_or_404(parcel_id)
 
+    if not parcel.get("liveTrackingEnabled", False):
+        raise HTTPException(status_code=403, detail="Live GPS tracking is disabled for this parcel")
+
+    if parcel.get("transporterId") != carrierId:
+        raise HTTPException(status_code=403, detail="Only the accepted carrier can post location")
+
+    loc = {
+        "id": str(uuid.uuid4()),
+        "parcelId": parcel_id,
+        "carrierId": carrierId,
+        "lat": body.lat,
+        "lng": body.lng,
+        "heading": body.heading,
+        "speed": body.speed,
+        "accuracy": body.accuracy,
+        "timestamp": _now(),
+    }
+    await db.carrier_locations.insert_one(loc)
+    return loc
+
 
 @app.get("/api/parcels/{parcel_id}/receiver-location", response_model=Optional[ReceiverLocationOut])
 async def get_receiver_location(parcel_id: str):
@@ -364,25 +384,4 @@ async def post_receiver_location(
         "timestamp": _now(),
     }
     await db.receiver_locations.insert_one(loc)
-    return loc
-
-
-    if not parcel.get("liveTrackingEnabled", False):
-        raise HTTPException(status_code=403, detail="Live GPS tracking is disabled for this parcel")
-
-    if parcel.get("transporterId") != carrierId:
-        raise HTTPException(status_code=403, detail="Only the accepted carrier can post location")
-
-    loc = {
-        "id": str(uuid.uuid4()),
-        "parcelId": parcel_id,
-        "carrierId": carrierId,
-        "lat": body.lat,
-        "lng": body.lng,
-        "heading": body.heading,
-        "speed": body.speed,
-        "accuracy": body.accuracy,
-        "timestamp": _now(),
-    }
-    await db.carrier_locations.insert_one(loc)
     return loc
